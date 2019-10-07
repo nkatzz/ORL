@@ -1,0 +1,34 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36} - %msg%n</pattern>
+            <!-- Remove time stamp -->
+            <!-- <pattern> [%thread] %-5level %logger{36} - %msg%n</pattern> -->
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <!-- path to your log file where you want to store logs -->
+        <file>logger.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Disable the mognodb logger, he's really annoying -->
+    <logger name="org.mongodb" level="OFF">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="lomrf" level="error">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <!-- <root level="debug"> -->
+    <root level="info">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+    </root>
+
+</configuration>
