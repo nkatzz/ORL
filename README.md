@@ -1,2 +1,2 @@
-# OTRL
-Online Temporal Relational Learning
+# TeLL
+Online Temporal Logical Learning
