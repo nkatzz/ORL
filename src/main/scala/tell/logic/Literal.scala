@@ -1,5 +1,7 @@
 package tell.logic
 
+import tell.logic.parsers.{ClausalLogicParser, ModesParser, PB2LogicParser}
+
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks
 
@@ -8,6 +10,49 @@ import scala.util.control.Breaks
  */
 
 object Literal {
+
+  val empty: Literal = Literal()
+
+
+  /*
+  * I'm quiting parsing based on parser combinators, I'll the parboiled lib which is much faster.
+  * ATTENTION: The PB2LogicParser cannot currently handle whitespace in the input strings (I need to fix it). This
+  * doesn't happen in the app right now but it might be a problem in the future. If any issue appears just comment-out
+  * this version of the parse method and use the one above, based on parser combinators.
+  * */
+  def parse(lit: String, mode: String = "") = parseWPB2(lit, mode)
+
+  /* As above, using the Parboiled2 parser (faster). */
+  def parseWPB2(lit: String, mode: String = "") = {
+
+    def getModeAtom(atom: String): ModeAtom = {
+      val p = new ModesParser
+      p.getParseResult(p.parseModes(p.mode, atom))
+    }
+
+    mode match {
+      case "" => PB2LogicParser.parseAtom(lit).asInstanceOf[Literal]
+      case _ =>
+        val l = PB2LogicParser.parseAtom(lit).asInstanceOf[Literal]
+        val m = getModeAtom(mode)
+        Literal(predSymbol = l.predSymbol, terms = l.terms, isNAF = l.isNAF, modeAtom = m)
+    }
+  }
+
+  def toLiteral1(lit: String, mode: ModeAtom = ModeAtom("", List())): Literal = {
+    val p = new ClausalLogicParser
+    val l = p.getParseResult(p.parse(p.literal, lit)).asInstanceOf[Literal]
+    val out = Literal(predSymbol = l.predSymbol, terms = l.terms, isNAF = l.isNAF, modeAtom = mode)
+    out
+  }
+
+  def toLiteral2(lit: Literal, mode: ModeAtom = ModeAtom("", List())): Literal = {
+    val out = mode match {
+      case ModeAtom("", List(), false) => lit
+      case _ => Literal(predSymbol = lit.predSymbol, terms = lit.terms, isNAF = lit.isNAF, modeAtom = mode)
+    }
+    out
+  }
 
 
   def toMLNClauseLiteral(l: Literal) = {
@@ -103,7 +148,7 @@ case class Literal(predSymbol: String = "",
   /**
    * Returns this literal's mode placemarkers.
    * */
-  lazy val placeMarkers = getPlmrkTerms(Nil, Nil, Nil, this.terms zip this.modeAtom.args)
+  lazy val placeMarkers: (List[LogicalExpression], List[LogicalExpression], List[LogicalExpression]) = getPlmrkTerms(Nil, Nil, Nil, this.terms zip this.modeAtom.args)
 
   /**
    * Returns a negated version of this literal

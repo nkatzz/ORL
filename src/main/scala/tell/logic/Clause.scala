@@ -3,6 +3,8 @@ package tell.logic
 import java.text.DecimalFormat
 import java.util.UUID
 
+import tell.logic.parsers.PB2LogicParser
+
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -19,6 +21,22 @@ object Clause {
   def apply(head: Literal, body: List[Literal]) = {
     new Clause(head = head, body = body)
   }
+
+  /* Parses a string into a Clause. */
+  /*
+  def parse(cl: String): Clause = {
+    val p = new ClausalLogicParser
+    p.getParseResult(p.parse(p.clause, cl)).asInstanceOf[Clause]
+  }
+  */
+
+  /* Use this which is faster that combinators parsing. If any problems occur just fall back to the previous parser
+  * (uncomment the method above.) See also the related comment at the parse method of the Literal companion object.*/
+  def parse(cl: String) = parseWPB2(cl)
+
+  def parseWPB2(cl: String) = PB2LogicParser.parseClause(cl).asInstanceOf[Clause]
+
+  def toMLNFlat(c: Clause) = {}
 
 }
 
