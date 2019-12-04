@@ -1,4 +1,4 @@
-package tell.learning.structure
+package oled.learning.structure
 
 /**
  * Created by nkatz on 7/10/19.

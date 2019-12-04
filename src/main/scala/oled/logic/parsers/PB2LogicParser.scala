@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tell.logic.parsers
+package oled.logic.parsers
 
 import com.typesafe.scalalogging.LazyLogging
 import org.parboiled2._
-import tell.logic.{Constant, Literal, LogicalExpression, Variable, Clause}
+import oled.logic.{Constant, Literal, LogicalExpression, Variable, Clause}
 
 import scala.util.{Failure, Success, Try}
 
@@ -73,7 +73,7 @@ final class PB2LogicParser(val input: ParserInput) extends Parser {
 
   def Clause = rule {
     Atom ~ " :- " ~ BodyLiterals ~ optional(".") ~ EOI ~> ( (x, y) =>
-      tell.logic.Clause(head = x, body = y.elems.map(_.asInstanceOf[Literal])) )
+      oled.logic.Clause(head = x, body = y.elems.map(_.asInstanceOf[Literal])) )
   }
 
   def Atom = rule {

@@ -15,9 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tell.logic.parsers
+package oled.logic.parsers
 
-import tell.logic.{Clause, Constant, Literal, LogicalExpression, Variable}
+import oled.logic.{Clause, Constant, Literal, LogicalExpression, Variable}
 
 import scala.util.parsing.combinator.JavaTokenParsers
 

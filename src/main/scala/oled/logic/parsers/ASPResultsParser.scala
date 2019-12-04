@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tell.logic.parsers
+package oled.logic.parsers
 
 class ASPResultsParser extends ClausalLogicParser {
    

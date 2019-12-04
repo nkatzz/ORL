@@ -1,6 +1,6 @@
-package tell.logic
+package oled.logic
 
-import tell.logic.parsers.{ClausalLogicParser, ModesParser, PB2LogicParser}
+import oled.logic.parsers.{ClausalLogicParser, ModesParser, PB2LogicParser}
 
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks

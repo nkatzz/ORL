@@ -1,4 +1,4 @@
-package tell.learning.weights
+package oled.learning.weights
 
 /**
  * Created by nkatz on 7/10/19.

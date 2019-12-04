@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tell.logic.parsers
+package oled.logic.parsers
 
 import com.typesafe.scalalogging.LazyLogging
-import tell.logic.{LogicalExpression, ModeAtom, PlmrkConst, PlmrkNeg, PlmrkPos}
+import oled.logic.{LogicalExpression, ModeAtom, PlmrkConst, PlmrkNeg, PlmrkPos}
 
 import scala.util.parsing.combinator.JavaTokenParsers
 

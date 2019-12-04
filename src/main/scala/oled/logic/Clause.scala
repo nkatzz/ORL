@@ -1,9 +1,9 @@
-package tell.logic
+package oled.logic
 
 import java.text.DecimalFormat
 import java.util.UUID
 
-import tell.logic.parsers.PB2LogicParser
+import oled.logic.parsers.PB2LogicParser
 
 import scala.collection.mutable.ListBuffer
 

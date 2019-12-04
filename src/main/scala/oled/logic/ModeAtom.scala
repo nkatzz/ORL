@@ -1,6 +1,6 @@
-package tell.logic
+package oled.logic
 
-import tell.app.Globals
+import oled.app.Globals
 
 
 /**
