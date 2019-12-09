@@ -89,11 +89,8 @@ case class Clause(head: Literal = Literal(),
 
     def isSubset(x: Set[Any], y: Set[Any]): Boolean = x subsetOf y
 
-    val isVar = (x: String) => try {
-      Variable(x); true
-    } catch {
-      case _: IllegalArgumentException => false
-    }
+    val isVar = (x: String) => try { Variable(x); true } catch { case _: IllegalArgumentException => false }
+
     val (skolemised, skmap) = that.skolemise
     var skolems = (for (y <- skmap.keySet.filter(x => isVar(x))) yield skmap(y)).toList
     val thisVars = this.getVars
