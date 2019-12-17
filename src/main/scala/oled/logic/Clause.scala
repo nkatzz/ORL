@@ -435,5 +435,13 @@ case class Clause(head: Literal = Literal(),
     out
   }
 
+  def withTypePreds(modes: List[ModeAtom], extraTypePreds: List[String] = List()): Clause = {
+    val types = (for (x <- this.toLiteralList)
+      yield x.getTypePredicates(modes)).filter { z => z != Nil }.
+      flatten.++(extraTypePreds).distinct.
+      map { y => Literal.parse(y) }
+    Clause(head = this.head, body = this.body ::: types)
+  }
+
 
 }

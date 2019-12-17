@@ -17,4 +17,8 @@ object LogicUtils {
     compressed.toList
   }
 
+  def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String) = {
+    clauses.map(x => x.showWithStats(scoreFun) ).mkString("\n")
+  }
+
 }

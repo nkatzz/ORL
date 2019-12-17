@@ -1,6 +1,6 @@
 package oled.logic
 
-import oled.app.Globals
+import oled.app.runutils.Globals
 
 
 /**

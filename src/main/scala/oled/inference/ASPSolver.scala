@@ -16,13 +16,13 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
    * */
   def solve(program: String) = {
 
-    def aspResult: Parser[Set[String]] = repsep(literal, "") ^^ { x => x.map(_.tostring).toSet }
+    def aspResult: Parser[List[String]] = repsep(literal, "") ^^ { x => x.map(_.tostring).toList}//.toVector }
 
     def processLine(x: String) = {
       val stripped = x.replaceAll("\\s", "")
       parseAll(aspResult, stripped) match {
         case Success(result, _) => result
-        case f => Set.empty[String]
+        case f => List.empty[String]
       }
     }
 
@@ -53,7 +53,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     val answerSet = results.map(x => processLine(x)).filter(_.nonEmpty)//.reverse
 
     if (answerSet.isEmpty) {
-      Set.empty[String]
+      List.empty[String]
     } else if (answerSet.size > 1) {
       // If this happens for some reason, it should be checked-out.
       throw new RuntimeException(s"More than one answer sets returned from Clingo. The answer sets are: ${answerSet.foreach(println)}")

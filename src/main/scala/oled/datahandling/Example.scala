@@ -10,7 +10,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 
 object Example {
 
-  def apply(queryAtoms: Set[String], observations: Set[String], time: String) = {
+  def apply(queryAtoms: List[String], observations: List[String], time: String) = {
     val exmpl = new Example
     exmpl.queryAtoms = queryAtoms
     exmpl.observations = observations
@@ -19,28 +19,41 @@ object Example {
   }
 
   def apply(o: DBObject) = {
-    val queryAtoms = o.asInstanceOf[BasicDBObject].get("annotation").asInstanceOf[BasicDBList].toList.map(_.toString).toSet
-    val observations = o.asInstanceOf[BasicDBObject].get("narrative").asInstanceOf[BasicDBList].toList.map(_.toString).toSet
+    val queryAtoms = o.asInstanceOf[BasicDBObject].get("annotation").asInstanceOf[BasicDBList].toList.map(_.toString)//.toSet
+    val observations = o.asInstanceOf[BasicDBObject].get("narrative").asInstanceOf[BasicDBList].toList.map(_.toString)//.toSet
     val time = o.asInstanceOf[BasicDBObject].get("time").toString
-    val e = new Example
-    e.queryAtoms = queryAtoms
-    e.observations = observations
-    e.time = time
+    val exmpl = new Example
+    exmpl.queryAtoms = queryAtoms
+    exmpl.observations = observations
+    exmpl.time = time
+    exmpl
+  }
+
+  def apply(): Example = {
+    new Example()
   }
 
 }
 
-class Example {
+class Example() {
 
-  var queryAtoms: Set[String] = Set.empty[String]
-  var observations: Set[String] = Set.empty[String]
+  var queryAtoms: List[String] = Nil
+  var observations: List[String] = Nil
   var time = "0"
 
-  def tostring = (queryAtoms ++ observations).mkString("\n")
+  val isEmpty: Boolean = queryAtoms.isEmpty && observations.isEmpty
 
-  def toMongoEntryObject = {
+  def tostring: String = (queryAtoms ++ observations).mkString("\n")
+
+  def toMongoEntryObject: DBObject = {
     val entry = MongoDBObject("time" -> time) ++ ("annotation" -> queryAtoms) ++ ("narrative" -> observations)
     entry
+  }
+
+  def toASP() = {
+    val q = queryAtoms.map(x => s"example($x).")
+    val o = observations.map(x => s"$x.")
+    q ++ o
   }
 
 }

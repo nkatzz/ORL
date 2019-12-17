@@ -1,5 +1,6 @@
 package oled.logic
 
+import oled.app.runutils.Globals
 import oled.logic.parsers.{ClausalLogicParser, ModesParser, PB2LogicParser}
 
 import scala.collection.mutable.ListBuffer
@@ -73,6 +74,27 @@ object Literal {
     Literal(l.predSymbol.capitalize, toMLN, isNAF = l.isNAF)
   }
 
+
+  def types(l: String, mode: ModeAtom, globals: Globals) = {
+    val modeDeclarations = globals.MODEHS ++ globals.MODEBS
+    def terms(lit: Literal): List[LogicalExpression] = {
+      val (in, out, grnd) = lit.placeMarkers
+      val v = in ++ out ++ grnd
+      v match {
+        case Nil =>
+          val mode = lit.matchingMode(modeDeclarations)
+          if (!mode.isEmpty) {
+            val l = Literal(predSymbol = lit.predSymbol, terms = lit.terms,
+              isNAF = true, modeAtom = mode, typePreds = lit.typePreds)
+            l.variables(modeDeclarations)
+          } else { Nil }
+        case _ => v
+      }
+    }
+    val lit = toLiteral1(l,mode)
+    val termTypes = terms(lit) map {x => s"${x._type}(${x.tostring})"}
+    termTypes.distinct.mkString(",")
+  }
 
   /* Converts a ground literal in ASP format into MLN format.
    *
