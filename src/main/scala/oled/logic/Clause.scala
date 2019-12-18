@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.logic
 
 import java.text.DecimalFormat
@@ -8,8 +25,8 @@ import oled.logic.parsers.PB2LogicParser
 import scala.collection.mutable.ListBuffer
 
 /**
- * Created by nkatz at 4/12/19
- */
+  * Created by nkatz at 4/12/19
+  */
 
 object Clause {
   val empty: Clause = Clause()
@@ -40,9 +57,10 @@ object Clause {
 
 }
 
-case class Clause(head: Literal = Literal(),
-                  body: List[Literal] = Nil,
-                  uuid: String = UUID.randomUUID.toString) extends LogicalExpression {
+case class Clause(
+    head: Literal = Literal(),
+    body: List[Literal] = Nil,
+    uuid: String = UUID.randomUUID.toString) extends LogicalExpression {
 
   var parentClause: Clause = Clause.empty
   var isBottomRule = false
@@ -69,13 +87,14 @@ case class Clause(head: Literal = Literal(),
 
   def addToSupport(c: List[Clause]) = this.supportSet = this.supportSet ++ c
 
-  def removeFromSupport(c: Clause) = this.supportSet = this.supportSet.filter(x => x!=c)
+  def removeFromSupport(c: Clause) = this.supportSet = this.supportSet.filter(x => x != c)
 
   def compressSupport = {
     val redundants = this.supportSet filter {
-      p => this.supportSet exists {
-        q => !p.equals(q) && (p thetaSubsumes q)
-      }
+      p =>
+        this.supportSet exists {
+          q => !p.equals(q) && (p thetaSubsumes q)
+        }
     }
     this.supportSet = this.supportSet filter (p => !redundants.contains(p))
   }
@@ -87,7 +106,7 @@ case class Clause(head: Literal = Literal(),
 
   def thetaSubsumes(that: Clause): Boolean = {
 
-    def isSubset(x: Set[Any], y: Set[Any]): Boolean = x subsetOf y
+      def isSubset(x: Set[Any], y: Set[Any]): Boolean = x subsetOf y
 
     val isVar = (x: String) => try { Variable(x); true } catch { case _: IllegalArgumentException => false }
 
@@ -116,22 +135,22 @@ case class Clause(head: Literal = Literal(),
   def toStrList: List[String] = List(head.tostring) ++ (for (x <- body) yield x.tostring)
 
   /**
-   * Replaces all variables with a new constant symbol 'skolem0', 'skolem1' etc. Same variables correspond to the
-   * same constant symbol. Constants remain intact, i.e. they are used as skolem constants themselves. Example:
-   *
-   * a(X,Y,Z) :-
-   * p(x,q(Y,const1,2),Z),
-   * not r(A,B,C).
-   *
-   * is turned into:
-   *
-   * a(skolem0,skolem1,skolem2) :-
-   * p(skolem0,q(skolem1,const1,2),skolem2),
-   * not r(skolem3,skolem4,skolem5).
-   *
-   * Returns the skolemised clause and the 'vars -> skolems' map
-   *
-   */
+    * Replaces all variables with a new constant symbol 'skolem0', 'skolem1' etc. Same variables correspond to the
+    * same constant symbol. Constants remain intact, i.e. they are used as skolem constants themselves. Example:
+    *
+    * a(X,Y,Z) :-
+    * p(x,q(Y,const1,2),Z),
+    * not r(A,B,C).
+    *
+    * is turned into:
+    *
+    * a(skolem0,skolem1,skolem2) :-
+    * p(skolem0,q(skolem1,const1,2),skolem2),
+    * not r(skolem3,skolem4,skolem5).
+    *
+    * Returns the skolemised clause and the 'vars -> skolems' map
+    *
+    */
 
   def skolemise: (Clause, Map[String, String]) = {
     val l = this.toLiteralList
@@ -143,15 +162,16 @@ case class Clause(head: Literal = Literal(),
       temp += toLit
     }
     val fl = temp.toList
-    val sk = Clause(head = fl.head,
-      body = for (x <- fl; if fl.indexOf(x) != 0 ) yield x)
+    val sk = Clause(
+      head = fl.head,
+      body = for (x <- fl; if fl.indexOf(x) != 0) yield x)
     (sk, skmap)
   }
 
   /**
-   * Generates skolem constants from the variables and the constants of the clause. It returns a map of the form
-   * Map('X -> skolem0', 'Y -> skolem1', 'const -> const', .... ) (we use the constants as skolem constants)
-   */
+    * Generates skolem constants from the variables and the constants of the clause. It returns a map of the form
+    * Map('X -> skolem0', 'Y -> skolem1', 'const -> const', .... ) (we use the constants as skolem constants)
+    */
 
   private def getSkolemConsts: Map[String, String] = {
     val l = this.toLiteralList
@@ -166,7 +186,6 @@ case class Clause(head: Literal = Literal(),
   }
 
   def toLiteralList = List(head) ++ (for (x <- body) yield x)
-
 
   def clearStatistics = {
     tps = 0
@@ -185,13 +204,13 @@ case class Clause(head: Literal = Literal(),
   }
 
   def recall: Double = {
-    val rec = tps.toFloat / ( tps + fns)
+    val rec = tps.toFloat / (tps + fns)
     if (rec.isNaN) 0.0 else rec
   }
 
   def fscore: Double = {
-    if (this.precision+this.recall == 0) 0.0
-    else (2*this.precision*this.recall)/(this.precision+this.recall)
+    if (this.precision + this.recall == 0) 0.0
+    else (2 * this.precision * this.recall) / (this.precision + this.recall)
   }
 
   def foilGain(funct: String) = {
@@ -223,8 +242,8 @@ case class Clause(head: Literal = Literal(),
         val gain = if (_gain <= 0) 0.0 else _gain
 
         // This is the maximum gain for a given rule:
-        val max = parentClause.tps.toDouble * (- Math.log(parentCoverage) )
-        val normalizedGain =  gain/max
+        val max = parentClause.tps.toDouble * (-Math.log(parentCoverage))
+        val normalizedGain = gain / max
 
         normalizedGain
       }
@@ -243,11 +262,11 @@ case class Clause(head: Literal = Literal(),
     // The - sign is to sort with decreasing order (default is with increasing)
     // Also sort clauses by length, so that sorter clauses be preferred over longer ones with the same score
     val allSorted =
-    if (scoringFunction == "foilgain")
-    // The parent rule should not be included here (otherwise it will always win, see the foil gain formula)
-      this.refinements.sortBy { x => (- x.score(scoringFunction), - x.weight, x.body.length+1) }
-    else
-      (List(this) ++ this.refinements).sortBy { x => (- x.score(scoringFunction), - x.weight, x.body.length+1) }
+      if (scoringFunction == "foilgain")
+        // The parent rule should not be included here (otherwise it will always win, see the foil gain formula)
+        this.refinements.sortBy { x => (-x.score(scoringFunction), -x.weight, x.body.length + 1) }
+      else
+        (List(this) ++ this.refinements).sortBy { x => (-x.score(scoringFunction), -x.weight, x.body.length + 1) }
 
     val bestTwo = allSorted.take(2)
 
@@ -255,17 +274,16 @@ case class Clause(head: Literal = Literal(),
     // The correct way to do it is as the commented one above. But in some cases
     // the refinements lists is empty (this has only occurred when I use basic and auxiliary predicates in fraud).
     // This should be handled generically, a clause with no candidate refs should not be considered for specialization
-    val (best,secondBest) =
-    if (bestTwo.length > 1) (bestTwo.head,bestTwo.tail.head) else (bestTwo.head,bestTwo.head)
+    val (best, secondBest) =
+      if (bestTwo.length > 1) (bestTwo.head, bestTwo.tail.head) else (bestTwo.head, bestTwo.head)
     val newDiff = best.score(scoringFunction) - secondBest.score(scoringFunction)
-    val newMeanDiff = ( (previousMeanDiff * previousMeanDiffCount) + newDiff)/(previousMeanDiffCount + 1)
+    val newMeanDiff = ((previousMeanDiff * previousMeanDiffCount) + newDiff) / (previousMeanDiffCount + 1)
 
     previousMeanDiffCount += 1
     previousMeanDiff = newMeanDiff
 
-    (newMeanDiff,best,secondBest)
+    (newMeanDiff, best, secondBest)
   }
-
 
   def score(scoringFunction: String): Double = {
 
@@ -344,13 +362,14 @@ case class Clause(head: Literal = Literal(),
   }
 
   /**
-   * @param rulesThatAlreadyExists is an optional paramater to avoid generating the same stuff.
-   * */
-  def generateCandidateRefs(spDepth: Int,
-                            comparisonPredicates: List[ModeAtom],
-                            rulesThatAlreadyExists: Vector[Clause] = Vector.empty[Clause]): Unit = {
+    * @param rulesThatAlreadyExists is an optional paramater to avoid generating the same stuff.
+    */
+  def generateCandidateRefs(
+      spDepth: Int,
+      comparisonPredicates: List[ModeAtom],
+      rulesThatAlreadyExists: Vector[Clause] = Vector.empty[Clause]): Unit = {
 
-    /*
+      /*
     * Checks if a specialization is redundant. Currently a specialization is
     * redundant if it consists only of comparison predicates of the same type.
     * For instance, this is redundant:
@@ -360,27 +379,27 @@ case class Clause(head: Literal = Literal(),
     * where close(X, Y, Z, T) means that the Euclidean distance of X and Y at time T is less than Z.
     *
     * */
-    def redundant(newLits: Set[Literal]) = {
-      val all = this.body ++ newLits
+      def redundant(newLits: Set[Literal]) = {
+        val all = this.body ++ newLits
 
-      val test: Set[ModeAtom] = all.map(x => x.modeAtom).toSet
+        val test: Set[ModeAtom] = all.map(x => x.modeAtom).toSet
 
-      // if the test variable is a singleton then all
-      // predicates are comparison predicates of the same type
-      if (all.size == 1) false else test.size == 1 && comparisonPredicates.contains(test.head)
-    }
+        // if the test variable is a singleton then all
+        // predicates are comparison predicates of the same type
+        if (all.size == 1) false else test.size == 1 && comparisonPredicates.contains(test.head)
+      }
 
     val candidateList = this.supportSet.flatMap(_.body).distinct.filter(!this.body.contains(_))
 
     val refinementsSets =
-    (for (x <- 1 to spDepth) yield x).foldLeft(List[List[Clause]]()) { (accum, depth) =>
-      val z = for ( lits <- candidateList.toSet.subsets(depth).toVector if !redundant(lits) ) yield Clause(this.head, this.body ++ lits)
-      val z_ = LogicUtils.compressTheory(z)
-      accum :+ z_
-    }
+      (for (x <- 1 to spDepth) yield x).foldLeft(List[List[Clause]]()) { (accum, depth) =>
+        val z = for (lits <- candidateList.toSet.subsets(depth).toVector if !redundant(lits)) yield Clause(this.head, this.body ++ lits)
+        val z_ = LogicUtils.compressTheory(z)
+        accum :+ z_
+      }
 
     // The filtering is used by Hedge
-    val flattend = refinementsSets.flatten.filter( ref => !rulesThatAlreadyExists.exists(rule => rule.thetaSubsumes(ref) && ref.thetaSubsumes(rule)) )
+    val flattend = refinementsSets.flatten.filter(ref => !rulesThatAlreadyExists.exists(rule => rule.thetaSubsumes(ref) && ref.thetaSubsumes(rule)))
 
     flattend.foreach { refinement =>
       refinement.parentClause = this
@@ -395,7 +414,6 @@ case class Clause(head: Literal = Literal(),
 
     this.refinements = flattend
   }
-
 
   override lazy val tostring: String = this.toStrList match {
     case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
@@ -423,7 +441,8 @@ case class Clause(head: Literal = Literal(),
     var map = scala.collection.mutable.Map[LogicalExpression, LogicalExpression]()
     var counter = 0
     for (x <- this.toLiteralList) {
-      val (a, _, c, d) = x.variabilize(List(Literal(predSymbol = x.predSymbol, isNAF = x.isNAF)),
+      val (a, _, c, d) = x.variabilize(
+        List(Literal(predSymbol = x.predSymbol, isNAF = x.isNAF)),
         x.terms zip x.modeAtom.args, map, List(), counter)
       val aa = Literal(a.head.predSymbol, a.head.terms, a.head.isNAF, x.modeAtom, a.head.typePreds)
       accum ++= List(aa)
@@ -442,6 +461,5 @@ case class Clause(head: Literal = Literal(),
       map { y => Literal.parse(y) }
     Clause(head = this.head, body = this.body ::: types)
   }
-
 
 }

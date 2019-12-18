@@ -1,11 +1,28 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.app.runutils
 
 import com.typesafe.scalalogging.LazyLogging
 import oled.logic.{Literal, ModeAtom}
 
 /**
- * Created by nkatz at 13/12/19
- */
+  * Created by nkatz at 13/12/19
+  */
 
 object BKHandling extends LazyLogging {
 
@@ -19,45 +36,44 @@ object BKHandling extends LazyLogging {
     val fnsMarked = (x: String) => s"\nfns(I,$x):- not marked(I,$x), example($x), rule(I).\n"
     val coverAllPositivesConstraint = (x: String) => s"\n:- example($x), not $x.\n"
     val excludeAllNegativesConstraint = (x: String) => s"\n:- $x, not example($x).\n"
-    val (tp,fp,fn,tpm,fpm,fnm,allpos,allnegs) =
+    val (tp, fp, fn, tpm, fpm, fnm, allpos, allnegs) =
       varbedExmplPatterns.
-        foldLeft(List[String](),List[String](),List[String](),List[String](),
-          List[String](),List[String](),List[String](),List[String]()){ (x,y) =>
-          (x._1 :+ tps(y) ,x._2 :+ fps(y), x._3 :+ fns(y),
-            x._4 :+ tpsMarked(y), x._5 :+ fpsMarked(y) ,
-            x._6 :+ fnsMarked(y), x._7 :+ coverAllPositivesConstraint(y), x._8 :+ excludeAllNegativesConstraint(y))
-        }
+        foldLeft(List[String](), List[String](), List[String](), List[String](),
+                 List[String](), List[String](), List[String](), List[String]()) { (x, y) =>
+            (x._1 :+ tps(y), x._2 :+ fps(y), x._3 :+ fns(y),
+              x._4 :+ tpsMarked(y), x._5 :+ fpsMarked(y),
+              x._6 :+ fnsMarked(y), x._7 :+ coverAllPositivesConstraint(y), x._8 :+ excludeAllNegativesConstraint(y))
+          }
     val mkString = (x: List[String]) => x.mkString("\n")
     (mkString(tp), mkString(fp), mkString(fn), mkString(tpm), mkString(fpm), mkString(fnm), mkString(allpos), mkString(allnegs))
   }
 
   def tpsCountRules(eps: List[Literal]) = {
-    eps.map{ x =>
+    eps.map { x =>
       s"\ntps(I,X) :- rule(I), X = #count { ${x.getVars.toList.map(_.tostring).mkString(",")}: marked(I,${x.tostring}), " +
         s"example(${x.tostring}) }."
     }.mkString("\n")
   }
 
   def fpsCountRules(eps: List[Literal]) = {
-    eps.map{ x =>
+    eps.map { x =>
       s"\nfps(I,X) :- rule(I), X = #count { ${x.getVars.toList.map(_.tostring).mkString(",")}: marked(I,${x.tostring}), " +
         s"not example(${x.tostring}) }."
     }.mkString("\n")
   }
 
   def fnsCountRules(eps: List[Literal]) = {
-    eps.map{ x =>
+    eps.map { x =>
       s"\nfns(I,X) :- rule(I), X = #count { ${x.getVars.toList.map(_.tostring).mkString(",")}: example(${x.tostring}), " +
         s"not marked(I,${x.tostring}) }."
     }.mkString("\n")
   }
 
-
   /* This method is used to generate the ASP code that scores initiation and termination rules  */
 
   def generateScoringBK(modehs: List[ModeAtom]) = {
 
-    if (modehs.isEmpty) { logger.error("No head mode declarations found.") ; System.exit(-1)}
+    if (modehs.isEmpty) { logger.error("No head mode declarations found."); System.exit(-1) }
 
     if (Globals.glvalues("with-ec").toBoolean) { // We're learning with the Event Calculus in the BK.
       // We can get the fluent from the head modes.
@@ -120,6 +136,5 @@ object BKHandling extends LazyLogging {
       (scoringRules, scoringRules)
     }
   }
-
 
 }

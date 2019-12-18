@@ -38,21 +38,15 @@ if [ ! -d ../external_dependencies ]; then
 
     # Installing LoMRF
     log_info "Installing LoMRF."
-    wget http://users.iit.demokritos.gr/~nkatz/oled/LoMRF.tar.xz
+    wget https://github.com/anskarl/LoMRF/archive/develop.zip
     wget http://users.iit.demokritos.gr/~nkatz/oled/lpsolve55.tar.xz
-    wget http://users.iit.demokritos.gr/~nkatz/oled/auxlib.tar.xz
-    tar xf LoMRF.tar.xz
+    unzip develop
     tar xf lpsolve55.tar.xz
-    tar xf auxlib.tar.xz
-    cd auxlib
+    cd LoMRF-develop
     sbt +publishLocal
     cd ..
-    cd LoMRF
-    sbt +publishLocal
-    cd ..
-    rm LoMRF.tar.xz
+    rm develop.zip
     rm lpsolve55.tar.xz
-    rm auxlib.tar.xz
     cd ..
 
     # Installing Interval Tree
@@ -69,8 +63,8 @@ fi
 # Get version from 'version.sbt'
 version=`/bin/grep "^version[ ][ ]*in[ ][ ]*ThisBuild[ ][ ]*:=[ ][ ]*" "../version.sbt" | sed 's/version[ ][ ]*in[ ][ ]*ThisBuild[ ][ ]*:=[ ][ ]*\"\(.*\)\"/\1/g'`
 
-log_info "Building TeLL ${version} ..."
+log_info "Building OLED ${version} ..."
 cd ..
 sbt assembly
 mv target/scala-2.11/oled-${version}.jar .
-log_info "Done building TeLL. The jar is located at: `pwd`"
+log_info "Done building OLED. The jar is located at: `pwd`"

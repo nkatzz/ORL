@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.learning
 
 import akka.actor.Actor
@@ -12,14 +29,13 @@ import org.slf4j.LoggerFactory
 import oled.learning.structure.OldStructureLearningFunctions.growNewRuleTest
 import OldStructureLearningFunctions.generateNewRules
 
-
 /**
- * Created by nkatz at 13/12/19
- */
+  * Created by nkatz at 13/12/19
+  */
 
 class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
-                                testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
-                                testingDataFunction: T => Iterator[Example]) extends Actor {
+    testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
+    testingDataFunction: T => Iterator[Example]) extends Actor {
 
   import context.become
 
@@ -37,7 +53,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
   private def getNextBatch = if (data.isEmpty) Example() else data.next()
 
   def receive: PartialFunction[Any, Unit] = {
-    case _ : Run =>
+    case _: Run =>
       become(controlState)
       start()
   }
@@ -45,7 +61,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
   def start(): Unit = {
     this.repeatFor -= 1
     data = getTrainingData
-    if (data.isEmpty) { logger.error(s"No data received.") ; System.exit(-1) }
+    if (data.isEmpty) { logger.error(s"No data received."); System.exit(-1) }
     self ! getNextBatch
   }
 
@@ -67,7 +83,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       // For now, just get the next data chunk.
       self ! getNextBatch
 
-    case _ : StartOver =>
+    case _: StartOver =>
       logger.info(s"Starting a new training iteration (${this.repeatFor - 1} iterations remaining.)")
       start()
   }
@@ -112,7 +128,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       fpCounts = _fpCounts
       fnCounts = _fnCounts
       totalGroundings = _totalGroundings
-      inertiaAtoms =_inertiaAtoms.toSet
+      inertiaAtoms = _inertiaAtoms.toSet
 
       /*=============== OLED ================*/
     } else {
@@ -120,7 +136,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
     }
 
     this.inertiaAtoms = inertiaAtoms
-    this.inertiaAtoms = Set.empty[Literal]              // Use this to difuse inertia
+    this.inertiaAtoms = Set.empty[Literal] // Use this to difuse inertia
 
     state.perBatchError = state.perBatchError :+ (fpCounts + fnCounts)
 
@@ -175,17 +191,17 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       self ! new StartOver
     } else if (repeatFor == 0) {
       val endTime = System.nanoTime()
-      val totalTime = (endTime - startTime)/1000000000.0
+      val totalTime = (endTime - startTime) / 1000000000.0
       val theory = state.getAllRules(inps.globals, "top")
 
-      // used for printing out the avegare loss vector
-      def avgLoss(in: Vector[Int]) = {
-        in.foldLeft(0, 0, Vector.empty[Double]){ (x, y) =>
-          val (count, prevSum, avgVector) = (x._1, x._2, x._3)
-          val (newCount, newSum) = (count + 1, prevSum + y)
-          (newCount, newSum, avgVector :+ newSum.toDouble/newCount )
+        // used for printing out the avegare loss vector
+        def avgLoss(in: Vector[Int]) = {
+          in.foldLeft(0, 0, Vector.empty[Double]) { (x, y) =>
+            val (count, prevSum, avgVector) = (x._1, x._2, x._3)
+            val (newCount, newSum) = (count + 1, prevSum + y)
+            (newCount, newSum, avgVector :+ newSum.toDouble / newCount)
+          }
         }
-      }
 
       logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun)}\nTraining time: $totalTime")
       logger.info(s"Mistakes per batch:\n${state.perBatchError}")
@@ -202,9 +218,5 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       throw new RuntimeException("This should never have happened (repeatFor is now negative?)")
     }
   }
-
-
-
-
 
 }

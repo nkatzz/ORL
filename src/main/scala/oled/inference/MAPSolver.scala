@@ -1,13 +1,32 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.inference
 
 import java.text.DecimalFormat
 
-import lomrf.logic.{AtomSignature, EvidenceAtom, FunctionMapping, PredicateCompletion, PredicateCompletionMode}
+import lomrf.logic.{AtomSignature, EvidenceAtom, FunctionMapping}
+import lomrf.logic.compile.{NormalForm, PredicateCompletion, PredicateCompletionMode}
 import lomrf.logic.parser.KBParser
 import lomrf.mln.grounding.MRFBuilder
 import lomrf.mln.inference.ILP
 import lomrf.mln.learning.structure.ClauseConstructor
-import lomrf.mln.model.{ConstantsDomainBuilder, EvidenceBuilder, KB, MLN}
+import lomrf.mln.model.{KB, MLN}
+import lomrf.mln.model.builders.{ConstantsDomainBuilder, EvidenceBuilder}
 import oled.datahandling.Example
 import oled.logic.{Clause, Literal}
 import lomrf.mln.model.AtomIdentityFunctionOps._
@@ -18,8 +37,8 @@ import scala.io.Source
 import scala.collection.mutable
 
 /**
- * Created by nkatz at 13/12/19
- */
+  * Created by nkatz at 13/12/19
+  */
 
 object MAPSolver {
 
@@ -31,8 +50,7 @@ object MAPSolver {
     val queryAtoms = Set(
       AtomSignature("HoldsAt", 2),
       AtomSignature("InitiatedAt", 2),
-      AtomSignature("TerminatedAt", 2)
-    )
+      AtomSignature("TerminatedAt", 2))
 
     /* Get BK etc */
     val mlnBKFile = s"${inps.entryPath}/MAPInferenceBK.mln"
@@ -75,12 +93,6 @@ object MAPSolver {
       domains.zip(args).foreach { case (domain, value) => const += domain -> value.symbol }
     }
 
-
-
-
-
-
-
     /*val domains = const.result()
     domains.foreach { case (name, set) =>
       val constants = set.iterator
@@ -88,7 +100,6 @@ object MAPSolver {
     }*/
 
     val evidenceBuilder = EvidenceBuilder(kb.predicateSchema, kb.functionSchema, queryAtoms, Set.empty, const.result())
-
 
     for (entry <- functionMappings) {
       val functionReturnConstant = entry._2._1
@@ -99,8 +110,6 @@ object MAPSolver {
       evidenceBuilder.functions += new FunctionMapping(functionReturnConstant, functionSymbol, functionArgs)
     }
 
-
-
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "active", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "appear", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "inactive", Vector("ref"))
@@ -108,8 +117,6 @@ object MAPSolver {
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "abrupt", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "running", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "disappear", Vector("ref"))
-
-
 
     for (atom <- mlnEvidenceAtoms) {
       val predicate = atom.predSymbol
@@ -129,11 +136,9 @@ object MAPSolver {
 
     val evidence = evidenceBuilder.result()
 
-
-
     println("  Predicate completion...")
     val resultedFormulas = PredicateCompletion(formulas, definiteClauses.toSet, PredicateCompletionMode.Decomposed)(kb.predicateSchema, kb.functionSchema, constants)
-    val cnf = ClauseConstructor.makeCNF(resultedFormulas)(constants).toVector
+    val cnf = NormalForm.compileFastCNF(resultedFormulas)(constants).toVector
 
     // This prints out the lifted rules in CNF form.
     //println(cnf.map(_.toText()).mkString("\n"))
@@ -154,12 +159,12 @@ object MAPSolver {
     //solver.infer()
 
     println("    Calling the solver...")
-    val s = solver.infer()
+    val s = solver.infer
 
     var result = Map.empty[String, Boolean]
 
     val it = s.mrf.atoms.iterator()
-    while(it.hasNext) {
+    while (it.hasNext) {
       it.advance()
       val a = it.value()
       val atom = a.id.decodeAtom(mln).get
@@ -174,15 +179,16 @@ object MAPSolver {
   }
 
   def MAPInferredStateToASP(mapState: MAPState, constsToAtoms: MLNConstsToASPAtomsMap) = {
-    mapState.map { case (mlnAtom, truthValue) =>
-      val _mlnAtom = {
-        val (head, tail) = (mlnAtom.head, mlnAtom.tail)
-        head.toString.toLowerCase() + tail
-      }
-      val aspAtom = constsToAtoms.foldLeft(_mlnAtom) { (x, y) =>
-        x.replaceAll(y._1, y._2)
-      }
-      aspAtom -> truthValue
+    mapState.map {
+      case (mlnAtom, truthValue) =>
+        val _mlnAtom = {
+          val (head, tail) = (mlnAtom.head, mlnAtom.tail)
+          head.toString.toLowerCase() + tail
+        }
+        val aspAtom = constsToAtoms.foldLeft(_mlnAtom) { (x, y) =>
+          x.replaceAll(y._1, y._2)
+        }
+        aspAtom -> truthValue
     }
   }
 
@@ -191,16 +197,15 @@ object MAPSolver {
     defaultNumFormat.format(x)
   }
 
-
   /**
-   * This method extracts function mappings from the current batch, stuff like
-   * Running_ID0 = running(ID0)
-   * Enter_ID0 = enter(ID0)
-   * Meeting_ID0_ID0 = meeting(ID0, ID0)...
-   * It also converts ASP evidence atoms to MLN evidence atoms and
-   * generates next/2 instances for LoMRF. It needs to extract fluent/1, event/1 and next/2 signatures form the batch data
-   *
-   * */
+    * This method extracts function mappings from the current batch, stuff like
+    * Running_ID0 = running(ID0)
+    * Enter_ID0 = enter(ID0)
+    * Meeting_ID0_ID0 = meeting(ID0, ID0)...
+    * It also converts ASP evidence atoms to MLN evidence atoms and
+    * generates next/2 instances for LoMRF. It needs to extract fluent/1, event/1 and next/2 signatures form the batch data
+    *
+    */
   def getFunctionMappings(exmpl: Example, bkFile: String) = {
 
     var functionMappings = scala.collection.mutable.Map[String, (String, String)]()
@@ -211,7 +216,7 @@ object MAPSolver {
     source.close()
     bk = bk :+ additonalDirectives
 
-    val all = ( exmpl.toASP() ++ bk)
+    val all = (exmpl.toASP() ++ bk)
     val stuff = ASPSolver.solve(all.mkString("\n"))
 
     val (fluents, events, nextAtoms) = stuff.foldLeft(List[String](), List[String](), List[String]()) { (x, y) =>
@@ -227,7 +232,7 @@ object MAPSolver {
       val atom = parsed.terms.head
       val atomStr = atom.tostring
       val functor = atom.asInstanceOf[Literal].predSymbol
-      val args =  atom.asInstanceOf[Literal].terms
+      val args = atom.asInstanceOf[Literal].terms
 
       // This is the term that represents the MLN constant (function value) that is generated from this atom.
       // For instance, given the atom meeting(id0,id2), the corresponding constant term is Meeting_Id0_Id2
@@ -246,7 +251,7 @@ object MAPSolver {
     // These are used to match the terms in the atoms of the MAP-inferred state and facilitate the conversion to ASP form.
     // It is a map of the form
     // Meeting_ID0_ID2 -> meeting(id0,id2)
-    val MLNConstantsToASPAtomsMap = functionMappings.map{ case (k, v) => v._1 -> k }
+    val MLNConstantsToASPAtomsMap = functionMappings.map { case (k, v) => v._1 -> k }
 
     // Convert ASP atoms to MLN representation.
     val MLNEvidenceAtoms = (exmpl.observations ++ nextAtoms).map { x =>
@@ -255,6 +260,5 @@ object MAPSolver {
     }
     (functionMappings, MLNEvidenceAtoms, MLNConstantsToASPAtomsMap)
   }
-
 
 }

@@ -1,11 +1,28 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.learning
 
 import oled.app.runutils.{Globals, RunningOptions}
 import oled.logic.Clause
 
 /**
- * Created by nkatz at 13/12/19
- */
+  * Created by nkatz at 13/12/19
+  */
 
 class State(inps: RunningOptions) {
 
@@ -37,7 +54,7 @@ class State(inps: RunningOptions) {
   *  specializations, while "top" returns the top non-empty bodied rules.
   *  */
   def getAllRules(gl: Globals, what: String) = {
-    val topRules  = getTopTheory()
+    val topRules = getTopTheory()
     what match {
       case "all" =>
         topRules.flatMap { topRule =>
@@ -54,7 +71,7 @@ class State(inps: RunningOptions) {
   def getBestRules(gl: Globals, quality: String = "weight") = {
     val comparisonPredicates = gl.comparisonPredicates
     val spDepth = Globals.glvalues("specializationDepth")
-    val topRules  = getTopTheory()
+    val topRules = getTopTheory()
     topRules map { topRule =>
       if (topRule.refinements.isEmpty) topRule.generateCandidateRefs(spDepth.toInt, comparisonPredicates)
       val sorted = (topRule.refinements :+ topRule).sortBy(x => if (quality == "weight") -x.weight else -x.score(scoringFunction))
@@ -91,12 +108,12 @@ class State(inps: RunningOptions) {
 
   def pruneRules(acceptableScore: Double) = {
 
-    /* Remove rules by score */
-    def removeBadRules(rules: List[Clause]) = {
-      rules.foldLeft(List.empty[Clause]) { (accum, rule) =>
-        if (rule.body.length >= 2 && rule.score(scoringFunction) <= 0.5) accum else accum :+ rule
+      /* Remove rules by score */
+      def removeBadRules(rules: List[Clause]) = {
+        rules.foldLeft(List.empty[Clause]) { (accum, rule) =>
+          if (rule.body.length >= 2 && rule.score(scoringFunction) <= 0.5) accum else accum :+ rule
+        }
       }
-    }
 
     initiationRules = removeBadRules(initiationRules)
     terminationRules = removeBadRules(terminationRules)

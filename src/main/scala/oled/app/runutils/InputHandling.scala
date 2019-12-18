@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.app.runutils
 
 import com.mongodb.casbah.commons.MongoDBObject
@@ -5,8 +22,8 @@ import com.mongodb.casbah.{MongoClient, MongoCollection}
 import oled.datahandling.Example
 
 /**
- * Created by nkatz at 13/12/19
- */
+  * Created by nkatz at 13/12/19
+  */
 
 object InputHandling {
 
@@ -49,9 +66,9 @@ object InputHandling {
   */
 
   class MongoDataOptions(val dbNames: Vector[String], val chunkSize: Int = 1,
-                         val limit: Double = Double.PositiveInfinity.toInt,
-                         val targetConcept: String = "None", val sortDbByField: String = "time",
-                         val sort: String = "ascending", val what: String = "training") extends MongoSource
+      val limit: Double = Double.PositiveInfinity.toInt,
+      val targetConcept: String = "None", val sortDbByField: String = "time",
+      val sort: String = "ascending", val what: String = "training") extends MongoSource
 
   /* "what" is either training or testing */
   def getMongoData(opts: MongoDataOptions): Iterator[Example] = {
@@ -105,6 +122,5 @@ object InputHandling {
     }
     exmplIters.foldLeft(Iterator[Example]())(_ ++ _)
   }
-
 
 }

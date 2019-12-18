@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.utils
 
 import java.io.{File, FileWriter}
@@ -8,28 +25,28 @@ import scala.math.BigInt
 import scala.util.Random
 
 /**
- * Created by nkatz at 4/12/19
- */
+  * Created by nkatz at 4/12/19
+  */
 
 object Utils {
 
   def dumpToFile(input: Any, file: String = "", howTowrite: String = "overwrite") = {
 
-    /* Write an iterable to file. Usage:
+      /* Write an iterable to file. Usage:
      * listToFile(new File("example.txt")) { p => data.foreach(p.println) }
      */
-    def listToFile(f: java.io.File, mode: String)(op: java.io.PrintWriter => Unit) {
+      def listToFile(f: java.io.File, mode: String)(op: java.io.PrintWriter => Unit) {
 
-      val p = mode match {
-        case "append" => new java.io.PrintWriter(new FileWriter(f, true))
-        case "overwrite" => new java.io.PrintWriter(new FileWriter(f, false))
-        case _ => new java.io.PrintWriter(new FileWriter(f, false)) // default is overwrite
+        val p = mode match {
+          case "append" => new java.io.PrintWriter(new FileWriter(f, true))
+          case "overwrite" => new java.io.PrintWriter(new FileWriter(f, false))
+          case _ => new java.io.PrintWriter(new FileWriter(f, false)) // default is overwrite
+        }
+        try { op(p) } finally { p.close() }
       }
-      try { op(p) } finally { p.close() }
-    }
 
     val writeTo =
-      if (file == "") File.createTempFile(s"temp-${System.currentTimeMillis()}-${UUID.randomUUID.toString}","asp")
+      if (file == "") File.createTempFile(s"temp-${System.currentTimeMillis()}-${UUID.randomUUID.toString}", "asp")
       else new File(file)
 
     val deleteOnExit = if (file == "") true else false
@@ -45,14 +62,14 @@ object Utils {
     writeTo
   }
 
-  def lined(msg: String) = s"\n$msg\n${"-"*msg.length}"
+  def lined(msg: String) = s"\n$msg\n${"-" * msg.length}"
 
-  def time[R](codeBlock : => R): (R, Double) = {
+  def time[R](codeBlock: => R): (R, Double) = {
     val t0 = System.nanoTime()
     val result = codeBlock
     val t1 = System.nanoTime()
-    val totalTime = (t1 - t0)/1000000000.0
-    (result,totalTime)
+    val totalTime = (t1 - t0) / 1000000000.0
+    (result, totalTime)
   }
 
   def mean(s: List[Double]) = s.foldLeft(0.0)(_ + _) / s.size
@@ -63,29 +80,29 @@ object Utils {
   }
 
   def combinations(n: Int, k: Int) = {
-    if (n >= k) factorial(n)/(factorial(k)*factorial(n-k)) else BigInt(0)
+    if (n >= k) factorial(n) / (factorial(k) * factorial(n - k)) else BigInt(0)
   }
 
   def factorial(x: BigInt): BigInt = {
-    @tailrec
-    def f(x: BigInt, acc: BigInt): BigInt = {
-      if (x == 0) acc else f(x - 1, x * acc)
-    }
+      @tailrec
+      def f(x: BigInt, acc: BigInt): BigInt = {
+        if (x == 0) acc else f(x - 1, x * acc)
+      }
     f(x, 1)
   }
 
   def sampleN(N: Int, sampleFrom: List[Any]) = {
-    @tailrec
-    def sampleN(N: Int, sampleFrom: List[Any], sample: List[Any]): List[Any] = {
-      sample.length match {
-        case N => sample
-        case _ =>
-          val newValue = Random.shuffle(sampleFrom).head
-          val newSample = if (!sample.contains(newValue)) sample :+ newValue else sample
-          sampleN(N, sampleFrom, newSample)
+      @tailrec
+      def sampleN(N: Int, sampleFrom: List[Any], sample: List[Any]): List[Any] = {
+        sample.length match {
+          case N => sample
+          case _ =>
+            val newValue = Random.shuffle(sampleFrom).head
+            val newSample = if (!sample.contains(newValue)) sample :+ newValue else sample
+            sampleN(N, sampleFrom, newSample)
+        }
       }
-    }
-    sampleN(N,sampleFrom,List())
+    sampleN(N, sampleFrom, List())
   }
 
 }

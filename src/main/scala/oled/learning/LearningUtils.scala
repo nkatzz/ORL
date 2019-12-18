@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.learning
 
 import oled.app.runutils.{Globals, RunningOptions}
@@ -7,8 +24,8 @@ import oled.learning.Types.InferredState
 import oled.logic.{Clause, Literal, LogicUtils}
 
 /**
- * Created by nkatz at 14/12/19
- */
+  * Created by nkatz at 14/12/19
+  */
 
 object LearningUtils {
 
@@ -22,7 +39,7 @@ object LearningUtils {
 
     testData foreach { batch =>
       val program = {
-        val nar = batch.observations.map(_+".").mkString("\n")
+        val nar = batch.observations.map(_ + ".").mkString("\n")
         val include = s"""#include "${inps.globals.BK_WHOLE_EC}"."""
         val show = inps.globals.bodyAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
         Vector(nar, include, show)
@@ -46,9 +63,9 @@ object LearningUtils {
       totalFNs += fns
     }
 
-    val precision = totalTPs.toDouble/(totalTPs+totalFPs)
-    val recall = totalTPs.toDouble/(totalTPs+totalFNs)
-    val f1 = 2*(precision*recall)/(precision+recall)
+    val precision = totalTPs.toDouble / (totalTPs + totalFPs)
+    val recall = totalTPs.toDouble / (totalTPs + totalFNs)
+    val f1 = 2 * (precision * recall) / (precision + recall)
     println(s"F1-score on test set: $f1")
   }
 
@@ -56,7 +73,7 @@ object LearningUtils {
     // Get the data in MLN format by doing numerical stuff thresholds etc. with clingo
     // and getting the atoms expected by the mode declarations
     val program = {
-      val nar = batch.observations.map(_+".").mkString("\n")
+      val nar = batch.observations.map(_ + ".").mkString("\n")
       val include = s"""#include "${inps.globals.BK_WHOLE_EC}"."""
       val show = inps.globals.bodyAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
       Vector(nar, include, show)
@@ -65,7 +82,6 @@ object LearningUtils {
     val e = Example(batch.queryAtoms, answer, batch.time)
     e
   }
-
 
   val BK =
     """
@@ -155,12 +171,12 @@ object LearningUtils {
       |
       |""".stripMargin
 
-
-  def scoreAndUpdateWeights(data: Example,
-                            inferredState: InferredState,
-                            rules: Vector[Clause],
-                            inps: RunningOptions,
-                            logger: org.slf4j.Logger) = {
+  def scoreAndUpdateWeights(
+      data: Example,
+      inferredState: InferredState,
+      rules: Vector[Clause],
+      inps: RunningOptions,
+      logger: org.slf4j.Logger) = {
 
     val bk = BK
 
@@ -170,8 +186,8 @@ object LearningUtils {
     val ruleIdsMap = zipped.map(x => x._2 -> x._1).toMap
 
     val ruleIdPreds = {
-      ruleIdsMap.map{ case (id, rule) => if(rule.head.predSymbol == "initiatedAt") s"initiated_rule_id($id)." else s"terminated_rule_id($id)." }
-    } mkString(" ")
+      ruleIdsMap.map { case (id, rule) => if (rule.head.predSymbol == "initiatedAt") s"initiated_rule_id($id)." else s"terminated_rule_id($id)." }
+    } mkString (" ")
 
     val metaRules = ruleIdsMap.foldLeft(Vector[String]()) { (accum, r) =>
       val (ruleId, rule) = (r._1, r._2)
@@ -195,22 +211,22 @@ object LearningUtils {
 
     val endTime = (data.observations ++ data.queryAtoms).toVector.map(x => Literal.parse(x)).map(x => x.terms.last.tostring.toInt).sorted.last
 
-    val observationAtoms = (data.observations :+ s"endTime($endTime)") .map(_+".")
+    val observationAtoms = (data.observations :+ s"endTime($endTime)").map(_ + ".")
     val annotationAtoms = data.queryAtoms.map(x => s"annotation($x).")
-    val inferredAtoms = inferredState.map{ case (k, v) => s"inferred($k,$v)." }
+    val inferredAtoms = inferredState.map { case (k, v) => s"inferred($k,$v)." }
     val include = s"""#include "${inps.globals.BK_WHOLE_EC}"."""
 
     val metaProgram = {
       Vector("% Annotation Atoms:\n", annotationAtoms.mkString(" "),
         "\n% Inferred Atoms:\n", inferredAtoms.mkString(" "),
         "\n% Observation Atoms:\n", observationAtoms.mkString(" "),
-        "\n% Marked Rules:\n", metaRules.mkString("\n")+ruleIdPreds,
+        "\n% Marked Rules:\n", metaRules.mkString("\n") + ruleIdPreds,
         "\n% Meta-rules for Scoring:\n", s"$include\n", totalExmplsCount, bk)
     }
 
     val answer = ASPSolver.solve(metaProgram.mkString("\n"))
 
-    val (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms, rulesResults) = answer.foldLeft(0,0,0,0,Vector.empty[Literal],Vector.empty[String]) { (x, y) =>
+    val (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms, rulesResults) = answer.foldLeft(0, 0, 0, 0, Vector.empty[Literal], Vector.empty[String]) { (x, y) =>
       if (y.startsWith("total_groundings")) {
         val num = y.split("\\(")(1).split("\\)")(0).toInt
         (x._1, x._2, x._3, num, x._5, x._6)
@@ -254,8 +270,8 @@ object LearningUtils {
 
       // Adagrad
       val lambda = inps.adaRegularization //0.001 // 0.01 default
-      val eta  = inps.adaLearnRate//1.0 // default
-      val delta  = inps.adaGradDelta//1.0
+      val eta = inps.adaLearnRate //1.0 // default
+      val delta = inps.adaGradDelta //1.0
       val currentSubgradient = mistakes
       rule.subGradient += currentSubgradient * currentSubgradient
       val coefficient = eta / (delta + math.sqrt(rule.subGradient))
@@ -272,7 +288,6 @@ object LearningUtils {
       if (newWeight == 0.0 | newWeight.isNaN) newWeight = 0.00000001
       rule.mlnWeight = if(newWeight.isPosInfinity) rule.mlnWeight else newWeight
       println(s"After: ${rule.mlnWeight}")*/
-
 
       /*if (prevWeight != rule.mlnWeight) {
         logger.info(s"\nPrevious weight: $prevWeight, current weight: ${rule.mlnWeight}, actualTPs: $actualTrueGroundings, actualFPs: $actualFalseGroundings, inferredTPs: $inferredTrueGroundings, mistakes: $mistakes\n${rule.tostring}")
@@ -297,7 +312,5 @@ object LearningUtils {
 
     (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms)
   }
-
-
 
 }

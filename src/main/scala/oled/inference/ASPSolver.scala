@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package oled.inference
 
 import com.typesafe.scalalogging.LazyLogging
@@ -6,25 +23,25 @@ import oled.utils.Utils.dumpToFile
 import scala.sys.process._
 
 /**
- * Created by nkatz at 6/12/19
- */
+  * Created by nkatz at 6/12/19
+  */
 
 object ASPSolver extends ClausalLogicParser with LazyLogging {
 
   /**
-   * Calls Clingo and returns the results.
-   * */
+    * Calls Clingo and returns the results.
+    */
   def solve(program: String) = {
 
-    def aspResult: Parser[List[String]] = repsep(literal, "") ^^ { x => x.map(_.tostring).toList}//.toVector }
+      def aspResult: Parser[List[String]] = repsep(literal, "") ^^ { x => x.map(_.tostring).toList } //.toVector }
 
-    def processLine(x: String) = {
-      val stripped = x.replaceAll("\\s", "")
-      parseAll(aspResult, stripped) match {
-        case Success(result, _) => result
-        case f => List.empty[String]
+      def processLine(x: String) = {
+        val stripped = x.replaceAll("\\s", "")
+        parseAll(aspResult, stripped) match {
+          case Success(result, _) => result
+          case f => List.empty[String]
+        }
       }
-    }
 
     val file = dumpToFile(program)
     val filePath = file.getCanonicalPath
@@ -50,7 +67,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
       System.exit(-1)
     }
 
-    val answerSet = results.map(x => processLine(x)).filter(_.nonEmpty)//.reverse
+    val answerSet = results.map(x => processLine(x)).filter(_.nonEmpty) //.reverse
 
     if (answerSet.isEmpty) {
       List.empty[String]

@@ -15,16 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import sbt._
+import de.heikoseeberger.sbtheader.HeaderPlugin
+import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
+import de.heikoseeberger.sbtheader.License._
 import sbt.Keys._
+import sbt._
 import sbt.plugins.JvmPlugin
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
-import de.heikoseeberger.sbtheader.HeaderPlugin
-import de.heikoseeberger.sbtheader.License._
-import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 
-object TeLLBuild extends AutoPlugin {
+object OLEDBuild extends AutoPlugin {
 
   private val logger = ConsoleLogger()
 
@@ -40,7 +40,7 @@ object TeLLBuild extends AutoPlugin {
   private lazy val settings: Seq[Setting[_]] = {
     logger.info(s"Loading settings for Java $javaVersion or higher.")
     if (javaVersion < 1.8) sys.error("Java 8 or higher is required for building Optimus.")
-    else commonSettings ++ assemblySettings ++ javaSettings
+    else commonSettings ++ assemblySettings ++ javaSettings ++ CodeStyle.formatSettings
   }
 
   private val commonSettings: Seq[Setting[_]] = Seq(
@@ -49,17 +49,18 @@ object TeLLBuild extends AutoPlugin {
 
     organization := "com.github.nkatzz",
 
-    description := "Online Temporal Logical Learning.",
+    description := "Online Temporal Logical Learning",
 
     headerLicense := Some(GPLv3("2016", "Nikos Katzouris")),
 
-    scalaVersion := "2.11.12",
+    scalaVersion := "2.12.9",
 
     autoScalaLibrary := false,
 
     managedScalaInstance := true,
 
     resolvers ++= Seq(
+      Resolver.mavenLocal,
       Resolver.typesafeRepo("releases"),
       Resolver.sonatypeRepo("releases"),
       Resolver.sonatypeRepo("snapshots")
@@ -68,15 +69,15 @@ object TeLLBuild extends AutoPlugin {
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-library" % scalaVersion.value,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.1"
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
     ),
 
     dependencyOverrides ++= Seq(
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.scala-lang" % "scala-library" % scalaVersion.value,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.1",
-      "org.scala-lang.modules" %% "scala-xml" % "1.1.1"
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
+      "org.scala-lang.modules" %% "scala-xml" % "1.2.0"
     )
   )
 
