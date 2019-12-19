@@ -45,11 +45,11 @@ object OLEDBuild extends AutoPlugin {
 
   private val commonSettings: Seq[Setting[_]] = Seq(
 
-    name := "TeLL",
+    name := "Refactoring",
 
     organization := "com.github.nkatzz",
 
-    description := "Online Temporal Logical Learning",
+    description := "Refactoring old code",
 
     headerLicense := Some(GPLv3("2016", "Nikos Katzouris")),
 
