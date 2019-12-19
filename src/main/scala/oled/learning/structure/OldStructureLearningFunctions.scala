@@ -81,11 +81,11 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     writeToFile(infile, "overwrite") { p => interpretation.foreach(p.println) }
     var (kernel, varKernel) =
       runXhail(fromFile                 = infile.getAbsolutePath,
-        kernelSetOnly = true,
+               kernelSetOnly            = true,
                fromWeakExmpl            = fromWeakExmpl,
-        learningTerminatedAtOnly = learningTerminatedOnly,
-        bkFile = bkFile,
-        globals = globals)
+               learningTerminatedAtOnly = learningTerminatedOnly,
+               bkFile                   = bkFile,
+               globals                  = globals)
 
     infile.delete()
     (kernel, varKernel)
