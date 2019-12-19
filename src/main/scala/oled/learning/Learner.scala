@@ -67,7 +67,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
 
   def controlState: Receive = {
     case exmpl: Example =>
-      if (exmpl == Example()) {
+      if (exmpl.isEmpty) {
         wrapUp()
         context.parent ! new LocalLearnerFinished
       } else {
@@ -99,7 +99,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
   def process(exmpl: Example): Unit = {
     logger.info(s"\n\n\n *** BATCH $batchCount *** ")
 
-    if (batchCount == 2) {
+    if (batchCount == 519) {
       val stop = "stop"
     }
 
@@ -155,8 +155,8 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       if (fpCounts != 0 || fnCounts != 0) {
         val topInit = state.initiationRules
         val topTerm = state.terminationRules
-        val growNewInit = growNewRuleTest(topInit, e, inps.globals)
-        val growNewTerm = growNewRuleTest(topTerm, e, inps.globals)
+        val growNewInit = growNewRuleTest(topInit, e, inps.globals, "initiatedAt")
+        val growNewTerm = growNewRuleTest(topTerm, e, inps.globals, "terminatedAt")
         newInit = if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
         newTerm = if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
         state.updateRules(newInit ++ newTerm, "add", inps)

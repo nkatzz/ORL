@@ -58,7 +58,7 @@ class Example() {
   var observations: List[String] = Nil
   var time = "0"
 
-  val isEmpty: Boolean = queryAtoms.isEmpty && observations.isEmpty
+  def isEmpty: Boolean = queryAtoms.isEmpty && observations.isEmpty
 
   def tostring: String = (queryAtoms ++ observations).mkString("\n")
 

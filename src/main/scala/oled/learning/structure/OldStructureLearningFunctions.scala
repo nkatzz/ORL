@@ -63,7 +63,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     val terminatedOnly = if (initorterm == "terminatedAt") true else false
     val specialBKfile = if (initorterm == "initiatedAt") globals.BK_INITIATED_ONLY else globals.BK_TERMINATED_ONLY
 
-      def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => x + "."), "narrative" -> e.observations.map(x => x + "."))
+      def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
 
     val (_, varKernel) =
       generateKernel1(toMapASP(e), learningTerminatedOnly = terminatedOnly, bkFile = specialBKfile, globals = globals)
@@ -80,8 +80,12 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     val interpretation = examples("annotation").map(x => s"${f(x)}") ++ examples("narrative").map(x => s"${f(x)}")
     writeToFile(infile, "overwrite") { p => interpretation.foreach(p.println) }
     var (kernel, varKernel) =
-      runXhail(fromFile                 = infile.getAbsolutePath, kernelSetOnly = true,
-               fromWeakExmpl            = fromWeakExmpl, learningTerminatedAtOnly = learningTerminatedOnly, bkFile = bkFile, globals = globals)
+      runXhail(fromFile                 = infile.getAbsolutePath,
+        kernelSetOnly = true,
+               fromWeakExmpl            = fromWeakExmpl,
+        learningTerminatedAtOnly = learningTerminatedOnly,
+        bkFile = bkFile,
+        globals = globals)
 
     infile.delete()
     (kernel, varKernel)
@@ -830,18 +834,9 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     val debug = scala.io.Source.fromFile(writeTo).mkString
   }
 
-  def growNewRuleTest(clauses: Theory, e: Example, globals: Globals): Boolean = {
+  def growNewRuleTest(clauses: Theory, e: Example, globals: Globals, what: String): Boolean = {
 
-      def getTargetClass = {
-        val what = clauses.map(x => x.head.predSymbol).toSet
-        if (what.size > 1) {
-          val msg = s"\nI'm learning both initiated and terminated rules in the same process!"
-          throw new RuntimeException(msg)
-        }
-        if (what.nonEmpty) what.head else "empty"
-      }
-
-    val targetClass = getTargetClass
+    val targetClass = what
 
       def solve(program: String): List[AnswerSet] = {
         val f = getTempFile(s"growNewRuleTest-for-$targetClass", ".lp")

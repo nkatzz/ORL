@@ -320,7 +320,7 @@ case class Clause(
       //gainInt
     } else if (this.head.predSymbol == "terminatedAt") {
       scoringFunction match {
-        case "default" => if (!recall.isNaN) recall else 0.0 //if (!precision.isNaN) precision else 0.0
+        case "default" => if (!precision.isNaN) precision else 0.0 //if (!recall.isNaN) recall else 0.0 //
 
         //case "default" => weighted_recall
 
