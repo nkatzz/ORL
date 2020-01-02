@@ -34,8 +34,8 @@ object LogicUtils {
     compressed.toList
   }
 
-  def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String) = {
-    clauses.map(x => x.showWithStats(scoreFun)).mkString("\n")
+  def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String, showWeights: Boolean = true) = {
+    clauses.map(x => x.showWithStats(scoreFun, showWeights)).mkString("\n")
   }
 
 }

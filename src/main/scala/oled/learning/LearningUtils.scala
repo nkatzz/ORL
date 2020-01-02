@@ -94,6 +94,11 @@ object LearningUtils {
       |       FPs = #count {F,T: not annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)},
       |       FNs = #count {F,T: annotation(holdsAt(F,T)), not startTime(T), inferred(holdsAt(F,T), false)}.
       |
+      |% For the case where we don't explicitly have the not inferred once (e.g. when we're doing crisp logical inference).
+      |inferred(holdsAt(F,T), false) :- not inferred(holdsAt(F,T), true), fluent(F), time(T).
+      |inferred(initiatedAt(F,T), false) :- not inferred(initiatedAt(F,T), true), fluent(F), time(T).
+      |inferred(terminatedAt(F,T), false) :- not inferred(terminatedAt(F,T), true), fluent(F), time(T).
+      |
       |actual_initiated_true_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          fires(initiatedAt(F, T), RuleId),
