@@ -49,6 +49,8 @@ object OLEDBuild extends AutoPlugin {
 
     organization := "com.github.nkatzz",
 
+    version := "0.1-SNAPSHOT",
+
     description := "Online Relational Learning",
 
     headerLicense := Some(GPLv3("2016", "Nikos Katzouris")),

@@ -20,10 +20,4 @@ package oled.learning.weights
 /**
   * Created by nkatz on 7/10/19.
   */
-object Test extends App {
-
-  val x = logicutils.logic.Clause()
-
-  println(x.tostring)
-
-}
+object Test extends App {}

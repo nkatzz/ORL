@@ -17,24 +17,26 @@
 
 package oled.learning
 
-import akka.actor.Actor
+import akka.actor.{Actor, PoisonPill}
 import oled.app.runutils.InputHandling.InputSource
 import oled.app.runutils.RunningOptions
 import oled.datahandling.Example
 import oled.inference.{ASPSolver, MAPSolver}
-import oled.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, RunSingleCore, StartOver}
-import oled.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
+import oled.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
+import oled.learning.structure.OldStructureLearningFunctions.{generateNewRules, growNewRuleTest}
+import oled.learning.structure.RuleExpansion
 import oled.logic.{Clause, Literal, LogicUtils}
 import org.slf4j.LoggerFactory
-import oled.learning.structure.OldStructureLearningFunctions.growNewRuleTest
-import OldStructureLearningFunctions.generateNewRules
 
 /**
   * Created by nkatz at 13/12/19
   */
 
-class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
-    testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
+class Learner[T <: InputSource](
+    inps: RunningOptions,
+    trainingDataOptions: T,
+    testingDataOptions: T,
+    trainingDataFunction: T => Iterator[Example],
     testingDataFunction: T => Iterator[Example]) extends Actor {
 
   import context.become
@@ -62,14 +64,14 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
     this.repeatFor -= 1
     data = getTrainingData
     if (data.isEmpty) { logger.error(s"No data received."); System.exit(-1) }
-    self ! getNextBatch
+    val nextBatch = getNextBatch
+    self ! nextBatch
   }
 
   def controlState: Receive = {
     case exmpl: Example =>
       if (exmpl.isEmpty) {
         wrapUp()
-        context.parent ! new LocalLearnerFinished
       } else {
         become(processingState)
         self ! exmpl
@@ -84,7 +86,8 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       self ! getNextBatch
 
     case _: StartOver =>
-      logger.info(s"Starting a new training iteration (${this.repeatFor - 1} iterations remaining.)")
+      logger.info(s"Starting a new training iteration (${this.repeatFor} iterations remaining.)")
+      become(controlState)
       start()
   }
 
@@ -98,10 +101,6 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
 
   def process(exmpl: Example): Unit = {
     logger.info(s"\n\n\n *** BATCH $batchCount *** ")
-
-    if (batchCount == 2) {
-      val stop = "stop"
-    }
 
     val e = LearningUtils.dataToMLNFormat(exmpl, inps)
 
@@ -201,33 +200,47 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
     if (repeatFor > 0) {
       self ! new StartOver
     } else if (repeatFor == 0) {
-      val endTime = System.nanoTime()
-      val totalTime = (endTime - startTime) / 1000000000.0
       val theory = state.getAllRules(inps.globals, "top")
 
-        // used for printing out the avegare loss vector
-        def avgLoss(in: Vector[Int]) = {
-          in.foldLeft(0, 0, Vector.empty[Double]) { (x, y) =>
-            val (count, prevSum, avgVector) = (x._1, x._2, x._3)
-            val (newCount, newSum) = (count + 1, prevSum + y)
-            (newCount, newSum, avgVector :+ newSum.toDouble / newCount)
-          }
-        }
-
-      logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun, inps.weightLean)}\nTraining time: $totalTime")
-      logger.info(s"Mistakes per batch:\n${state.perBatchError}")
-      logger.info(s"Accumulated mistakes per batch:\n${state.perBatchError.scanLeft(0.0)(_ + _).tail}")
-      logger.info(s"Average loss vector:\n${avgLoss(state.perBatchError)}")
-      logger.info(s"Sending the theory to the parent actor")
+      showStats(theory)
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
         val testData = testingDataFunction(testingDataOptions)
         LearningUtils.evalOnTestSet(testData, theory, inps)
       }
 
+      shutDown()
+
     } else { // Just to be on the safe side...
-      throw new RuntimeException("This should never have happened (repeatFor is now negative?)")
+      throw new RuntimeException("This should never have happened (repeatFor is negative).")
     }
+  }
+
+  def shutDown() = {
+    self ! PoisonPill
+    context.parent ! new LocalLearnerFinished
+  }
+
+  def showStats(theory: List[Clause]) = {
+
+      // used for printing out the avegare loss vector
+      def avgLoss(in: Vector[Int]) = {
+        in.foldLeft(0, 0, Vector.empty[Double]) { (x, y) =>
+          val (count, prevSum, avgVector) = (x._1, x._2, x._3)
+          val (newCount, newSum) = (count + 1, prevSum + y)
+          (newCount, newSum, avgVector :+ newSum.toDouble / newCount)
+        }
+      }
+
+    val endTime = System.nanoTime()
+    val totalTime = (endTime - startTime) / 1000000000.0
+
+    logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun, inps.weightLean)}\nTraining time: $totalTime")
+    logger.info(s"Mistakes per batch:\n${state.perBatchError}")
+    logger.info(s"Accumulated mistakes per batch:\n${state.perBatchError.scanLeft(0.0)(_ + _).tail}")
+    logger.info(s"Average loss vector:\n${avgLoss(state.perBatchError)}")
+    logger.info(s"Sending the theory to the parent actor")
+
   }
 
 }
