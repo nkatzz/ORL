@@ -89,8 +89,7 @@ object Literal {
     Literal(l.predSymbol.capitalize, toMLN, isNAF = l.isNAF)
   }
 
-  def types(l: String, mode: ModeAtom, globals: Globals) = {
-    val modeDeclarations = globals.MODEHS ++ globals.MODEBS
+  def types(l: String, mode: ModeAtom, modeDeclarations: List[ModeAtom]) = {
       def terms(lit: Literal): List[LogicalExpression] = {
         val (in, out, grnd) = lit.placeMarkers
         val v = in ++ out ++ grnd

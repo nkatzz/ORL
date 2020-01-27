@@ -81,11 +81,11 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     writeToFile(infile, "overwrite") { p => interpretation.foreach(p.println) }
     var (kernel, varKernel) =
       runXhail(fromFile                 = infile.getAbsolutePath,
-        kernelSetOnly = true,
+               kernelSetOnly            = true,
                fromWeakExmpl            = fromWeakExmpl,
-        learningTerminatedAtOnly = learningTerminatedOnly,
-        bkFile = bkFile,
-        globals = globals)
+               learningTerminatedAtOnly = learningTerminatedOnly,
+               bkFile                   = bkFile,
+               globals                  = globals)
 
     infile.delete()
     (kernel, varKernel)
@@ -293,7 +293,9 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       bkFile: String,
       globals: Globals): (List[Clause], List[Clause]) = {
 
-      //val bkFile = globals.BK_WHOLE_EC
+    //val bkFile = globals.BK_WHOLE_EC
+
+    val modes = globals.MODEHS ++ globals.MODEBS
 
       def replaceQuotedVars(x: String) = {
         val varPattern = "\"([A-Z][A-Za-z0-9_])*\"".r
@@ -392,7 +394,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
             (queryList, mAtom) <- queries;
             show = queryList map (x => replaceQuotedVars(x)) map (x =>
               //"\n#show " + "ifTrue("+Core.modebs.indexOf(mAtom)+","+x+")" + ":" + (if (!mAtom.isNAF) x else "not "+x) + ".\n")
-              s"\n#show ifTrue(${globals.MODEBS.indexOf(mAtom)},$x) : ${if (!mAtom.isNAF) x else "not " + x}, ${Literal.types(x, mAtom, globals)}.")
+              s"\n#show ifTrue(${globals.MODEBS.indexOf(mAtom)},$x) : ${if (!mAtom.isNAF) x else "not " + x}, ${Literal.types(x, mAtom, modes)}.")
           ) yield show).flatten
 
         val program = abdModel.map(x => x + ".")

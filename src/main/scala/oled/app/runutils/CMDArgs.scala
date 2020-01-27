@@ -131,8 +131,9 @@ object CMDArgs extends LazyLogging {
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
-        logger.error("No training set provided. Re-run with --train=<db name or path to training set file>.")
-        System.exit(-1)
+        // We don't really need that...
+        //logger.error("No training set provided. Re-run with --train=<db name or path to training set file>.")
+        //System.exit(-1)
       } else {
         checkData(inps.test, inps.mongoCollection, "test")
       }

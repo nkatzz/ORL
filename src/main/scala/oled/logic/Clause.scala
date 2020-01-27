@@ -104,7 +104,7 @@ case class Clause(
       s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns | " +
         s"weight: ${format(this.weight)}  " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
     } else {
-      s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns. "+ s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
+      s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns. " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
     }
 
   }

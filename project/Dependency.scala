@@ -21,22 +21,17 @@ object Dependency {
 
   object v {
     //final val Akka = "2.5.17"
-
     final val Akka = "2.5.6"
-
     final val ScalaLogging = "3.9.2"
     final val Logback = "1.2.3"
-
     final val MongoDB = "3.1.1"
-
     final val ScalaTest = "3.0.5"
-
     final val ScalaZ = "7.2.29"
     final val SizeOf = "0.1"
     final val Parboiled = "2.1.8"
-
     final val Optimus = "3.2.0"
     final val LoMRF = "1.0.0-SNAPSHOT"
+    final val Logicutils = "0.1-SNAPSHOT"
   }
 
   // Akka.io
@@ -70,6 +65,8 @@ object Dependency {
 
   // LoMRF library for Markov Logic Networks
   lazy val LoMRF = "com.github.anskarl" %% "lomrf" % v.LoMRF
+
+  lazy val LogicUtils = "com.github.nkatzz" %% "logicutils" % v.Logicutils
 
   //lazy val vegas = "org.vegas-viz" %% "vegas" % "0.3.12" // plotting library
 }

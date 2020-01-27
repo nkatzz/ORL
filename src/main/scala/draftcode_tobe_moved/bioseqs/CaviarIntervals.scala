@@ -15,15 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package oled.learning.weights
+package draftcode_tobe_moved.bioseqs
 
 /**
-  * Created by nkatz on 7/10/19.
+  * Created by nkatz at 19/1/20
   */
-object Test extends App {
-
-  val x = logicutils.logic.Clause()
-
-  println(x.tostring)
+object CaviarIntervals {
 
 }

@@ -87,7 +87,7 @@ object OLEDBuild extends AutoPlugin {
 
     /*
      * Avoid the 'deduplicate: different file contents found in the following (logback.xml)' error.
-     * This error started after the merging LoMRF.
+     * This error started after merging LoMRF.
      */
     assemblyMergeStrategy in assembly := {
       case PathList("META-INF", _ @ _*) => MergeStrategy.discard

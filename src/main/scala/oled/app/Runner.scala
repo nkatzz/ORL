@@ -60,6 +60,13 @@ object Runner extends LazyLogging {
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
 
+        /*val data = getMongoData(trainingDataOptions)
+        for (x <- data) {
+          if (x.queryAtoms.nonEmpty) {
+            println(x.queryAtoms)
+          }
+        }*/
+
         val system = ActorSystem("LocalLearningSystem")
         val startMsg = new RunSingleCore
 
