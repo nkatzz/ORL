@@ -12,4 +12,4 @@ lazy val root = project.in(file("."))
   .settings(libraryDependencies += Dependency.MongoDB)
   .settings(libraryDependencies += Dependency.LoMRF)
   .settings(libraryDependencies ++= Dependency.Optimus)
-  .settings(libraryDependencies += Dependency.LogicUtils)
+
