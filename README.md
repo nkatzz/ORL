@@ -1,6 +1,6 @@
-## Refactoring code
+## Online Relational Leaning
 
-Refactoring old code for learning to simplify and keep the basics as linrary for other projects. 
+Refactored, latest version of OLED plus more tools for for online logical & relational learning. 
 
 ## Installation
 
