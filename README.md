@@ -1,6 +1,6 @@
 ## Online Relational Leaning
 
-Refactored, latest version of OLED plus more tools for for online logical & relational learning. 
+Refactored, latest version of OLED & WOLED plus more tools for for online logical & relational learning. 
 
 ## Installation
 
