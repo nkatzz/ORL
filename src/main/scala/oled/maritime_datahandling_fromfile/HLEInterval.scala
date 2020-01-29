@@ -34,12 +34,12 @@ object HLEInterval {
       "speedLessThanMin", "stopped", "travelSpeed", "trawling", "trawlSpeed", "underWay", "unusualSpeed")
     */
 
-    val mine_hle_event_set = Set("highSpeedNC", "lowSpeed", "stopped", "proximity", "trawlingMovement",
+    val mine_hle_event_set = Set("highSpeedNC", "lowSpeed", "stopped", "trawlingMovement",
       "gap", "loitering", "changingSpeed", "tuggingSpeed", "trawling",
       "anchoredOrMoored", "sarSpeed", "sar", "trawlSpeed", "underWay",
-      "movingSpeed", "drifting", "sarMovement", "pilotBoarding")
+      "movingSpeed", "drifting", "sarMovement")
 
-    // rendezVous, tugging
+    // rendezVous, tugging, proximity, pilotBoarding
     if (mine_hle_event_set.contains(hle)) {
       val vessels = List(split(1))
       val value = split(3)

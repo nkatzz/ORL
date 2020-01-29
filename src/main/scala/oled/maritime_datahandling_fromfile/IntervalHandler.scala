@@ -33,6 +33,15 @@ import oled.datahandling.Example
 import java.time._
 
 import oled.app.runutils.InputHandling.InputSource
+import com.vividsolutions.jts.geom
+import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory, Point}
+import com.vividsolutions.jts.io
+import com.vividsolutions.jts.io.WKTReader
+import com.vividsolutions.jts.operation.distance.DistanceOp
+import oled.app.runutils.RunningOptions
+
+import scala.collection.{SortedSet, mutable}
+
 // Reads data in this format:
 /*change_in_heading|1443694493|1443694493|245257000
 change_in_speed_start|1443890320|1443890320|259019000
@@ -55,8 +64,8 @@ class MongoDataOptions(val dbNames: Vector[String], val chunkSize: Int = 1,
                        val sort: String = "ascending", val what: String = "training") extends MongoSource
 */
 
-class FileDataOptions(val HLE_Files_Dir: String, val LLE_File: String, val batch_size: Int = 1,
-                      val HLE_bias: List[String], val LLE_bias: List[String], val target_event: String) extends InputSource
+class FileDataOptions(val HLE_Files_Dir: String, val LLE_File: String,
+                      val allHLEs: List[String], val allLLEs: List[String],val runOpts: RunningOptions) extends InputSource
 
 object IntervalHandler {
 
@@ -64,6 +73,22 @@ object IntervalHandler {
   def readInputFromFile(opts: FileDataOptions): Iterator[Example] = {
     // The path to the folder with RTEC results with HLE intervals. The generateIntervalTree
     // methods reads from those files (see the method).
+    val pathToCoastFile = "/home/manosl/Desktop/BSc_Thesis/Datasets/European Coastline/Europe_Coastline_converted_WKT_Format.txt"
+
+    val wkt_of_map = Source.fromFile(pathToCoastFile).getLines().next()
+
+    val WKT_Reader: WKTReader = new WKTReader()
+    val map_polygons: Geometry = WKT_Reader.read(wkt_of_map)
+
+    val geom_factory: GeometryFactory = new GeometryFactory()
+
+    // Right way to get distance
+    val n_points = DistanceOp.nearestPoints(map_polygons, geom_factory.createPoint(new Coordinate(-4.3472633,48.118046)))
+
+    print(Havershine.haversine(n_points(0).y,n_points(0).x,n_points(1).y,n_points(1).x) * 1000) // in meters
+
+    print("\n")
+
     val pathToHLEIntervals = opts.HLE_Files_Dir
 
     // The path to the critical points (LLEs)
@@ -74,7 +99,7 @@ object IntervalHandler {
     val intervalTree =
       generateIntervalTree(
         pathToHLEIntervals,
-        opts.HLE_bias
+        opts.allHLEs ++ opts.allLLEs // Because there are some HLEs in allLLEs
       )
 
 
@@ -86,7 +111,7 @@ object IntervalHandler {
         * so given batchSize = n, a mini-batch consists of input data with time stamps t to t+n.
         *
         */
-      class ExampleIterator(inputSource: Iterator[String], batchSize: Int, targetEvent: String, LLE_bias: List[String], mode: String)
+      class ExampleIterator(inputSource: Iterator[String], batchSize: Int, targetEvent: String, mode: String)
               extends Iterator[Example]
       {
         var prev_batch_timestamp: Long = 0
@@ -120,6 +145,7 @@ object IntervalHandler {
             currentBatch += generateLLEInstances(newLine, mode)
           }
 
+          timesAccum += prev_batch_timestamp
 
           val json_time = prev_batch_timestamp
 
@@ -128,21 +154,37 @@ object IntervalHandler {
 
           //what is the use of this line?
           val nexts = timesAccum.sliding(2).map(x => if (mode == "asp") s"next(${x.last},${x.head})" else s"next(${x.last},${x.head})")
-          val intervals = if (inputSource.hasNext) intervalTree.range(prev_batch_timestamp, timesAccum.last) else intervalTree.range(prev_batch_timestamp, INF_TS)
 
-          timesAccum += prev_batch_timestamp
+          var nextsHashMap = new mutable.HashMap[Long,Long]()
+          var slideIterator = timesAccum.sliding(2)
+
+          while(slideIterator.hasNext){
+            val currSortedSet = slideIterator.next()
+            val currKey:Long = currSortedSet.head
+            val currVal:Long = currSortedSet.last
+
+            nextsHashMap += (currKey -> currVal)
+          }
+
+          val intervals = if (inputSource.hasNext) intervalTree.range(prev_batch_timestamp, timesAccum.last) else intervalTree.range(prev_batch_timestamp, INF_TS)
 
           if (!inputSource.hasNext) timesAccum += INF_TS
 
           prev_batch_timestamp = timesAccum.last
 
-          var extras = timesAccum.flatMap{ timeStamp =>
-            val containedIn = intervals.filter(interval => (interval._3.stime < timeStamp && timeStamp < interval._3.etime))
-            containedIn.map(x => HLEIntervalToAtom(x._3, timeStamp.toString, targetEvent))
-          }
+          var extras: List[String] = (timesAccum).flatMap { timeStamp =>
+            val containedIn = intervals.filter(interval => ((opts.allHLEs.contains(interval._3.hle) && timeStamp != timesAccum.last && interval._3.stime < nextsHashMap(timeStamp) && nextsHashMap(timeStamp) < interval._3.etime) ||
+                                  (opts.allLLEs.contains(interval._3.hle) && interval._3.stime < timeStamp && timeStamp < interval._3.etime)))
+            if(timeStamp != timesAccum.last) {
+              containedIn.flatMap(x => HLEIntervalToAtom(x._3, timeStamp.toString, nextsHashMap(timeStamp).toString, opts.allHLEs))
+            }
+            else{
+              containedIn.flatMap(x => HLEIntervalToAtom(x._3, timeStamp.toString, "None", opts.allHLEs))
+            }
+          } toList
 
-          extras = extras ++ intervals.map((interval) => if (interval._3.stime >= timesAccum.head) HLEIntervalToAtom(interval._3, interval._3.stime.toString, targetEvent) else "None")
-          extras = extras ++ intervals.map((interval) => if (interval._3.etime <= timesAccum.last) HLEIntervalToAtom(interval._3, interval._3.etime.toString, targetEvent) else "None")
+          extras = extras ++ intervals.flatMap((interval) => if (interval._3.stime >= timesAccum.head) HLEIntervalToAtom(interval._3, interval._3.stime.toString, "None", opts.allHLEs) else List("None")).asInstanceOf[List[String]]
+          extras = extras ++ intervals.flatMap((interval) => if (interval._3.etime <= timesAccum.last) HLEIntervalToAtom(interval._3, interval._3.etime.toString, "None", opts.allHLEs) else List("None")).asInstanceOf[List[String]]
 
           // Why this line is used?
           if (extras.nonEmpty) {
@@ -154,8 +196,26 @@ object IntervalHandler {
 
 
           val all_events = currentBatch.filter(x => x != "None")
-          val annotation = all_events.filter(x => x.startsWith("holdsAt(" + targetEvent))
-          val narrative = all_events.filter(x => !x.startsWith("holdsAt(" + targetEvent))
+
+          var temp = all_events.clone()
+          var annotation = ListBuffer[String]()
+          var narrative = ListBuffer[String]()
+
+          val hleIter: Iterator[String] = opts.allHLEs.iterator
+          val lleIter: Iterator[String] = opts.allLLEs.iterator
+
+
+          while(lleIter.hasNext) {
+            var currEvent = lleIter.next()
+            annotation = annotation ++ temp.filter(x => x.startsWith("happensAt(" + currEvent + "("))
+            temp = all_events.clone()
+          }
+
+          while(hleIter.hasNext) {
+            var currEvent = hleIter.next()
+            narrative = narrative ++ temp.filter(x => x.startsWith("holdsAt(" + currEvent + "("))
+            temp = all_events.clone()
+          }
 
           val curr_exmpl = Example(annotation.toList,narrative.toList,json_time.toString)
 
@@ -251,11 +311,11 @@ object IntervalHandler {
       }*/
 
       val data = Source.fromFile(pathToLLEs).getLines.filter(x =>
-        opts.LLE_bias.contains(x.split("\\|")(0))
+        opts.allLLEs.contains(x.split("\\|")(0))
         //!x.startsWith("coord") && !x.startsWith("velocity") && !x.startsWith("entersArea") && !x.startsWith("leavesArea")
       ).toIterator
 
-      val it: Iterator[Example] = new ExampleIterator(data, opts.batch_size, opts.target_event, opts.LLE_bias,"asp")
+      val it: Iterator[Example] = new ExampleIterator(data,opts.runOpts.chunkSize,opts.runOpts.targetHLE, mode="asp")
 
       /*while (it.hasNext) {
         println(it.next)
@@ -320,15 +380,36 @@ object IntervalHandler {
   /* Generate an HLE logical atom. The i var carries all the info, the t var is the particular
    * time point of the generated atom. "target" is the name of the target complex event. The
    * target event is turned into a holdsAt predicate, while all others are turned into happensAt predicates. */
-  def HLEIntervalToAtom(i: HLEInterval, t: String, target: String) = {
+  def HLEIntervalToAtom(i: HLEInterval, t: String, next_t: String, considered_HLEs: List[String]/*target: String*/): List[String] = {
 
-    val functor = if (i.hle == target) "holdsAt" else "happensAt"
+    val functor = if (considered_HLEs.contains(i.hle)) "holdsAt" else "happensAt"
 
     val fluentTerm =
       if (i.value != "true") s"${i.hle}(${(i.vessels :+ i.value).mkString(",")})"
       else s"${i.hle}(${i.vessels.mkString(",")})"
 
-    s"$functor($fluentTerm,$t)"
+    val timestamp = {
+      if(next_t == "None" || !considered_HLEs.contains(i.hle)){
+        t
+      }
+      else {
+        next_t
+      }
+    }
+
+    val fluentTerm2 = {if (i.hle == "rendezVous" || i.hle == "proximity"
+                        || i.hle == "pilotBoarding" || i.hle == "tugging")
+                      {
+                        if (i.value != "true") s"${i.hle}(${(i.vessels.reverse :+ i.value).mkString(",")})"
+                        else s"${i.hle}(${i.vessels.reverse.mkString(",")})"
+                      } else "None"}
+
+    if(fluentTerm2 != "None"){
+      List[String](s"$functor($fluentTerm,$timestamp)",s"$functor($fluentTerm2,$timestamp)")
+    }
+    else {
+      List[String](s"$functor($fluentTerm,$timestamp)")
+    }
   }
 
   def generateIntervalTree(pathToHLEs: String, interestedIn: List[String]) = {
