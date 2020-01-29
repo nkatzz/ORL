@@ -36,6 +36,8 @@ object Runner extends LazyLogging {
 
   def main(args: Array[String]) = {
 
+    /* Because we want some HLEs to get handled as LLEs */
+    /*
     val all_LLEs = List("gap_end", "coord", "velocity", "change_in_heading", "entersArea",
                         "stop_start", "change_in_speed_start", "gap_start", "change_in_speed_end",
                         "stop_end", "leavesArea", "slow_motion_end", "slow_motion_start")
@@ -45,17 +47,28 @@ object Runner extends LazyLogging {
                         ,"lowSpeed","trawlingMovement","trawlSpeed","drifting","loitering"
                         ,"sarMovement","sarSpeed","rendezVous","pilotBoarding","trawling","sar"
                         ,"tugging")
+    */
+    // LLEs to happensAt, HLEs to holdsAt
+
+    val allLLEs = List("gap_end", /*"coord", "velocity",*/ "change_in_heading", "entersArea",
+      "stop_start", "change_in_speed_start", "gap_start", "change_in_speed_end",
+      "stop_end", "leavesArea", "slow_motion_end", "slow_motion_start", "withinArea","stopped", "highSpeedNC",
+      "movingSpeed", "underWay", "proximity", "changingSpeed", "gap", "lowSpeed", "trawlSpeed", "sarSpeed")
+
+    val allHLEs = List("anchoredOrMoored", "trawlingMovement", "drifting", "loitering", "sarMovement",
+      "rendezVous", "pilotBoarding", "trawling", "sar", "tugging")
 
     val argsok = CMDArgs.argsOk(args)
 
     if (argsok._1) {
       val runningOptions = CMDArgs.getOLEDInputArgs(args) // returns RunningOptions object // THIS SHOULD GET PATH FOR HLE DIR AND LLE FILE
                                                                                            // OR IT WILL CHANGED IN THE CODE
-
+      /*
       val bias_list = runningOptions.globals.MODES
 
       // I should find a better way
       val bias_fluents = bias_list.map(clause => clause.split('(')(2)).toSet.toList ++ bias_list.map(clause => clause.split('(')(3)).toSet.toList
+      */
 
       /*
       val train1 = Vector("caviar-video-1-meeting-moving", "caviar-video-3", "caviar-video-2-meeting-moving", "caviar-video-5",
@@ -86,11 +99,11 @@ object Runner extends LazyLogging {
         val HLE_Dir_Path = runningOptions.train + "/HLEs"
         val LLEs_File = runningOptions.train + "/LLEs.csv"
 
-        val HLE_lang_bias = bias_fluents.filter(x => all_HLEs.contains(x))
-        val LLE_lang_bias = bias_fluents.filter(x => all_LLEs.contains(x))
+        // val HLE_lang_bias = allHLEs  //bias_fluents.filter(x => all_HLEs.contains(x))
+        // val LLE_lang_bias = allLLEs  //bias_fluents.filter(x => all_LLEs.contains(x))
 
-        val fileOpts = new FileDataOptions(HLE_Files_Dir = HLE_Dir_Path,LLE_File = LLEs_File, batch_size = runningOptions.chunkSize, HLE_bias = HLE_lang_bias,LLE_bias = LLE_lang_bias,
-          target_event = runningOptions.targetHLE)
+        val fileOpts = new FileDataOptions(HLE_Files_Dir = HLE_Dir_Path,LLE_File = LLEs_File, allHLEs = allHLEs,allLLEs = allLLEs,
+          runOpts = runningOptions)
 
         val trainingDataFunction: FileDataOptions => Iterator[Example] = readInputFromFile
         val testingDataFunction: FileDataOptions => Iterator[Example] = readInputFromFile
