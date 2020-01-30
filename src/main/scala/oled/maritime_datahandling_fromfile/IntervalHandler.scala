@@ -117,12 +117,19 @@ object IntervalHandler {
         var prev_batch_timestamp: Long = 0
         var batchCount = 0
 
+        // They are used to help me to get what it should to next batch
+        var nextBatchLLEsAccum = scala.collection.mutable.SortedSet[String]()
+        var nextBatch = new ListBuffer[String]
+
         def hasNext = inputSource.hasNext
 
         def next() = {
-          var currentBatch = new ListBuffer[String]
+          var currentBatch = nextBatch.clone()
           var timesAccum = scala.collection.mutable.SortedSet[Long]()
-          var llesAccum = scala.collection.mutable.SortedSet[String]()
+          var llesAccum = nextBatchLLEsAccum.clone()
+
+          nextBatch = new ListBuffer[String]
+          nextBatchLLEsAccum = scala.collection.mutable.SortedSet[String]()
 
           val INF_TS = 2000000000
 
@@ -139,10 +146,16 @@ object IntervalHandler {
 
             if (!timesAccum.contains(time.toLong)) timesAccum += time.toLong
 
-            if (!llesAccum.contains(lle)) llesAccum += lle
+            if(timesAccum.size > batchSize){
+              nextBatchLLEsAccum += lle
+              nextBatch += generateLLEInstances(newLine, mode)
+            }
+            else {
+              if (!llesAccum.contains(lle)) llesAccum += lle
 
 
-            currentBatch += generateLLEInstances(newLine, mode)
+              currentBatch += generateLLEInstances(newLine, mode)
+            }
           }
 
           timesAccum += prev_batch_timestamp
@@ -172,19 +185,16 @@ object IntervalHandler {
 
           prev_batch_timestamp = timesAccum.last
 
-          var extras: List[String] = (timesAccum).flatMap { timeStamp =>
-            val containedIn = intervals.filter(interval => ((opts.allHLEs.contains(interval._3.hle) && timeStamp != timesAccum.last && interval._3.stime < nextsHashMap(timeStamp) && nextsHashMap(timeStamp) < interval._3.etime) ||
-                                  (opts.allLLEs.contains(interval._3.hle) && interval._3.stime < timeStamp && timeStamp < interval._3.etime)))
-            if(timeStamp != timesAccum.last) {
-              containedIn.flatMap(x => HLEIntervalToAtom(x._3, timeStamp.toString, nextsHashMap(timeStamp).toString, opts.allHLEs))
-            }
-            else{
-              containedIn.flatMap(x => HLEIntervalToAtom(x._3, timeStamp.toString, "None", opts.allHLEs))
-            }
+          var extras: List[String] = (timesAccum - timesAccum.last).flatMap { timeStamp =>
+            val containedIn = intervals.filter(interval => ((opts.allHLEs.contains(interval._3.hle) && interval._3.stime < nextsHashMap(timeStamp)
+                                                              && nextsHashMap(timeStamp) < interval._3.etime) ||
+                                                              (opts.allLLEs.contains(interval._3.hle) && interval._3.stime < timeStamp && timeStamp < interval._3.etime)))
+
+            containedIn.flatMap(x => HLEIntervalToAtom(x._3, timeStamp.toString, nextsHashMap(timeStamp).toString, opts.allHLEs))
           } toList
 
           extras = extras ++ intervals.flatMap((interval) => if (interval._3.stime >= timesAccum.head) HLEIntervalToAtom(interval._3, interval._3.stime.toString, "None", opts.allHLEs) else List("None")).asInstanceOf[List[String]]
-          extras = extras ++ intervals.flatMap((interval) => if (interval._3.etime <= timesAccum.last) HLEIntervalToAtom(interval._3, interval._3.etime.toString, "None", opts.allHLEs) else List("None")).asInstanceOf[List[String]]
+          extras = extras ++ intervals.flatMap((interval) => if (interval._3.etime <= (timesAccum - timesAccum.last).last) HLEIntervalToAtom(interval._3, interval._3.etime.toString, "None", opts.allHLEs) else List("None")).asInstanceOf[List[String]]
 
           // Why this line is used?
           if (extras.nonEmpty) {
