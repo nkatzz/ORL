@@ -19,6 +19,7 @@ package oled.app
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.Coordinate
 import oled.app.runutils.CMDArgs
 import oled.app.runutils.InputHandling.getMongoData
 import oled.app.runutils.InputHandling.MongoDataOptions
@@ -27,6 +28,9 @@ import oled.learning.LocalCoordinator
 import oled.learning.Types.RunSingleCore
 import oled.maritime_datahandling_fromfile.FileDataOptions
 import oled.maritime_datahandling_fromfile.IntervalHandler.readInputFromFile
+
+import scala.collection.mutable
+import scala.io.Source
 
 /**
   * Created by nkatz on 7/10/19.
@@ -102,6 +106,22 @@ object Runner extends LazyLogging {
         // val HLE_lang_bias = allHLEs  //bias_fluents.filter(x => all_HLEs.contains(x))
         // val LLE_lang_bias = allLLEs  //bias_fluents.filter(x => all_LLEs.contains(x))
 
+        /*
+        /*Getting the coords of each vessel */
+        val coordLines = Source.fromFile(LLEs_File).getLines().filter(x => x.split("\\|")(0) == "coord").toIterator
+        val vesselCoordinatesMap = new mutable.HashMap[(String,String),Coordinate]() // Will be (MMSI, Time) -> (Long,Lat)
+
+        while(coordLines.hasNext) {
+          val coordSplit = coordLines.next.split("\\|")
+
+          val currMMSI = coordSplit(3).toString
+          val currTime = coordSplit(1).toString
+          val currLong = coordSplit(4).toDouble
+          val currLat = coordSplit(5).toDouble
+
+          vesselCoordinatesMap += ((currMMSI, currTime) -> new Coordinate(currLong, currLat))
+        }
+        */
         val fileOpts = new FileDataOptions(HLE_Files_Dir = HLE_Dir_Path,LLE_File = LLEs_File, allHLEs = allHLEs,allLLEs = allLLEs,
           runOpts = runningOptions)
 
