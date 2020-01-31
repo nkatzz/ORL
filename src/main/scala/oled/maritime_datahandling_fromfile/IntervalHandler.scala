@@ -200,7 +200,23 @@ object IntervalHandler {
             else {
               if (!llesAccum.contains(lle)) llesAccum += lle
 
-              currentBatch += generateLLEInstances(newLine, mode)
+              val currKey = (mmsi.toString, time.toString)
+
+              if(vesselDistanceMap.keySet.contains(currKey)) {
+                val currDistance = vesselDistanceMap(currKey) // in meters
+
+                val deleteProb = 1.1 //1 - (distanceThreshold / currDistance)
+
+                if(Random.nextDouble <= deleteProb){
+                  currentBatch = currentBatch
+                }
+                else{
+                  currentBatch += generateLLEInstances(newLine, mode)
+                }
+              } else {
+                currentBatch += generateLLEInstances(newLine, mode)
+              }
+
             }
           }
 
@@ -242,7 +258,7 @@ object IntervalHandler {
                   if(vesselDistanceMap.keySet.contains(currKey)) {
                     val currDistance = vesselDistanceMap(currKey) // in meters
 
-                    val deleteProb = 1 - (distanceThreshold / currDistance)
+                    val deleteProb = 1.1//1 - (distanceThreshold / currDistance)
 
                     if(Random.nextDouble <= deleteProb){
                       List()
