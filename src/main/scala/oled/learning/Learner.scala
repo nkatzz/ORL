@@ -21,7 +21,7 @@ import akka.actor.Actor
 import oled.app.runutils.InputHandling.InputSource
 import oled.app.runutils.RunningOptions
 import oled.datahandling.Example
-import oled.inference.MAPSolver
+import oled.inference.{ASPSolver, MAPSolver}
 import oled.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, RunSingleCore, StartOver}
 import oled.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import oled.logic.{Clause, Literal, LogicUtils}
@@ -99,7 +99,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
   def process(exmpl: Example): Unit = {
     logger.info(s"\n\n\n *** BATCH $batchCount *** ")
 
-    if (batchCount == 519) {
+    if (batchCount == 2) {
       val stop = "stop"
     }
 
@@ -115,15 +115,16 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
     if (inps.weightLean) {
       rules = state.getAllRules(inps.globals, "top")
       //rules = state.getBestRules(inps.globals)
-      println("MAP inference...")
       val rulesCompressed = LogicUtils.compressTheory(rules)
+      println("MAP inference...")
       inferredState = MAPSolver.solve(rulesCompressed, e, this.inertiaAtoms, inps)
 
       // Doing this in parallel is trivial (to speed things up in case of many rules/large batches).
       // Simply split the rules to multiple workers, the grounding/counting tasks executed are completely rule-independent.
-      println("Scoring...")
+      println("      Scoring...")
       val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
         LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps.globals, "all").toVector, inps, logger)
+
       tpCounts = _tpCounts
       fpCounts = _fpCounts
       fnCounts = _fnCounts
@@ -132,7 +133,16 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
 
       /*=============== OLED ================*/
     } else {
-      ???
+      rules = state.getBestRules(inps.globals, "score").filter(x => x.score(inps.scoringFun) >= 0.9)
+      val inferredState = ASPSolver.crispLogicInference(rules, e, inps.globals)
+      val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
+        LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps.globals, "all").toVector, inps, logger)
+
+      tpCounts = _tpCounts
+      fpCounts = _fpCounts
+      fnCounts = _fnCounts
+      totalGroundings = _totalGroundings
+      inertiaAtoms = _inertiaAtoms.toSet
     }
 
     this.inertiaAtoms = inertiaAtoms
@@ -140,7 +150,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
 
     state.perBatchError = state.perBatchError :+ (fpCounts + fnCounts)
 
-    logger.info(s"\n${state.perBatchError}")
+    //logger.info(s"\n${state.perBatchError}")
     logger.info(s"\nFPs: $fpCounts, FNs: $fnCounts")
 
     if (!withHandCrafted) {
@@ -148,11 +158,12 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
       state.updateGroundingsCounts(totalGroundings)
 
       // Generate new rules with abduction & everything. This should be removed...
-      println("Generating new rules...")
+
       var newInit = List.empty[Clause]
       var newTerm = List.empty[Clause]
 
       if (fpCounts != 0 || fnCounts != 0) {
+        println("Generating new rules...")
         val topInit = state.initiationRules
         val topTerm = state.terminationRules
         val growNewInit = growNewRuleTest(topInit, e, inps.globals, "initiatedAt")
@@ -203,7 +214,7 @@ class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
           }
         }
 
-      logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun)}\nTraining time: $totalTime")
+      logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun, inps.weightLean)}\nTraining time: $totalTime")
       logger.info(s"Mistakes per batch:\n${state.perBatchError}")
       logger.info(s"Accumulated mistakes per batch:\n${state.perBatchError.scanLeft(0.0)(_ + _).tail}")
       logger.info(s"Average loss vector:\n${avgLoss(state.perBatchError)}")

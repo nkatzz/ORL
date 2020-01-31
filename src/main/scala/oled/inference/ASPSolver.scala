@@ -18,8 +18,12 @@
 package oled.inference
 
 import com.typesafe.scalalogging.LazyLogging
+import oled.app.runutils.Globals
+import oled.datahandling.Example
+import oled.logic.Clause
 import oled.logic.parsers.ClausalLogicParser
 import oled.utils.Utils.dumpToFile
+
 import scala.sys.process._
 
 /**
@@ -77,6 +81,14 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     } else {
       answerSet.head
     }
+  }
+
+  def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {
+    val modes = globals.MODEHS ++ globals.MODEBS
+    val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
+    val program = e.toASP().mkString("\n")+t+"#show.\n"+s"""#include "${globals.BK_WHOLE_EC}"."""+"\n"+"#show holdsAt/2.\n"+"#show initiatedAt/2.\n"++"#show terminatedAt/2.\n"
+    val results = solve(program)
+    results.map(x => x -> true).toMap
   }
 
 }

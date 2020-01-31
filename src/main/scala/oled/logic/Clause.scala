@@ -99,9 +99,14 @@ case class Clause(
     this.supportSet = this.supportSet filter (p => !redundants.contains(p))
   }
 
-  def showWithStats(scoreFun: String) = {
-    s"score:" + s" $scoreFun, tps: $tps, fps: $fps, fns: $fns | " +
-      s"weight: ${format(this.weight)}  " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
+  def showWithStats(scoreFun: String, showWeights: Boolean = true) = {
+    if (showWeights) {
+      s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns | " +
+        s"weight: ${format(this.weight)}  " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
+    } else {
+      s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns. "+ s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
+    }
+
   }
 
   def thetaSubsumes(that: Clause): Boolean = {

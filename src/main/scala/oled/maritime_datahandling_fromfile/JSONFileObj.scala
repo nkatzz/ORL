@@ -15,27 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package oled.logic
+package oled.maritime_datahandling_fromfile
 
 import scala.collection.mutable.ListBuffer
 
-/**
-  * Created by nkatz at 4/12/19
-  */
-
-object LogicUtils {
-
-  def compressTheory(theory: Iterable[Clause]): List[Clause] = {
-    val compressed = new ListBuffer[Clause]
-    val included = (c: Clause) => compressed.toList.exists(x => x.thetaSubsumes(c) && c.thetaSubsumes(x))
-    for (c <- theory) {
-      if (!included(c)) compressed += c
-    }
-    compressed.toList
-  }
-
-  def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String, showWeights: Boolean = true) = {
-    clauses.map(x => x.showWithStats(scoreFun, showWeights)).mkString("\n")
-  }
-
-}
+case class JSONFileObj(_id: Int, time: Long, annotation: List[String], narrative: List[String])

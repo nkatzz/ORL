@@ -15,27 +15,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package oled.logic
+package oled.maritime_datahandling_fromfile
 
-import scala.collection.mutable.ListBuffer
+import intervalTree.IntervalTree
+import scala.collection.JavaConverters._
 
 /**
-  * Created by nkatz at 4/12/19
+  * Created by nkatz on 18/12/19.
   */
+package object data {
 
-object LogicUtils {
+  implicit class ITree[T](val tree: IntervalTree[T]) {
 
-  def compressTheory(theory: Iterable[Clause]): List[Clause] = {
-    val compressed = new ListBuffer[Clause]
-    val included = (c: Clause) => compressed.toList.exists(x => x.thetaSubsumes(c) && c.thetaSubsumes(x))
-    for (c <- theory) {
-      if (!included(c)) compressed += c
+    def +=(from: Long, to: Long, data: T): Unit = tree.addInterval(from, to, data)
+
+    def range(from: Long, to: Long): List[(Long, Long, T)] = {
+      tree.getIntervals(from, to).asScala.toList.map { i =>
+        if (from < i.getStart && to > i.getStart) (i.getStart, to, i.getData)
+        else if (from >= i.getStart && to > i.getEnd) (from, i.getEnd, i.getData)
+        else (from, to, i.getData)
+      }
     }
-    compressed.toList
-  }
 
-  def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String, showWeights: Boolean = true) = {
-    clauses.map(x => x.showWithStats(scoreFun, showWeights)).mkString("\n")
   }
 
 }

@@ -19,12 +19,18 @@ package oled.app
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.Coordinate
 import oled.app.runutils.CMDArgs
 import oled.app.runutils.InputHandling.getMongoData
 import oled.app.runutils.InputHandling.MongoDataOptions
 import oled.datahandling.Example
 import oled.learning.LocalCoordinator
 import oled.learning.Types.RunSingleCore
+import oled.maritime_datahandling_fromfile.FileDataOptions
+import oled.maritime_datahandling_fromfile.IntervalHandler.readInputFromFile
+
+import scala.collection.mutable
+import scala.io.Source
 
 /**
   * Created by nkatz on 7/10/19.
@@ -34,11 +40,41 @@ object Runner extends LazyLogging {
 
   def main(args: Array[String]) = {
 
+    /* Because we want some HLEs to get handled as LLEs */
+    /*
+    val all_LLEs = List("gap_end", "coord", "velocity", "change_in_heading", "entersArea",
+                        "stop_start", "change_in_speed_start", "gap_start", "change_in_speed_end",
+                        "stop_end", "leavesArea", "slow_motion_end", "slow_motion_start")
+
+    val all_HLEs = List("withinArea","tuggingSpeed","stopped","highSpeedNC","movingSpeed"
+                        ,"underWay","proximity","anchoredOrMoored","changingSpeed","gap"
+                        ,"lowSpeed","trawlingMovement","trawlSpeed","drifting","loitering"
+                        ,"sarMovement","sarSpeed","rendezVous","pilotBoarding","trawling","sar"
+                        ,"tugging")
+    */
+    // LLEs to happensAt, HLEs to holdsAt
+
+    val allLLEs = List("gap_end", /*"coord", "velocity",*/ "change_in_heading", "entersArea",
+      "stop_start", "change_in_speed_start", "gap_start", "change_in_speed_end",
+      "stop_end", "leavesArea", "slow_motion_end", "slow_motion_start", "withinArea","stopped", "highSpeedNC",
+      "movingSpeed", "underWay", "proximity", "changingSpeed", "gap", "lowSpeed", "trawlSpeed", "sarSpeed")
+
+    val allHLEs = List("anchoredOrMoored", "trawlingMovement", "drifting", "loitering", "sarMovement",
+      "rendezVous", "pilotBoarding", "trawling", "sar", "tugging")
+
     val argsok = CMDArgs.argsOk(args)
 
     if (argsok._1) {
+      val runningOptions = CMDArgs.getOLEDInputArgs(args) // returns RunningOptions object // THIS SHOULD GET PATH FOR HLE DIR AND LLE FILE
+                                                                                           // OR IT WILL CHANGED IN THE CODE
+      /*
+      val bias_list = runningOptions.globals.MODES
 
-      val runningOptions = CMDArgs.getOLEDInputArgs(args)
+      // I should find a better way
+      val bias_fluents = bias_list.map(clause => clause.split('(')(2)).toSet.toList ++ bias_list.map(clause => clause.split('(')(3)).toSet.toList
+      */
+
+      /*
       val train1 = Vector("caviar-video-1-meeting-moving", "caviar-video-3", "caviar-video-2-meeting-moving", "caviar-video-5",
         "caviar-video-6", "caviar-video-13-meeting", "caviar-video-7", "caviar-video-8", "caviar-video-14-meeting-moving",
         "caviar-video-9", "caviar-video-10", "caviar-video-11", "caviar-video-12-moving", "caviar-video-19-meeting-moving",
@@ -46,11 +82,12 @@ object Runner extends LazyLogging {
         "caviar-video-17", "caviar-video-18", "caviar-video-22-meeting-moving", "caviar-video-4", "caviar-video-23-moving",
         "caviar-video-25", "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27", "caviar-video-28-meeting",
         "caviar-video-29", "caviar-video-30")
+      */
 
       val evalOneTestSet = false
 
       if (!evalOneTestSet) {
-
+        /*
         /* Single-pass run on the entire dataset */
         val trainingDataOptions = new MongoDataOptions(dbNames       = train1, chunkSize = runningOptions.chunkSize,
                                                        targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
@@ -59,12 +96,47 @@ object Runner extends LazyLogging {
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
+        */
+
+        // SOME PARAMETERS SHOULD BE CONFIGURED
+        // --train = /home/manosl/Desktop/BSc_Thesis/Datasets/IntervalHandlerInputDatasets
+        val HLE_Dir_Path = runningOptions.train + "/HLEs"
+        val LLEs_File = runningOptions.train + "/LLEs.csv"
+
+        // val HLE_lang_bias = allHLEs  //bias_fluents.filter(x => all_HLEs.contains(x))
+        // val LLE_lang_bias = allLLEs  //bias_fluents.filter(x => all_LLEs.contains(x))
+
+        /*
+        /*Getting the coords of each vessel */
+        val coordLines = Source.fromFile(LLEs_File).getLines().filter(x => x.split("\\|")(0) == "coord").toIterator
+        val vesselCoordinatesMap = new mutable.HashMap[(String,String),Coordinate]() // Will be (MMSI, Time) -> (Long,Lat)
+
+        while(coordLines.hasNext) {
+          val coordSplit = coordLines.next.split("\\|")
+
+          val currMMSI = coordSplit(3).toString
+          val currTime = coordSplit(1).toString
+          val currLong = coordSplit(4).toDouble
+          val currLat = coordSplit(5).toDouble
+
+          vesselCoordinatesMap += ((currMMSI, currTime) -> new Coordinate(currLong, currLat))
+        }
+        */
+        val fileOpts = new FileDataOptions(HLE_Files_Dir = HLE_Dir_Path,LLE_File = LLEs_File, allHLEs = allHLEs,allLLEs = allLLEs,
+          runOpts = runningOptions, true)
+
+        val trainingDataFunction: FileDataOptions => Iterator[Example] = readInputFromFile
+        val testingDataFunction: FileDataOptions => Iterator[Example] = readInputFromFile
 
         val system = ActorSystem("LocalLearningSystem")
         val startMsg = new RunSingleCore
 
-        val coordinator = system.actorOf(Props(new LocalCoordinator(runningOptions, trainingDataOptions,
-                                                                    testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
+        // Actor and Props are for parallel processing
+        //val coordinator = system.actorOf(Props(new LocalCoordinator(runningOptions, trainingDataOptions,
+        //                                                            testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
+
+        val coordinator = system.actorOf(Props(new LocalCoordinator(runningOptions, fileOpts,
+                                                                    fileOpts, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
 
         coordinator ! startMsg
 
