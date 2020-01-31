@@ -123,7 +123,7 @@ object Runner extends LazyLogging {
         }
         */
         val fileOpts = new FileDataOptions(HLE_Files_Dir = HLE_Dir_Path,LLE_File = LLEs_File, allHLEs = allHLEs,allLLEs = allLLEs,
-          runOpts = runningOptions)
+          runOpts = runningOptions, true)
 
         val trainingDataFunction: FileDataOptions => Iterator[Example] = readInputFromFile
         val testingDataFunction: FileDataOptions => Iterator[Example] = readInputFromFile
