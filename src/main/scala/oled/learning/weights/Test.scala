@@ -20,4 +20,8 @@ package oled.learning.weights
 /**
   * Created by nkatz on 7/10/19.
   */
-object Test extends App {}
+object Test extends App {
+
+  val x = 0.3
+
+}

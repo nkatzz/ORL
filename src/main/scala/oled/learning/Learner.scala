@@ -112,10 +112,6 @@ class Learner[T <: InputSource](
 
     //logger.info("\n"+underline(s"*** BATCH $batchCount *** "))
 
-    if (batchCount == 5) {
-      val stop = "stop"
-    }
-
     val e = LearningUtils.dataToMLNFormat(exmpl, inps)
 
     var rules = List.empty[Clause]
@@ -124,13 +120,14 @@ class Learner[T <: InputSource](
     var fpCounts = 0
     var fnCounts = 0
     var totalGroundings = 0
-    var rulesCompressed = List[Clause]()
-
-
+    var rulesCompressed = List.empty[Clause]
 
     if (inps.weightLean) {
 
+      //rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
+
       rules = state.getAllRules(inps, "top")
+
       //rules = state.getBestRules(inps.globals)
 
       rulesCompressed = LogicUtils.compressTheory(rules)
@@ -145,7 +142,7 @@ class Learner[T <: InputSource](
       // Simply split the rules to multiple workers, the grounding/counting tasks executed are completely rule-independent.
       //println("      Scoring...")
       val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
-        LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
+        LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps, "all").toVector, inps, logger, batchCount = batchCount)
 
       tpCounts = _tpCounts
       fpCounts = _fpCounts
@@ -155,8 +152,9 @@ class Learner[T <: InputSource](
 
       /*=============== OLED ================*/
     } else {
-      rules = state.getBestRules(inps.globals, "score").filter(x => x.score(inps.scoringFun) >= 0.9)
-      val inferredState = ASPSolver.crispLogicInference(rules, e, inps.globals)
+      rulesCompressed = state.getBestRules(inps.globals, "score") //.filter(x => x.score(inps.scoringFun) >= 0.9)
+      val inferredState = ASPSolver.crispLogicInference(rulesCompressed, e, inps.globals)
+
       val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
         LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
 
@@ -183,14 +181,9 @@ class Learner[T <: InputSource](
       state.totalGroundings += totalGroundings
       state.updateGroundingsCounts(totalGroundings)
 
-      /* Generate new rules with abduction & everything. This should be modified... */
       var newInit = List.empty[Clause]
       var newTerm = List.empty[Clause]
 
-      //val currentAvg = avgNumberOfMistakesSoFar
-      //avgNumberOfMistakesSoFar = (avgNumberOfMistakesSoFar + fpCounts + fnCounts).toDouble/(batchCount.toDouble + 1)
-
-      //if (fpCounts+fnCounts > avgNumberOfMistakesSoFar) {
       if (fpCounts != 0 || fnCounts != 0) {
         /*val topInit = state.initiationRules.filter(_.body.nonEmpty)
         val topTerm = state.terminationRules.filter(_.body.nonEmpty)
@@ -208,8 +201,8 @@ class Learner[T <: InputSource](
 
         val (init, term) = newRules.partition(x => x.head.predSymbol == "initiatedAt")
 
-        newInit = init
-        newTerm = term
+        newInit = init //.filter(p => !state.isBlackListed(p))
+        newTerm = term //.filter(p => !state.isBlackListed(p))
 
         val allNew = newInit ++ newTerm
         if (allNew.nonEmpty) LearningUtils.showNewRulesMsg(fpCounts, fnCounts, allNew, logger)
@@ -229,7 +222,7 @@ class Learner[T <: InputSource](
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      val pruningSpecs = new PruningSpecs(0.9, 2, 10000)
+      val pruningSpecs = new PruningSpecs(0.8, 2, 15000)
 
       val pruned = state.pruneRules(pruningSpecs, inps, logger)
     }
@@ -292,7 +285,14 @@ class Learner[T <: InputSource](
   def batchInfoMsg(theoryForPrediction: List[Clause], tpCounts: Int, fpCounts: Int, fnCounts: Int) = {
     val batchMsg = underlineStars(s"*** BATCH $batchCount ***")
     val theoryMsg = underline(s"TPs: $tpCounts, FPs: $fpCounts, FNs: $fnCounts. Theory used for prediction:")
-    val theory = theoryForPrediction.map(x => s"${x.tostring} | W: ${format(x.weight)} | Precision: ${format(x.precision)} | (TPs,FPs): (${x.tps}, ${x.fps}) ").mkString("\n")
+    val theory = {
+      if (inps.weightLean) {
+        theoryForPrediction.map(x => s"${x.tostring} | W: ${format(x.weight)} | Precision: ${format(x.precision)} | (TPs,FPs): (${x.tps}, ${x.fps}) ").mkString("\n")
+      } else {
+        theoryForPrediction.map(x => s"${x.tostring} | Precision: ${format(x.precision)} | (TPs,FPs): (${x.tps}, ${x.fps}) ").mkString("\n")
+
+      }
+    }
     if (theoryForPrediction.nonEmpty) s"\n$batchMsg\n$theoryMsg\n$theory" else s"*** BATCH $batchCount ***"
   }
 

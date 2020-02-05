@@ -66,10 +66,9 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     }
   }
 
-
   def KSGeneration(topTheory: List[Clause], examples: Example, inps: RunningOptions) = {
 
-    val _abduced1 = LearningUtils.abduce(examples, inps, topTheory)//.head.atoms
+    val _abduced1 = LearningUtils.abduce(examples, inps, topTheory) //.head.atoms
 
     val _abduced = if (_abduced1.nonEmpty) _abduced1.head.atoms else List.empty[String]
 
@@ -95,7 +94,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val aspFile: File = getTempFile("aspinput", ".lp")
 
-    def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
+      def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
 
     val (_, varKernel) = generateKernel(abduced, examples = toMapASP(examples), aspInputFile = aspFile, bkFile = inps.globals.BK_WHOLE_EC, globals = inps.globals)
 
@@ -166,7 +165,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val aspFile: File = getTempFile("aspinput", ".lp")
     val abdModels: List[AnswerSet] =
-      abduce("modehs", examples = examples, learningTerminatedAtOnly = learningTerminatedAtOnly, fromWeakExmpl = fromWeakExmpl, bkFile = bkFile, globals = globals)
+      abduce("modehs", examples                 = examples, learningTerminatedAtOnly = learningTerminatedAtOnly, fromWeakExmpl = fromWeakExmpl, bkFile = bkFile, globals = globals)
     //if (abdModel != Nil) logger.info("Created Delta set")
     //println(abdModels)
     val (kernel, varKernel) = abdModels match {
@@ -329,7 +328,6 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       case _: List[Any] => throw new RuntimeException("This logic has not been implemented yet.")
       case _ => throw new RuntimeException("You need to specify the abducible predicates.")
     }
-
 
     solveASP(Globals.ABDUCTION, aspFile.getAbsolutePath)
   }

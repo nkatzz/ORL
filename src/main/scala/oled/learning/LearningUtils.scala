@@ -74,27 +74,27 @@ object LearningUtils {
 
   def showNewRulesMsg(fps: Int, fns: Int, newRules: List[Clause], logger: org.slf4j.Logger) = {
 
-    def showBCs(bottomClause: Clause) = {
-      bottomClause.toStrList match {
-        case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
-        case h :: ts =>
-          ts.length match {
-            case 0 => s"$h."
-            case 1 => s"$h :- ${ts.head}."
-            case _ => s"""$h :- ${(for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) x+"." else x+",").mkString(" ")}"""
-          }
+      def showBCs(bottomClause: Clause) = {
+        bottomClause.toStrList match {
+          case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
+          case h :: ts =>
+            ts.length match {
+              case 0 => s"$h."
+              case 1 => s"$h :- ${ts.head}."
+              case _ => s"""$h :- ${(for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) x + "." else x + ",").mkString(" ")}"""
+            }
+        }
       }
-    }
 
-    def underline(x: String) = {
-      val l = x.length
-      val u = (for (i <- 1 to l) yield "-").mkString("")
-      s"$u\n$x\n$u"
-    }
+      def underline(x: String) = {
+        val l = x.length
+        val u = (for (i <- 1 to l) yield "-").mkString("")
+        s"$u\n$x\n$u"
+      }
 
     val u = "==============================================================================================="
     val msg = s"Erroneous predictions: FPs: $fps, FNs: $fns. Start growing new rules from the following BCS:"
-    val umsg = underline(msg)
+    val umsg = "\n" + underline(msg)
     val bcs = newRules.map(x => showBCs(x.supportSet.head)).mkString("\n")
     logger.info(s"$umsg\n$bcs\n$u")
   }
@@ -205,7 +205,6 @@ object LearningUtils {
       |
       |""".stripMargin
 
-
   /*val BK: String =
     """
       |%tps(X) :- X = #count {F,T: annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)}.
@@ -310,20 +309,14 @@ object LearningUtils {
       |
       |""".stripMargin*/
 
-
-
-
-
-
-
-
   def scoreAndUpdateWeights(
       data: Example,
       inferredState: InferredState,
       rules: Vector[Clause],
       inps: RunningOptions,
       logger: org.slf4j.Logger,
-      newRules: Boolean = false) = {
+      newRules: Boolean = false,
+      batchCount: Int = 0) = {
 
     val bk = BK
 
@@ -404,27 +397,27 @@ object LearningUtils {
 
       val rule = ruleIdsMap(ruleId)
 
+      if (rule.tostring.replaceAll("\\s", "") ==
+        "initiatedAt(meeting(X0,X1),X2):-close(X0,X1,24,X2),happensAt(inactive(X1),X2),happensAt(inactive(X0),X2).") {
+
+        val stop = "stop"
+
+      }
+
       // If we are dealing with regular rules (of some age)
       // then the mistakes are set as they should, i.e the difference
       // between all those inferred as true and those that inferred and are actually true.
       // On the other hand, if a rule has just been constructed, there will be no groundings
-      // of the rule in the inferred state. To kickstart its weight, therefore, we set its
+      // of the rule in the inferred state. To kick-start its weight, therefore, we set its
       // mistakes to the actual FPs of the rule in the true state.
-      val mistakes = if (!newRules) allInferredTrue - actualTrueGroundings else actualFalseGroundings
 
-      // Adagrad
-      /*val lambda = inps.adaRegularization //0.001 // 0.01 default
-      val eta = inps.adaLearnRate //1.0 // default
-      val delta = inps.adaGradDelta //1.0
-      val currentSubgradient = mistakes
-      rule.subGradient += currentSubgradient * currentSubgradient
-      val coefficient = eta / (delta + math.sqrt(rule.subGradient))
-      val value = rule.weight - coefficient * currentSubgradient
-      val difference = math.abs(value) - (lambda * coefficient)
-      if (difference > 0) rule.weight = if (value >= 0) difference else -difference
-      else rule.weight = 0.0*/
+      //val mistakes = if (!newRules) allInferredTrue - actualTrueGroundings else actualFalseGroundings
 
-      rule.weight = UpdateWeights.adaGradUpdate(rule, mistakes, inps)
+      val mistakes = allInferredTrue - actualTrueGroundings
+
+      //rule.weight = UpdateWeights.adaGradUpdate(rule, mistakes, inps)
+
+      rule.weight = UpdateWeights.adamUpdate(rule, mistakes, inps, batchCount)
 
       if (rule.body.isEmpty || rule.parentClause.body.isEmpty) {
         // If a rule is very young, use its actual counts (not the inferred ones)
@@ -436,12 +429,9 @@ object LearningUtils {
         rule.tps += trueInferredAsTrueGroundings
         rule.fps += falseInferredAsTrueGroundings
       }
-
-
     }
     (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms)
   }
-
 
   def abduce(examples: Example, inps: RunningOptions, existingRules: List[Clause]) = {
 
@@ -451,12 +441,12 @@ object LearningUtils {
     //${existingRules.map(x => x.withTypePreds(modes)).map(x => x.tostring).mkString("\n")}
 
     val rules = existingRules.flatMap { rule =>
-      val exceptionBodyLiteral = Literal(predSymbol = "exception",  terms = List(rule.head), isNAF = true)
-      val exceptionHeadAtom = Literal(predSymbol = "exception",  terms = List(rule.head), isNAF = false)
+      val exceptionBodyLiteral = Literal(predSymbol = "exception", terms = List(rule.head), isNAF = true)
+      val exceptionHeadAtom = Literal(predSymbol = "exception", terms = List(rule.head), isNAF = false)
       val defeasible = Clause(head = rule.head, body = rule.body :+ exceptionBodyLiteral)
-      val exceptionDefs = rule.refinements.map( ref => Clause(exceptionHeadAtom, ref.body) )
+      val exceptionDefs = rule.refinements.map(ref => Clause(exceptionHeadAtom, ref.body))
       (List(defeasible) ++ exceptionDefs) map (x => x.withTypePreds(modes).tostring)
-    } mkString("\n")
+    } mkString ("\n")
 
     val bk =
       s"""
@@ -510,6 +500,5 @@ object LearningUtils {
     OldStructureLearningFunctions.solveASP(Globals.ABDUCTION, f.getAbsolutePath)
 
   }
-
 
 }

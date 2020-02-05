@@ -68,6 +68,10 @@ case class Clause(
   var weight: Double = 0.0001
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
+
+  var adamGradient = 0.0
+  var adamSquareSubgradient = 0.0
+
   var tps: Int = 0
   var fps: Int = 0
   var fns: Int = 0

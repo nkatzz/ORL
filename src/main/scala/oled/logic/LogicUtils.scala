@@ -49,7 +49,7 @@ object LogicUtils {
     * r1 has not been specialized, since no literal of sufficient gain exists in its bottom clause,
     * or it is too "young". In the first case it will be pruned away at some point, while in the second
     * case it will be specialized (into a version that differs from r2 itself).
-    * */
+    */
   def compressTheoryKeepMoreSpecific(_initialTheory: Iterable[Clause]) = {
 
     var compressed = List[Clause]()

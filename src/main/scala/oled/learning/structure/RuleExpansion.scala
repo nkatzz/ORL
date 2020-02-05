@@ -81,16 +81,16 @@ object RuleExpansion {
 
     val scoreFun = inps.scoringFun
 
-    def format(x: Double) = {
-      val defaultNumFormat = new DecimalFormat("0.############")
-      defaultNumFormat.format(x)
-    }
+      def format(x: Double) = {
+        val defaultNumFormat = new DecimalFormat("0.############")
+        defaultNumFormat.format(x)
+      }
 
-    def underline(x: String) = {
-      val l = x.length
-      val u = (for (i <- 1 to l) yield "-").mkString("")
-      s"$u\n$x\n$u"
-    }
+      def underline(x: String) = {
+        val l = x.length
+        val u = (for (i <- 1 to l) yield "-").mkString("")
+        s"$u\n$x\n$u"
+      }
 
     val all = "All specializations:"
 
