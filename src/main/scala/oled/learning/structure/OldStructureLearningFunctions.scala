@@ -20,22 +20,21 @@ package oled.learning.structure
 import java.io.{BufferedWriter, File, FileWriter}
 import java.util.UUID
 
-import com.mongodb.{BasicDBList, BasicDBObject}
-import com.mongodb.casbah.{MongoClient, MongoCollection}
-import com.mongodb.casbah.commons.MongoDBObject
-import com.typesafe.scalalogging.LazyLogging
 import com.mongodb.casbah.Imports._
-
-import scala.sys.process._
-import oled.app.runutils.Globals
+import com.mongodb.casbah.commons.MongoDBObject
+import com.mongodb.casbah.{MongoClient, MongoCollection}
+import com.mongodb.{BasicDBList, BasicDBObject}
+import com.typesafe.scalalogging.LazyLogging
+import oled.app.runutils.{Globals, RunningOptions}
 import oled.datahandling.Example
-import oled.inference.ASPSolver
+import oled.learning.LearningUtils
 import oled.learning.Types.Theory
 import oled.logic.parsers.ClausalLogicParser
-import oled.logic.{Clause, Constant, Literal, LogicalExpression, ModeAtom}
+import oled.logic._
 
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
+import scala.sys.process._
 import scala.util.matching.Regex
 
 /**
@@ -49,13 +48,62 @@ import scala.util.matching.Regex
 
 object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
-  def generateNewRules(topTheory: List[Clause], e: Example, initorterm: String, globals: Globals) = {
+  /*def generateNewRules(topTheory: List[Clause], e: Example, initorterm: String, globals: Globals) = {
     val bcs = generateNewBottomClauses(topTheory, e, initorterm, globals)
     bcs map { x =>
       val c = Clause(head = x.head, body = List())
       c.addToSupport(x)
       c
     }
+  }*/
+
+  def generateNewRules(topTheory: List[Clause], examples: Example, inps: RunningOptions) = {
+    val bcs = KSGeneration(topTheory, examples, inps)
+    bcs map { x =>
+      val c = Clause(head = x.head, body = List())
+      c.addToSupport(x)
+      c
+    }
+  }
+
+
+  def KSGeneration(topTheory: List[Clause], examples: Example, inps: RunningOptions) = {
+
+    val _abduced1 = LearningUtils.abduce(examples, inps, topTheory)//.head.atoms
+
+    val _abduced = if (_abduced1.nonEmpty) _abduced1.head.atoms else List.empty[String]
+
+    val abduced = _abduced map { atom =>
+
+      // atom = matchesMode(1,initiatedAt_proxy(meeting(id4,id5),5680),initiatedAt(meeting(id4,id5),5680))
+
+      val lit = Literal.parse(atom)
+
+      val modeCounter = lit.terms.head
+      val proxyAtom = lit.terms.tail.head.asInstanceOf[Literal]
+      val actualAtom = lit.terms.tail.tail
+
+      // the head is of the form initiatedAt_proxy, terminatedAt_proxy here.
+      val oldPredSymbol = proxyAtom.predSymbol
+      val newPredSymbol = oldPredSymbol.split("_")(0)
+      val newAtom = Literal(predSymbol = newPredSymbol, terms = proxyAtom.terms, isNAF = proxyAtom.isNAF)
+
+      val newMatchesModeAtom = lit.replace(proxyAtom, newAtom)
+
+      newMatchesModeAtom.tostring
+    }
+
+    val aspFile: File = getTempFile("aspinput", ".lp")
+
+    def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
+
+    val (_, varKernel) = generateKernel(abduced, examples = toMapASP(examples), aspInputFile = aspFile, bkFile = inps.globals.BK_WHOLE_EC, globals = inps.globals)
+
+    val bottomTheory = topTheory flatMap (x => x.supportSet)
+
+    val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
+
+    goodKernelRules
   }
 
   def generateNewBottomClauses(topTheory: List[Clause], e: Example, initorterm: String, globals: Globals) = {
@@ -65,8 +113,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
       def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
 
-    val (_, varKernel) =
-      generateKernel1(toMapASP(e), learningTerminatedOnly = terminatedOnly, bkFile = specialBKfile, globals = globals)
+    val (_, varKernel) = generateKernel1(toMapASP(e), learningTerminatedOnly = terminatedOnly, bkFile = specialBKfile, globals = globals)
     val bottomTheory = topTheory flatMap (x => x.supportSet)
     val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
     goodKernelRules
@@ -119,7 +166,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val aspFile: File = getTempFile("aspinput", ".lp")
     val abdModels: List[AnswerSet] =
-      abduce("modehs", examples                 = examples, learningTerminatedAtOnly = learningTerminatedAtOnly, fromWeakExmpl = fromWeakExmpl, bkFile = bkFile, globals = globals)
+      abduce("modehs", examples = examples, learningTerminatedAtOnly = learningTerminatedAtOnly, fromWeakExmpl = fromWeakExmpl, bkFile = bkFile, globals = globals)
     //if (abdModel != Nil) logger.info("Created Delta set")
     //println(abdModels)
     val (kernel, varKernel) = abdModels match {
@@ -207,7 +254,8 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       examples: Map[String, List[String]],
       learningTerminatedAtOnly: Boolean = false,
       fromWeakExmpl: Boolean = false,
-      bkFile: String, globals: Globals): List[AnswerSet] = {
+      bkFile: String, globals: Globals,
+      existingRules: List[Clause] = Nil): List[AnswerSet] = {
 
     val aspFile: File = getTempFile("aspinput", ".lp", "", deleteOnExit = true)
 
@@ -281,6 +329,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       case _: List[Any] => throw new RuntimeException("This logic has not been implemented yet.")
       case _ => throw new RuntimeException("You need to specify the abducible predicates.")
     }
+
 
     solveASP(Globals.ABDUCTION, aspFile.getAbsolutePath)
   }
@@ -569,7 +618,9 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     val mode = if (List("all", "optN").contains(solveMode)) "0" else ""
     //val command = Seq("clingo", aspFile, mode, with_atom_undefiend, aspCores, " > ", outFile.getCanonicalPath)
 
-    val command = Seq("clingo", aspFile, mode, with_atom_undefiend, aspCores)
+    val clingo = "/home/nkatz/software/clingo-5.4.0/build/bin/clingo"
+    val command = Seq(clingo, aspFile, mode, with_atom_undefiend, aspCores)
+    //val command = Seq("clingo", aspFile, mode, with_atom_undefiend, aspCores)
 
     val result = command.mkString(" ").lineStream_!
     val results = result.toList
@@ -880,11 +931,11 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     }
 
     val modes = globals.MODEHS ++ globals.MODEBS
-    val t = clauses.map(x => x.withTypePreds(modes).tostring).mkString("\n")
+    val existingTheory = clauses.map(x => x.withTypePreds(modes).tostring).mkString("\n")
 
     val ex = e.toASP().mkString("\n")
 
-    val program = ex + includeBKfile + t + failedTestDirective + show
+    val program = ex + includeBKfile + existingTheory + failedTestDirective + show
     // Fail if either one of the existing rules
     val failure = (atoms: List[String]) =>
       if (targetClass != "empty")

@@ -105,4 +105,16 @@ object Utils {
     sampleN(N, sampleFrom, List())
   }
 
+  def underline(x: String) = {
+    val l = x.length
+    val u = (for (i <- 1 to l) yield "-").mkString("")
+    s"$u\n$x\n$u"
+  }
+
+  def underlineStars(x: String) = {
+    val l = x.length
+    val u = (for (i <- 1 to l) yield "*").mkString("")
+    s"$u\n$x\n$u"
+  }
+
 }

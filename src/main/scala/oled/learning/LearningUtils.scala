@@ -21,6 +21,8 @@ import oled.app.runutils.{Globals, RunningOptions}
 import oled.datahandling.Example
 import oled.inference.{ASPSolver, MAPSolver}
 import oled.learning.Types.InferredState
+import oled.learning.structure.OldStructureLearningFunctions
+import oled.learning.weights.UpdateWeights
 import oled.logic.{Clause, Literal, LogicUtils}
 
 /**
@@ -51,7 +53,8 @@ object LearningUtils {
 
       val rulesCompressed = LogicUtils.compressTheory(rules)
 
-      val inferredState = MAPSolver.solve(rulesCompressed, e, Set.empty[Literal], inps)
+      val inferredResult = MAPSolver.solve(rulesCompressed, e, Set.empty[Literal], inps)
+      val inferredState = inferredResult._1
       val inferredTrue = inferredState.filter(x => x._2 && x._1.startsWith("holdsAt")).keySet
       val actuallyTrue = e.queryAtoms.toSet
       val tps = inferredTrue.intersect(actuallyTrue).size
@@ -69,6 +72,33 @@ object LearningUtils {
     println(s"F1-score on test set: $f1")
   }
 
+  def showNewRulesMsg(fps: Int, fns: Int, newRules: List[Clause], logger: org.slf4j.Logger) = {
+
+    def showBCs(bottomClause: Clause) = {
+      bottomClause.toStrList match {
+        case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
+        case h :: ts =>
+          ts.length match {
+            case 0 => s"$h."
+            case 1 => s"$h :- ${ts.head}."
+            case _ => s"""$h :- ${(for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) x+"." else x+",").mkString(" ")}"""
+          }
+      }
+    }
+
+    def underline(x: String) = {
+      val l = x.length
+      val u = (for (i <- 1 to l) yield "-").mkString("")
+      s"$u\n$x\n$u"
+    }
+
+    val u = "==============================================================================================="
+    val msg = s"Erroneous predictions: FPs: $fps, FNs: $fns. Start growing new rules from the following BCS:"
+    val umsg = underline(msg)
+    val bcs = newRules.map(x => showBCs(x.supportSet.head)).mkString("\n")
+    logger.info(s"$umsg\n$bcs\n$u")
+  }
+
   def dataToMLNFormat(batch: Example, inps: RunningOptions) = {
     // Get the data in MLN format by doing numerical stuff thresholds etc. with clingo
     // and getting the atoms expected by the mode declarations
@@ -83,7 +113,7 @@ object LearningUtils {
     e
   }
 
-  val BK =
+  val BK: String =
     """
       |%tps(X) :- X = #count {F,T: annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)}.
       |%fps(X) :- X = #count {F,T: not annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)}.
@@ -94,77 +124,76 @@ object LearningUtils {
       |       FPs = #count {F,T: not annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)},
       |       FNs = #count {F,T: annotation(holdsAt(F,T)), not startTime(T), inferred(holdsAt(F,T), false)}.
       |
-      |% For the case where we don't explicitly have the not inferred once (e.g. when we're doing crisp logical inference).
+      |% For the case where we don't explicitly have the not inferred ones (e.g. when we're doing crisp logical inference).
       |inferred(holdsAt(F,T), false) :- not inferred(holdsAt(F,T), true), fluent(F), time(T).
       |inferred(initiatedAt(F,T), false) :- not inferred(initiatedAt(F,T), true), fluent(F), time(T).
       |inferred(terminatedAt(F,T), false) :- not inferred(terminatedAt(F,T), true), fluent(F), time(T).
       |
+      |% Actually true groundings.
       |actual_initiated_true_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          fires(initiatedAt(F, T), RuleId),
       |          annotation(holdsAt(F, Te)),
       |          next(T, Te).
       |
-      |%actual_initiated_true_grounding(F, T, RuleId) :-
-      |%          fluent(F), % This is necessary for correct scoring
-      |%          fires(initiatedAt(F, T), RuleId),
-      |%          annotation(holdsAt(F, T)),
-      |%          endTime(T).
-      |
+      |% Actually false groundings.
       |actual_initiated_false_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          fires(initiatedAt(F, T), RuleId),
-      |          not annotation(holdsAt(F, Te)), next(T, Te).
+      |          not annotation(holdsAt(F, Te)),
+      |          next(T, Te).
       |
+      |% All groundings inferred as true, regardless of their actual truth value.
       |inferred_initiated_true_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          initiated_rule_id(RuleId),
       |          fires(initiatedAt(F, T), RuleId),
       |          inferred(initiatedAt(F, T), true).
       |
-      |result_init(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrueGroundings, Mistakes) :-
+      |result_init(RuleId, ActualTrueGroundings, ActualFalseGroundings, TrueInferredAsTrue, FalseInferredAsTrue) :-
       |           initiated_rule_id(RuleId),
       |           ActualTrueGroundings = #count {F,T: actual_initiated_true_grounding(F, T, RuleId)},
-      |           InferredTrueGroundings = #count {F,T: inferred_initiated_true_grounding(F, T , RuleId)},
       |           ActualFalseGroundings = #count {F,T: actual_initiated_false_grounding(F, T, RuleId)},
-      |           Mistakes = InferredTrueGroundings - ActualTrueGroundings.
+      |           TrueInferredAsTrue = #count {F,T: actual_initiated_true_grounding(F, T, RuleId), inferred_initiated_true_grounding(F, T , RuleId)},
+      |           FalseInferredAsTrue = #count {F,T: actual_initiated_false_grounding(F, T, RuleId), inferred_initiated_true_grounding(F, T , RuleId)}.
       |
-      |actually_terminated_true_grounding(F, T, RuleId) :-
+      |%result_init(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrueGroundings, Mistakes) :-
+      |%           initiated_rule_id(RuleId),
+      |%           ActualTrueGroundings = #count {F,T: actual_initiated_true_grounding(F, T, RuleId)},
+      |%           InferredTrueGroundings = #count {F,T: inferred_initiated_true_grounding(F, T , RuleId)},
+      |%           ActualFalseGroundings = #count {F,T: actual_initiated_false_grounding(F, T, RuleId)},
+      |%           Mistakes = InferredTrueGroundings - ActualTrueGroundings.
+      |
+      |% Actually true groundings.
+      |
+      |actual_terminated_true_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          fires(terminatedAt(F, T), RuleId),
-      |          not annotation(holdsAt(F,Te)), next(T, Te).
+      |          not annotation(holdsAt(F,Te)),
+      |          next(T, Te).
       |
-      |actually_terminated_true_grounding(F, T, RuleId) :- % This is necessary for correct scoring...
+      |% Actually false groundings.
+      |actual_terminated_false_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          fires(terminatedAt(F, T), RuleId),
-      |          endTime(T),
-      |          not annotation(holdsAt(F,T)).
+      |          annotation(holdsAt(F,Te)),
+      |          next(T, Te).
       |
-      |actually_terminated_false_grounding(F, T, RuleId) :-
-      |          fluent(F), % This is necessary for correct scoring
-      |          fires(terminatedAt(F, T), RuleId),
-      |          annotation(holdsAt(F,Te)), next(T, Te).
-      |
+      |% All groundings inferred as true, regardless of their actual truth value.
       |inferred_terminated_true_grounding(F, T, RuleId) :-
       |          fluent(F), % This is necessary for correct scoring
       |          terminated_rule_id(RuleId),
       |          fires(terminatedAt(F, T), RuleId),
       |          inferred(terminatedAt(F, T), true).
       |
-      |
-      |actual_term_tps(RuleId, X) :- terminated_rule_id(RuleId), X = #count {F,T: actually_terminated_true_grounding(F, T, RuleId)}.
-      |inferred_term_tps(RuleId, X) :- terminated_rule_id(RuleId), X = #count {F,T: inferred_terminated_true_grounding(F, T, RuleId)}.
-      |
-      |result_term(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrueGroundings, Mistakes) :-
-      |             terminated_rule_id(RuleId),
-      |             ActualTrueGroundings = #count {F,T: actually_terminated_true_grounding(F, T, RuleId)},
-      |             InferredTrueGroundings = #count {F,T: inferred_terminated_true_grounding(F, T, RuleId)},
-      |             ActualFalseGroundings = #count {F,T: actually_terminated_false_grounding(F, T, RuleId)},
-      |             Mistakes = InferredTrueGroundings - ActualTrueGroundings.
-      |
+      |result_term(RuleId, ActualTrueGroundings, ActualFalseGroundings, TrueInferredAsTrue, FalseInferredAsTrue) :-
+      |           terminated_rule_id(RuleId),
+      |           ActualTrueGroundings = #count {F,T: actual_terminated_true_grounding(F, T, RuleId)},
+      |           ActualFalseGroundings = #count {F,T: actual_terminated_false_grounding(F, T, RuleId)},
+      |           TrueInferredAsTrue = #count {F,T: actual_terminated_true_grounding(F, T, RuleId), inferred_terminated_true_grounding(F, T , RuleId)},
+      |           FalseInferredAsTrue = #count {F,T: actual_terminated_false_grounding(F, T, RuleId), inferred_terminated_true_grounding(F, T , RuleId)}.
       |
       |inertia(holdsAt(F,T)) :- inferred(holdsAt(F, T), true), endTime(T).
-      |
       |
       |#show.
       |#show coverage_counts/3.
@@ -176,12 +205,125 @@ object LearningUtils {
       |
       |""".stripMargin
 
+
+  /*val BK: String =
+    """
+      |%tps(X) :- X = #count {F,T: annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)}.
+      |%fps(X) :- X = #count {F,T: not annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)}.
+      |%fns(X) :- X = #count {F,T: annotation(holdsAt(F,T)), inferred(holdsAt(F,T), false)}.
+      |
+      |coverage_counts(TPs, FPs, FNs) :-
+      |       TPs = #count {F,T: annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)},
+      |       FPs = #count {F,T: not annotation(holdsAt(F,T)), inferred(holdsAt(F,T), true)},
+      |       FNs = #count {F,T: annotation(holdsAt(F,T)), not startTime(T), inferred(holdsAt(F,T), false)}.
+      |
+      |% For the case where we don't explicitly have the not inferred ones (e.g. when we're doing crisp logical inference).
+      |inferred(holdsAt(F,T), false) :- not inferred(holdsAt(F,T), true), fluent(F), time(T).
+      |inferred(initiatedAt(F,T), false) :- not inferred(initiatedAt(F,T), true), fluent(F), time(T).
+      |inferred(terminatedAt(F,T), false) :- not inferred(terminatedAt(F,T), true), fluent(F), time(T).
+      |
+      |% Actually true groundings.
+      |actual_initiated_true_grounding(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          fires(initiatedAt(F, T), RuleId),
+      |          annotation(holdsAt(F, Te)),
+      |          next(T, Te).
+      |
+      |% Actually false groundings.
+      |actual_initiated_false_grounding(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          fires(initiatedAt(F, T), RuleId),
+      |          not annotation(holdsAt(F, Te)),
+      |          next(T, Te).
+      |
+      |% All groundings inferred as true, regardless of their actual truth value.
+      |inferred_initiated_true_grounding(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          initiated_rule_id(RuleId),
+      |          fires(initiatedAt(F, T), RuleId),
+      |          inferred(initiatedAt(F, T), true).
+      |
+      |result_init(RuleId, ActualTrueGroundings, ActualFalseGroundings, TrueInferredAsTrue, FalseInferredAsTrue) :-
+      |           initiated_rule_id(RuleId),
+      |           ActualTrueGroundings = #count {F,T: actual_initiated_true_grounding(F, T, RuleId)},
+      |           ActualFalseGroundings = #count {F,T: actual_initiated_false_grounding(F, T, RuleId)},
+      |           TrueInferredAsTrue = #count {F,T: actual_initiated_true_grounding(F, T, RuleId), inferred_initiated_true_grounding(F, T , RuleId)},
+      |           FalseInferredAsTrue = #count {F,T: actual_initiated_false_grounding(F, T, RuleId), inferred_initiated_true_grounding(F, T , RuleId)}.
+      |
+      |%result_init(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrueGroundings, Mistakes) :-
+      |%           initiated_rule_id(RuleId),
+      |%           ActualTrueGroundings = #count {F,T: actual_initiated_true_grounding(F, T, RuleId)},
+      |%           InferredTrueGroundings = #count {F,T: inferred_initiated_true_grounding(F, T , RuleId)},
+      |%           ActualFalseGroundings = #count {F,T: actual_initiated_false_grounding(F, T, RuleId)},
+      |%           Mistakes = InferredTrueGroundings - ActualTrueGroundings.
+      |
+      |% Actually true groundings.
+      |
+      |actual_terminated_true_grounding_1(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          fires(terminatedAt(F, T), RuleId),
+      |          annotation(holdsAt(F,T)),
+      |          not annotation(holdsAt(F,Te)),
+      |          next(T, Te).
+      |
+      |actual_terminated_true_grounding_2(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          annotation(holdsAt(F,Te)),
+      |          not fires(terminatedAt(F, T), RuleId),
+      |          terminated_rule_id(RuleId),
+      |          next(T, Te).
+      |
+      |% Actually false groundings.
+      |actual_terminated_false_grounding(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          fires(terminatedAt(F, T), RuleId),
+      |          annotation(holdsAt(F,Te)),
+      |          next(T, Te).
+      |
+      |% All groundings inferred as true, regardless of their actual truth value.
+      |inferred_terminated_true_grounding(F, T, RuleId) :-
+      |          fluent(F), % This is necessary for correct scoring
+      |          terminated_rule_id(RuleId),
+      |          fires(terminatedAt(F, T), RuleId),
+      |          inferred(terminatedAt(F, T), true).
+      |
+      |result_term(RuleId, ActualTrueGroundings, ActualFalseGroundings, TrueInferredAsTrue, FalseInferredAsTrue) :-
+      |           terminated_rule_id(RuleId),
+      |           ActualTrueGroundings_1 = #count {F,T: actual_terminated_true_grounding_1(F, T, RuleId)},
+      |           ActualTrueGroundings_2 = #count {F,T: actual_terminated_true_grounding_2(F, T, RuleId)},
+      |           ActualTrueGroundings = ActualTrueGroundings_1 + ActualTrueGroundings_2,
+      |           ActualFalseGroundings = #count {F,T: actual_terminated_false_grounding(F, T, RuleId)},
+      |           TrueInferredAsTrue_1 = #count {F,T: actual_terminated_true_grounding_1(F, T, RuleId), inferred_terminated_true_grounding(F, T , RuleId)},
+      |           TrueInferredAsTrue_2 = #count {F,T: actual_terminated_true_grounding_2(F, T, RuleId), not inferred(terminatedAt(F, T), RuleId)},
+      |           TrueInferredAsTrue = TrueInferredAsTrue_1 + TrueInferredAsTrue_2,
+      |           FalseInferredAsTrue = #count {F,T: actual_terminated_false_grounding(F, T, RuleId), inferred_terminated_true_grounding(F, T , RuleId)}.
+      |
+      |inertia(holdsAt(F,T)) :- inferred(holdsAt(F, T), true), endTime(T).
+      |
+      |#show.
+      |#show coverage_counts/3.
+      |#show result_init/5.
+      |#show result_term/5.
+      |#show total_groundings/1.
+      |#show inertia/1.
+      |
+      |
+      |""".stripMargin*/
+
+
+
+
+
+
+
+
   def scoreAndUpdateWeights(
       data: Example,
       inferredState: InferredState,
       rules: Vector[Clause],
       inps: RunningOptions,
-      logger: org.slf4j.Logger) = {
+      logger: org.slf4j.Logger,
+      newRules: Boolean = false) = {
 
     val bk = BK
 
@@ -250,31 +392,28 @@ object LearningUtils {
       }
     }
 
-    //var prevTotalWeightVector = Vector.empty[Double] // used for the experts update
-    //var _rules = Vector.empty[Clause]           // used for the experts update
-
     /* UPDATE WEIGHTS */
     rulesResults foreach { x =>
       val split = x.split(",")
       val ruleId = split(0).split("\\(")(1).toInt
       val actualTrueGroundings = split(1).toInt
       val actualFalseGroundings = split(2).toInt
-      val inferredTrueGroundings = split(3).toInt
-      val mistakes = split(4).split("\\)")(0).toInt
+      val trueInferredAsTrueGroundings = split(3).toInt
+      val falseInferredAsTrueGroundings = split(4).split("\\)")(0).toInt
+      val allInferredTrue = trueInferredAsTrueGroundings + falseInferredAsTrueGroundings
 
       val rule = ruleIdsMap(ruleId)
 
-      rule.mistakes += mistakes
-
-      val prevWeight = rule.weight
-
-      //println(s"Before: ${rule.mlnWeight}")
-
-      //prevTotalWeightVector = prevTotalWeightVector :+ prevWeight // used for the experts update
-      //_rules = rules :+ rule                           // used for the experts update
+      // If we are dealing with regular rules (of some age)
+      // then the mistakes are set as they should, i.e the difference
+      // between all those inferred as true and those that inferred and are actually true.
+      // On the other hand, if a rule has just been constructed, there will be no groundings
+      // of the rule in the inferred state. To kickstart its weight, therefore, we set its
+      // mistakes to the actual FPs of the rule in the true state.
+      val mistakes = if (!newRules) allInferredTrue - actualTrueGroundings else actualFalseGroundings
 
       // Adagrad
-      val lambda = inps.adaRegularization //0.001 // 0.01 default
+      /*val lambda = inps.adaRegularization //0.001 // 0.01 default
       val eta = inps.adaLearnRate //1.0 // default
       val delta = inps.adaGradDelta //1.0
       val currentSubgradient = mistakes
@@ -283,39 +422,94 @@ object LearningUtils {
       val value = rule.weight - coefficient * currentSubgradient
       val difference = math.abs(value) - (lambda * coefficient)
       if (difference > 0) rule.weight = if (value >= 0) difference else -difference
-      else rule.weight = 0.0
+      else rule.weight = 0.0*/
 
-      // Experts:
-      /*var newWeight = if (totalGroundings!=0) rule.mlnWeight * Math.pow(0.8, rule.mistakes/totalGroundings) else rule.mlnWeight * Math.pow(0.8, rule.mistakes)
-      if (newWeight.isNaN) {
-        val stop = "stop"
+      rule.weight = UpdateWeights.adaGradUpdate(rule, mistakes, inps)
+
+      if (rule.body.isEmpty || rule.parentClause.body.isEmpty) {
+        // If a rule is very young, use its actual counts (not the inferred ones)
+        // to calculate the information gain between its peer rules.
+        rule.tps += actualTrueGroundings
+        rule.fps += actualFalseGroundings
+      } else {
+        // Else, use its regular inferred counts.
+        rule.tps += trueInferredAsTrueGroundings
+        rule.fps += falseInferredAsTrueGroundings
       }
-      if (newWeight == 0.0 | newWeight.isNaN) newWeight = 0.00000001
-      rule.mlnWeight = if(newWeight.isPosInfinity) rule.mlnWeight else newWeight
-      println(s"After: ${rule.mlnWeight}")*/
 
-      /*if (prevWeight != rule.mlnWeight) {
-        logger.info(s"\nPrevious weight: $prevWeight, current weight: ${rule.mlnWeight}, actualTPs: $actualTrueGroundings, actualFPs: $actualFalseGroundings, inferredTPs: $inferredTrueGroundings, mistakes: $mistakes\n${rule.tostring}")
-      }*/
 
-      rule.tps += actualTrueGroundings
-      rule.fps += actualFalseGroundings
     }
-
-    /*val prevTotalWeight = prevTotalWeightVector.sum
-    val _newTotalWeight = _rules.map(x => x.mlnWeight).sum
-    val newTotalWeight = _newTotalWeight
-    rules.foreach(x => x.mlnWeight = x.mlnWeight * (prevTotalWeight/newTotalWeight))
-
-    val newNewTotalWeight = _rules.map(x => x.mlnWeight).sum
-
-    if (newNewTotalWeight.isNaN) {
-      val stop = "stop"
-    }
-
-    println(s"Before | After: $prevTotalWeight | $newNewTotalWeight")*/
-
     (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms)
   }
+
+
+  def abduce(examples: Example, inps: RunningOptions, existingRules: List[Clause]) = {
+
+    val globals = inps.globals
+    val modes = globals.MODEHS ++ globals.MODEBS
+
+    //${existingRules.map(x => x.withTypePreds(modes)).map(x => x.tostring).mkString("\n")}
+
+    val rules = existingRules.flatMap { rule =>
+      val exceptionBodyLiteral = Literal(predSymbol = "exception",  terms = List(rule.head), isNAF = true)
+      val exceptionHeadAtom = Literal(predSymbol = "exception",  terms = List(rule.head), isNAF = false)
+      val defeasible = Clause(head = rule.head, body = rule.body :+ exceptionBodyLiteral)
+      val exceptionDefs = rule.refinements.map( ref => Clause(exceptionHeadAtom, ref.body) )
+      (List(defeasible) ++ exceptionDefs) map (x => x.withTypePreds(modes).tostring)
+    } mkString("\n")
+
+    val bk =
+      s"""
+         |
+         |${examples.toASP().mkString("\n")}
+         |
+         |#include "${globals.BK_WHOLE_EC}".
+         |
+         |fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T).
+         |fps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T).
+         |tps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T).
+         |
+         |
+         |
+         |initiatedAt(F,T) :- initiatedAt_proxy(F,T), fluent(F), time(T).
+         |terminatedAt(F,T) :- terminatedAt_proxy(F,T), fluent(F), time(T).
+         |{initiatedAt_proxy(F,T)} :- fluent(F), time(T).
+         |{terminatedAt_proxy(F,T)} :- fluent(F), time(T).
+         |
+         |%%% NEED TO DISCRIMINATE BETWEEN ABDUCED AND INFEREED INSTANCES IN WHAT IS SHOWED.
+         |
+         |#minimize{1,F,T: terminatedAt_proxy(F,T)}.
+         |#minimize{1,F,T: initiatedAt_proxy(F,T)}.
+         |
+         |%#minimize{1,F,T: terminatedAt(F,T)}.
+         |%#minimize{1,F,T: initiatedAt(F,T)}.
+         |
+         |#minimize{1,F,T : fns(holdsAt(F,T))}.
+         |#minimize{1,F,T : fps(holdsAt(F,T))}.
+         |#maximize{1,F,T : tps(holdsAt(F,T))}.
+         |
+         |mode(1,initiatedAt_proxy(F,T),initiatedAt(F,T)) :- fluent(F),time(T).
+         |mode(2,initiatedAt_proxy(F,T),terminatedAt(F,T)) :- fluent(F),time(T).
+         |mode(1,terminatedAt_proxy(F,T),initiatedAt(F,T)) :- fluent(F),time(T).
+         |mode(2,terminatedAt_proxy(F,T),terminatedAt(F,T)) :- fluent(F),time(T).
+         |modeCounter(1..2).
+         |
+         |matches(initiatedAt_proxy(F,T), initiatedAt(F,T)) :- fluent(F), time(T).
+         |matches(terminatedAt_proxy(F,T), terminatedAt(F,T)) :- fluent(F), time(T).
+         |
+         |matchesMode(ModeCounter,Atom,Mode) :- mode(ModeCounter,Atom, Mode), true(Atom), matches(Atom, Mode).
+         |
+         |true(initiatedAt_proxy(F,T)) :- initiatedAt_proxy(F,T).
+         |true(terminatedAt_proxy(F,T)) :- terminatedAt_proxy(F,T).
+         |
+         |#show matchesMode/3.
+         |
+         |""".stripMargin
+
+    val f = oled.utils.Utils.dumpToFile(bk)
+    OldStructureLearningFunctions.solveASP(Globals.ABDUCTION, f.getAbsolutePath)
+
+  }
+
 
 }

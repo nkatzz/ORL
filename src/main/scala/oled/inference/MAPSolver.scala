@@ -19,22 +19,20 @@ package oled.inference
 
 import java.text.DecimalFormat
 
-import lomrf.logic.{AtomSignature, EvidenceAtom, FunctionMapping}
 import lomrf.logic.compile.{NormalForm, PredicateCompletion, PredicateCompletionMode}
 import lomrf.logic.parser.KBParser
+import lomrf.logic.{AtomSignature, EvidenceAtom, FunctionMapping, WeightedFormula}
 import lomrf.mln.grounding.MRFBuilder
 import lomrf.mln.inference.ILP
-import lomrf.mln.learning.structure.ClauseConstructor
-import lomrf.mln.model.{KB, MLN}
+import lomrf.mln.model.AtomIdentityFunctionOps._
 import lomrf.mln.model.builders.{ConstantsDomainBuilder, EvidenceBuilder}
+import lomrf.mln.model.{KB, MLN}
+import oled.app.runutils.RunningOptions
 import oled.datahandling.Example
 import oled.logic.{Clause, Literal}
-import lomrf.mln.model.AtomIdentityFunctionOps._
-import oled.app.runutils.RunningOptions
-import oled.learning.Types.InferredState
 
-import scala.io.Source
 import scala.collection.mutable
+import scala.io.Source
 
 /**
   * Created by nkatz at 13/12/19
@@ -44,8 +42,10 @@ object MAPSolver {
 
   type MAPState = Map[String, Boolean]
   type MLNConstsToASPAtomsMap = mutable.Map[String, String]
+  type MapInferenceResult = (MAPState, Set[WeightedFormula], Vector[lomrf.logic.Clause])
+  type ExistingPredicateCompletedTheory = (Set[WeightedFormula], Vector[lomrf.logic.Clause])
 
-  def solve(rules: List[Clause], e: Example, inertiaAtoms: Set[Literal], inps: RunningOptions): InferredState = {
+  def solve(rules: List[Clause], e: Example, inertiaAtoms: Set[Literal], inps: RunningOptions): MapInferenceResult = {
 
     val queryAtoms = Set(
       AtomSignature("HoldsAt", 2),
@@ -64,6 +64,8 @@ object MAPSolver {
     val definiteClauses = rules.map { rule =>
       val head = Literal.toMLNClauseLiteral(rule.head).tostringMLN
       val body = rule.body.map(Literal.toMLNClauseLiteral(_).tostringMLN).mkString(" ^ ")
+      //if (body != "") parser.parseDefiniteClause(s"${format(rule.weight)} $head :- $body")
+      //else parser.parseDefiniteClause(s"$head.")
       parser.parseDefiniteClause(s"${format(rule.weight)} $head :- $body")
     }
 
@@ -136,7 +138,7 @@ object MAPSolver {
 
     val evidence = evidenceBuilder.result()
 
-    println("  Predicate completion...")
+    //println("  Predicate completion...")
     val resultedFormulas = PredicateCompletion(formulas, definiteClauses.toSet, PredicateCompletionMode.Decomposed)(kb.predicateSchema, kb.functionSchema, constants)
     val cnf = NormalForm.compileFastCNF(resultedFormulas)(constants).toVector
 
@@ -158,7 +160,7 @@ object MAPSolver {
     val solver = new ILP(mrf)
     //solver.infer()
 
-    println("    Calling the solver...")
+    //println("    Calling the solver...")
     val s = solver.infer
 
     var result = Map.empty[String, Boolean]
@@ -175,7 +177,7 @@ object MAPSolver {
     }
 
     val resultToASP = MAPInferredStateToASP(result, mlmConstsToAspAtomsMap)
-    resultToASP //result
+    (resultToASP, resultedFormulas, cnf) //result
   }
 
   def MAPInferredStateToASP(mapState: MAPState, constsToAtoms: MLNConstsToASPAtomsMap) = {

@@ -81,10 +81,18 @@ object RuleExpansion {
 
     val scoreFun = inps.scoringFun
 
-      def format(x: Double) = {
-        val defaultNumFormat = new DecimalFormat("0.############")
-        defaultNumFormat.format(x)
-      }
+    def format(x: Double) = {
+      val defaultNumFormat = new DecimalFormat("0.############")
+      defaultNumFormat.format(x)
+    }
+
+    def underline(x: String) = {
+      val l = x.length
+      val u = (for (i <- 1 to l) yield "-").mkString("")
+      s"$u\n$x\n$u"
+    }
+
+    val all = "All specializations:"
 
     val showRefs = inps.showRefs
     val weightLearn = inps.weightLean
@@ -92,26 +100,22 @@ object RuleExpansion {
     if (showRefs) {
       if (!weightLearn) {
         s"\n===========================================================\n" +
-          s"\nClause (score: ${c.score(scoreFun)} | tps: ${c.tps} fps: ${c.fps} fns: ${c.fns})\n\n${c.tostring}\n\nwas refined to" +
-          s" (new score: ${c1.score(scoreFun)} | tps: ${c1.tps} fps: ${c1.fps} fns: ${c1.fns})\n\n${c1.tostring}\n\nε: $hoeffding, ΔG: $observedDiff, examples used: $n" +
-          //s"\nall refs: \n\n ${c.refinements.sortBy(z => -z.score).map(x => x.tostring+" "+" | score "+x.score+" | similarity "+similarity(x)).mkString("\n")}" +
-          s"\nall refs: \n\n ${c.refinements.sortBy(z => (-z.score(scoreFun), z.body.length + 1)).map(x => x.tostring + " | score " + x.score(scoreFun) + " (tps|fps|fns): " + (x.tps, x.fps, x.fns)).mkString("\n")}" +
+          s"Clause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns})\n\n${c.tostring}\n\nwas refined to" +
+          s" (Precision: ${c1.precision} | InfoGain: ${c1.foilGain("precision")} | TPs: ${c1.tps} FPs: ${c1.fps} FNs: ${c1.fns})\n\n${c1.tostring}\n\nε: $hoeffding, ΔG: $observedDiff, examples used: $n" +
+          s"\n${underline(all)}\n${c.refinements.sortBy(z => (-z.score(scoreFun), z.body.length + 1)).map(x => x.tostring + " | Precision: " + x.precision + " | InfoGain: " + x.foilGain("precision") + " (TPs|FPs|FNs): " + (x.tps, x.fps, x.fns)).mkString("\n")}" +
           s"\n===========================================================\n"
       } else {
         s"\n===========================================================\n" +
-          s"\nClause (score: ${c.score(scoreFun)} | tps: ${c.tps} fps: ${c.fps} fns: ${c.fns} | weight: ${format(c.weight)})\n\n${c.tostring}\n\nwas refined to" +
-          s" (new score: ${c1.score(scoreFun)} | tps: ${c1.tps} fps: ${c1.fps} fns: ${c1.fns} | weight: ${format(c1.weight)})\n\n${c1.tostring}\n\nε: $hoeffding, ΔG: $observedDiff, examples used: $n" +
-          //s"\nall refs: \n\n ${c.refinements.sortBy(z => -z.score).map(x => x.tostring+" "+" | score "+x.score+" | similarity "+similarity(x)).mkString("\n")}" +
-          s"\nall refs: \n\n ${c.refinements.sortBy(z => (-z.score(scoreFun), z.body.length + 1)).map(x => x.tostring + " | score " + x.score(scoreFun) + " (tps|fps|fns): " + (x.tps, x.fps, x.fns) + "| MLN-weight: " + format(x.weight)).mkString("\n")}" +
+          s"Clause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns} | Weight: ${format(c.weight)})\n\n${c.tostring}\n\nwas refined to" +
+          s" (Precision: ${c1.precision} | InfoGain: ${c1.foilGain("precision")} | TPs: ${c1.tps} FPs: ${c1.fps} FNs: ${c1.fns} | Weight: ${format(c1.weight)})\n\n${c1.tostring}\n\nε: $hoeffding, ΔG: $observedDiff, examples used: $n" +
+          s"\n${underline(all)}\n${c.refinements.sortBy(z => (-z.score(scoreFun), z.body.length + 1)).map(x => x.tostring + " | Precision " + x.precision + " | InfoGain: " + x.foilGain("precision") + " (TPs|FPs|FNs): " + (x.tps, x.fps, x.fns) + "| Weight: " + format(x.weight)).mkString("\n")}" +
           s"\n===========================================================\n"
       }
 
     } else {
       s"\n===========================================================\n" +
-        s"\nClause (score: ${c.score(scoreFun)} | tps: ${c.tps} fps: ${c.fps} fns: ${c.fns} | weight: ${format(c.weight)})\n\n${c.tostring}\n\nwas refined to" +
-        s" (new score: ${c1.score(scoreFun)} | tps: ${c1.tps} fps: ${c1.fps} fns: ${c1.fns} | weight: ${format(c1.weight)})\n\n${c1.tostring}\n\nε: $hoeffding, ΔG: $observedDiff, examples used: $n" +
-        //s"\nall refs: \n\n ${c.refinements.sortBy(z => -z.score).map(x => x.tostring+" "+" | score "+x.score+" | similarity "+similarity(x)).mkString("\n")}" +
-        //s"\nall refs: \n\n ${c.refinements.sortBy(z => (-z.score,z.body.length+1)).map(x => x.tostring+" | score "+x.score+" (tps|fps|fns): "+(x.tps,x.fps,x.fns)).mkString("\n")}" +
+        s"\nClause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns} | Weight: ${format(c.weight)})\n\n${c.tostring}\n\nwas refined to" +
+        s" (Precision: ${c1.precision} | InfoGain: ${c1.foilGain("precision")} | TPs: ${c1.tps} FPs: ${c1.fps} FNs: ${c1.fns} | Weight: ${format(c1.weight)})\n\n${c1.tostring}\n\nε: $hoeffding, ΔG: $observedDiff, examples used: $n" +
         s"\n===========================================================\n"
     }
   }
@@ -132,7 +136,8 @@ object RuleExpansion {
     if (true) { //parentRule.precision <= inps.preprune ||| parentRule.score <= inps.preprune
       val (observedDiff, best, secondBest) = parentRule.meanDiff(inps.scoringFun)
 
-      val epsilon = hoeffding(inps.delta, parentRule.seenExmplsNum)
+      //val epsilon = hoeffding(inps.delta, parentRule.seenExmplsNum)
+      val epsilon = hoeffding(inps.delta, parentRule.tps + parentRule.fps)
 
       //println(parentRule.refinements.map(x => x.score))
       //println(observedDiff, epsilon)

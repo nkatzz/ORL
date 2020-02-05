@@ -347,7 +347,9 @@ class Globals(val entryPath: String) extends LazyLogging {
 
     //*/
     val INIT_TIME_DEF = "initialTime(X) :- time(X), #false : X > Y, time(Y)."
-    val INIT_HOLDS_DEF = "%THIS SHOULD NOT BE HERE!\nholdsAt(F,T) :- initialTime(T), example(holdsAt(F,T))."
+    //val INIT_HOLDS_DEF = "%THIS SHOULD NOT BE HERE!\nholdsAt(F,T) :- initialTime(T), example(holdsAt(F,T))."
+    val INIT_HOLDS_DEF = ""
+
     val CORE_EVENT_CALCULUS_BK = List(EC_AXIOM_1, EC_AXIOM_2, RIGHT_BEFORE_DEF, INIT_TIME_DEF, INIT_HOLDS_DEF)
     val CROSSVAL_EVENT_CALCULUS_BK = List(EC_AXIOM_1, EC_AXIOM_2, RIGHT_BEFORE_DEF)
     val INITIATED_ONLY_EVENT_CALCULUS_BK = List(EC_AXIOM_1, RIGHT_BEFORE_DEF, INIT_TIME_DEF, INIT_HOLDS_DEF)

@@ -65,7 +65,7 @@ case class Clause(
   var parentClause: Clause = Clause.empty
   var isBottomRule = false
   var isTopRule = false
-  var weight: Double = 0.0
+  var weight: Double = 0.0001
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
   var tps: Int = 0
@@ -101,12 +101,20 @@ case class Clause(
 
   def showWithStats(scoreFun: String, showWeights: Boolean = true) = {
     if (showWeights) {
-      s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns | " +
+      s"Precision:" + s" ${this.precision}, TPs: $tps, FPs: $fps, FNs: $fns | " +
         s"weight: ${format(this.weight)}  " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
     } else {
-      s"score:" + s" ${this.score(scoreFun)}, tps: $tps, fps: $fps, fns: $fns. " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
+      s"Precision:" + s" ${this.precision}, TPs: $tps, FPs: $fps, FNs: $fns. " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostring"
     }
+  }
 
+  def showWithStatsFormal(scoreFun: String, showWeights: Boolean = true) = {
+    if (showWeights) {
+      s"Precision:" + s" ${this.precision}, TPs: $tps, FPs: $fps, FNs: $fns | " +
+        s"weight: ${format(this.weight)}  " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostringFormal"
+    } else {
+      s"Precision:" + s" ${this.precision}, TPs: $tps, FPs: $fps, FNs: $fns. " + s"Evaluated on: ${this.seenExmplsNum} examples\n$tostringFormal"
+    }
   }
 
   def thetaSubsumes(that: Clause): Boolean = {
@@ -223,15 +231,13 @@ case class Clause(
     val thisCoverage = if (funct == "precision") this.precision else this.recall
     val parentCoverage = if (funct == "precision") parentClause.precision else parentClause.recall
 
-    if (thisCoverage == 0.0 || thisCoverage == 1.0) {
+    if (thisCoverage == 0.0) {
       // If thisCoverage == 0.0 then this rules covers nothing, it's useless, so set it's gain to 0.
       // Note that otherwise we'll have a logarithm evaluated to -infinity (log(0)).
-      // If, on the other hand thisCoverage == 1.0 then this rule is perfect (but so is the parent --
-      // the parent cannot have smaller coverage), so again, no gain.
       0.0
     } else {
       // here thisCoverage is in (0,1)
-      if (parentCoverage == 1.0 || parentCoverage == 0.0) {
+      if (parentCoverage == 1.0) { // parentCoverage == 1.0 || parentCoverage == 0.0
         // If parentCoverage == 1.0 then the parent rule is perfect, no way to beat that, so set this rule's gain to 0
         // Note that otherwise we'll have the parent's log evaluated to 0 and the gain formula
         // returning a negative value (parentTPs * log(thisCoverage), which is < 0 since thisCoverage < 1).
@@ -241,14 +247,22 @@ case class Clause(
         0.0
       } else {
         // here parentCoverage is in (0,1)
+
         val _gain = tps * (Math.log(thisCoverage) - Math.log(parentCoverage))
 
+        // This is the correct formula, since we need the number of parent rule's tps, which are this rule's tps also.
+        //val _gain = (this.parentClause.tps - tps) * (Math.log(thisCoverage) - Math.log(parentCoverage))
+
         // We are interested only in positive gain, therefore we consider 0 as the minimum of the gain function:
-        val gain = if (_gain <= 0) 0.0 else _gain
+        val gain = if (_gain <= 0.0) 0.0 else _gain
 
         // This is the maximum gain for a given rule:
         val max = parentClause.tps.toDouble * (-Math.log(parentCoverage))
         val normalizedGain = gain / max
+
+        if (normalizedGain > 1.0) {
+          val stop = "stop"
+        }
 
         normalizedGain
       }
@@ -269,9 +283,9 @@ case class Clause(
     val allSorted =
       if (scoringFunction == "foilgain")
         // The parent rule should not be included here (otherwise it will always win, see the foil gain formula)
-        this.refinements.sortBy { x => (-x.score(scoringFunction), -x.weight, x.body.length + 1) }
+        this.refinements.sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
       else
-        (List(this) ++ this.refinements).sortBy { x => (-x.score(scoringFunction), -x.weight, x.body.length + 1) }
+        (List(this) ++ this.refinements).sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
 
     val bestTwo = allSorted.take(2)
 
@@ -333,7 +347,7 @@ case class Clause(
 
         //case "default" => if (!recall.isNaN) (1.0 - 1.0/(1.0+tps.toDouble)) * recall else 0.0
 
-        case "foilgain" => foilGain("recall") //foilGain("precision")
+        case "foilgain" => foilGain("precision") //foilGain("precision")
         case "fscore" => fscore
         case _ => throw new RuntimeException("Error: No scoring function given.")
       }
@@ -420,13 +434,23 @@ case class Clause(
     this.refinements = flattend
   }
 
-  override lazy val tostring: String = this.toStrList match {
+  def tostringFormal: String = this.toStrList match {
     case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
     case h :: ts =>
       ts.length match {
         case 0 => h + "."
         case 1 => h + " :- \n" + "      " + ts.head + "."
         case _ => h + " :- \n" + (for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) s"      $x." else s"      $x,").mkString("\n")
+      }
+  }
+
+  override lazy val tostring: String = this.toStrList match {
+    case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
+    case h :: ts =>
+      ts.length match {
+        case 0 => h + "."
+        case 1 => h + " :- " + ts.head + "."
+        case _ => h + " :- " + (for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) s"$x." else s"$x,").mkString(" ")
       }
   }
 

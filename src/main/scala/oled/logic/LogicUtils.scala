@@ -34,8 +34,46 @@ object LogicUtils {
     compressed.toList
   }
 
+  /**
+    * This excludes from the top theory that is used for prediction rules that subsume others.
+    * For instance if we have in the top theory
+    *
+    * r1: initiatedAt(meet(X0,X1),X2) :- happensAt(active(X0),X2)
+    * r2: initiatedAt(meet(X0,X1),X2) :- happensAt(active(X0),X2), close(X0,X1,24,X2)
+    *
+    * then only r2 is used for prediction.
+    *
+    * The rational is that since r2 has been generated, this means that it is of higher quality than r1
+    * (since r2 was r1 at some point, but it got specialized).
+    *
+    * r1 has not been specialized, since no literal of sufficient gain exists in its bottom clause,
+    * or it is too "young". In the first case it will be pruned away at some point, while in the second
+    * case it will be specialized (into a version that differs from r2 itself).
+    * */
+  def compressTheoryKeepMoreSpecific(_initialTheory: Iterable[Clause]) = {
+
+    var compressed = List[Clause]()
+
+    // First compress the initialTheory in the regular way, to remove duplicates.
+    // Then (and only then) the following works.
+    val initialTheory = compressTheory(_initialTheory)
+
+    var _compressed = initialTheory.foldLeft(List[Clause]()) { (compressedTheory, clause) =>
+      // we also need to remove the clause itself from the initial list, otherwise the test
+      // below will always fail (as a clause always subsumes itself).
+      val initWithoutClause = initialTheory.filter(x => x != clause)
+      if (!initWithoutClause.exists(otherClause => clause.thetaSubsumes(otherClause))) compressedTheory :+ clause else compressedTheory
+    }
+
+    // If _compressed is empty, then initialTheory consists of multiple copies of the same rule, so just keep the first one.
+    if (_compressed.isEmpty && initialTheory.nonEmpty) compressed = List(initialTheory.head)
+    else compressed = _compressed
+
+    compressed
+  }
+
   def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String, showWeights: Boolean = true) = {
-    clauses.map(x => x.showWithStats(scoreFun, showWeights)).mkString("\n")
+    clauses.map(x => x.showWithStatsFormal(scoreFun, showWeights)).mkString("\n")
   }
 
 }

@@ -64,11 +64,16 @@ object Runner extends LazyLogging {
         val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
 
         /*val data = getMongoData(trainingDataOptions)
+        var accum = List[String]()
         for (x <- data) {
           if (x.queryAtoms.nonEmpty) {
-            println(x.queryAtoms)
+            //println(x.queryAtoms)
+            for (y <- x.queryAtoms ) if (accum.contains(y)) println(s"Duplicate: $y")
+            accum = accum ++ x.queryAtoms
           }
-        }*/
+        }
+        println(accum.size)
+        val stop = "stop"*/
 
         val system = ActorSystem("LocalLearningSystem")
         val startMsg = new RunSingleCore
