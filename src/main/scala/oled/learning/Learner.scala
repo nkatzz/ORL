@@ -222,9 +222,8 @@ class Learner[T <: InputSource](
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      val pruningSpecs = new PruningSpecs(0.8, 2, 15000)
-
-      val pruned = state.pruneRules(pruningSpecs, inps, logger)
+      //val pruningSpecs = new PruningSpecs(0.8, 2, 15000)
+      //val pruned = state.pruneRules(pruningSpecs, inps, logger)
     }
   }
 

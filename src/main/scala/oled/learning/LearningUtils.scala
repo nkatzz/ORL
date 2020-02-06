@@ -419,7 +419,7 @@ object LearningUtils {
 
       rule.weight = UpdateWeights.adamUpdate(rule, mistakes, inps, batchCount)
 
-      if (rule.body.isEmpty || rule.parentClause.body.isEmpty) {
+      /*if (rule.body.isEmpty || rule.parentClause.body.isEmpty) {
         // If a rule is very young, use its actual counts (not the inferred ones)
         // to calculate the information gain between its peer rules.
         rule.tps += actualTrueGroundings
@@ -428,7 +428,9 @@ object LearningUtils {
         // Else, use its regular inferred counts.
         rule.tps += trueInferredAsTrueGroundings
         rule.fps += falseInferredAsTrueGroundings
-      }
+      }*/
+      rule.tps += trueInferredAsTrueGroundings
+      rule.fps += falseInferredAsTrueGroundings
     }
     (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms)
   }

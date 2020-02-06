@@ -17,11 +17,35 @@
 
 package oled.learning.weights
 
+import scala.util.Random
+
 /**
   * Created by nkatz on 7/10/19.
   */
 object Test extends App {
 
-  val x = 0.3
+  val r = new Random()
+
+  def rand() = {
+    val rangeMin = 0.0
+    val rangeMax = 0.1
+    rangeMin + (rangeMax - rangeMin) * r.nextDouble()
+  }
+
+
+
+  val realWeights = (1 to 10) map (_ => rand())
+  val minDiff = realWeights.toSet.subsets(2).map(pair => math.abs(pair.head - pair.tail.head)).toVector.sorted.head
+
+  val scaleFactor = 200.0/minDiff
+
+  val intWeights = realWeights.map(x => (x -> math.round(x * scaleFactor)))
+
+
+  println(intWeights)
+
+
+
+  //println(minDiff)
 
 }
