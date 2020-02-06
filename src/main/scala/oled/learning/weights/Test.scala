@@ -32,19 +32,14 @@ object Test extends App {
     rangeMin + (rangeMax - rangeMin) * r.nextDouble()
   }
 
-
-
   val realWeights = (1 to 10) map (_ => rand())
   val minDiff = realWeights.toSet.subsets(2).map(pair => math.abs(pair.head - pair.tail.head)).toVector.sorted.head
 
-  val scaleFactor = 200.0/minDiff
+  val scaleFactor = 200.0 / minDiff
 
   val intWeights = realWeights.map(x => (x -> math.round(x * scaleFactor)))
 
-
   println(intWeights)
-
-
 
   //println(minDiff)
 

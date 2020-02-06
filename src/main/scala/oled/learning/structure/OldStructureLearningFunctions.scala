@@ -618,7 +618,11 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     //val clingo = "/home/nkatz/software/clingo-5.4.0/build/bin/clingo"
     //val command = Seq(clingo, aspFile, mode, with_atom_undefiend, aspCores)
-    val command = Seq("clingo", aspFile, mode, with_atom_undefiend, aspCores)
+    val clingo = "/home/manosl/OLED/external_dependencies/clingo/clingo-4.5.4-source/build/release/clingo"
+
+    val command = Seq(clingo, aspFile, mode, with_atom_undefiend, aspCores)
+
+    //val command = Seq("clingo", aspFile, mode, with_atom_undefiend, aspCores)
 
     val result = command.mkString(" ").lineStream_!
     val results = result.toList
