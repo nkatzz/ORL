@@ -24,6 +24,32 @@ import scala.util.Random
   */
 object Test extends App {
 
+  val times = (1 to 100000)
+  def formAtom(event: String, time: Int) = s"happensAt($event,$time)"
+
+  val time = oled.utils.Utils.time(times.map(t => formAtom("dummyEvent", t)))
+
+  println(time._2)
+
+  val stop = "stop"
+  /*val path = "/home/nkatz/dev/manos/maritime/data/HLEs/HLEs.csv"
+
+  val lines = Source.fromFile(path).getLines
+
+  var vessels = Set.empty[String]
+
+  while(lines.hasNext) {
+    val line = lines.next()
+    val vessel = line.split("\\|")(1)
+    if (!vessels.contains(vessel)) {
+      vessels = vessels + vessel
+    }
+  }
+
+  println(vessels.size)
+
+  val stop = "stop"*/
+
   val r = new Random()
 
   def rand() = {
@@ -33,7 +59,7 @@ object Test extends App {
   }
 
   val realWeights = (1 to 10) map (_ => rand())
-  val minDiff = realWeights.toSet.subsets(2).map(pair => math.abs(pair.head - pair.tail.head)).toVector.sorted.head
+  val minDiff = realWeights.toSet.subsets(2).map(pair => math.abs(pair.head - pair.tail.head)).toVector.min
 
   val scaleFactor = 200.0 / minDiff
 

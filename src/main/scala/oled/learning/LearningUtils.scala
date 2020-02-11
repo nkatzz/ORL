@@ -331,7 +331,8 @@ object LearningUtils {
 
     val metaRules = ruleIdsMap.foldLeft(Vector[String]()) { (accum, r) =>
       val (ruleId, rule) = (r._1, r._2)
-      val typeAtoms = rule.toLiteralList.flatMap(x => x.getTypePredicates(modeDecls)).distinct.map(x => Literal.parse(x))
+      var typeAtoms = rule.toLiteralList.flatMap(x => x.getTypePredicates(modeDecls)).distinct.map(x => Literal.parse(x))
+      if (typeAtoms.isEmpty) typeAtoms = rule.supportSet.head.typesPreds
       val metaRule = s"fires(${rule.head.tostring}, $ruleId) :- ${(rule.body ++ typeAtoms).map(_.tostring).mkString(",")}."
       accum :+ metaRule
     }
@@ -398,7 +399,7 @@ object LearningUtils {
       val rule = ruleIdsMap(ruleId)
 
       if (rule.tostring.replaceAll("\\s", "") ==
-        "initiatedAt(meeting(X0,X1),X2):-close(X0,X1,24,X2),happensAt(inactive(X1),X2),happensAt(inactive(X0),X2).") {
+        "initiatedAt(meeting(X0,X1),X2):-close(X0,X1,24,X2),happensAt(active(X0),X2),happensAt(active(X1),X2).") {
 
         val stop = "stop"
 
@@ -415,9 +416,15 @@ object LearningUtils {
 
       val mistakes = allInferredTrue - actualTrueGroundings
 
-      //rule.weight = UpdateWeights.adaGradUpdate(rule, mistakes, inps)
+      rule.weight = UpdateWeights.adaGradUpdate(rule, mistakes, inps)
+      //rule.weight = UpdateWeights.adamUpdate(rule, mistakes, inps, batchCount)
 
-      rule.weight = UpdateWeights.adamUpdate(rule, mistakes, inps, batchCount)
+      /*if (rule.tostring.replaceAll("\\s", "") ==
+        "initiatedAt(meeting(X0,X1),X2):-close(X0,X1,24,X2),happensAt(active(X0),X2),happensAt(active(X1),X2).") {
+
+        println(s"Weight: ${rule.weight}, mistakes: $mistakes")
+
+      }*/
 
       /*if (rule.body.isEmpty || rule.parentClause.body.isEmpty) {
         // If a rule is very young, use its actual counts (not the inferred ones)
@@ -440,15 +447,15 @@ object LearningUtils {
     val globals = inps.globals
     val modes = globals.MODEHS ++ globals.MODEBS
 
-    //${existingRules.map(x => x.withTypePreds(modes)).map(x => x.tostring).mkString("\n")}
+    val rules = existingRules.map(x => x.withTypePreds(modes)).map(x => x.tostring).mkString("\n")
 
-    val rules = existingRules.flatMap { rule =>
+    /*val rules = existingRules.flatMap { rule =>
       val exceptionBodyLiteral = Literal(predSymbol = "exception", terms = List(rule.head), isNAF = true)
-      val exceptionHeadAtom = Literal(predSymbol = "exception", terms = List(rule.head), isNAF = false)
-      val defeasible = Clause(head = rule.head, body = rule.body :+ exceptionBodyLiteral)
+      val exceptionHeadAtom = Literal(predSymbol = "exception", terms = List(rule.head))
+      val defeasibleClause = Clause(head = rule.head, body = rule.body :+ exceptionBodyLiteral)
       val exceptionDefs = rule.refinements.map(ref => Clause(exceptionHeadAtom, ref.body))
-      (List(defeasible) ++ exceptionDefs) map (x => x.withTypePreds(modes).tostring)
-    } mkString ("\n")
+      (List(defeasibleClause) ++ exceptionDefs) map (x => x.withTypePreds(modes).tostring)
+    } mkString ("\n")*/
 
     val bk =
       s"""
@@ -457,24 +464,23 @@ object LearningUtils {
          |
          |#include "${globals.BK_WHOLE_EC}".
          |
+         |% rules should go here.
+         |$rules
+         |
          |fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T).
          |fps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T).
          |tps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T).
          |
-         |
-         |
          |initiatedAt(F,T) :- initiatedAt_proxy(F,T), fluent(F), time(T).
          |terminatedAt(F,T) :- terminatedAt_proxy(F,T), fluent(F), time(T).
+         |
+         |% Use the initiatedAt_proxy definition to discriminate between inferred atoms
+         |% (from existing initiation/termination rules) and actual abduced ("guessed") atoms.
          |{initiatedAt_proxy(F,T)} :- fluent(F), time(T).
          |{terminatedAt_proxy(F,T)} :- fluent(F), time(T).
          |
-         |%%% NEED TO DISCRIMINATE BETWEEN ABDUCED AND INFEREED INSTANCES IN WHAT IS SHOWED.
-         |
          |#minimize{1,F,T: terminatedAt_proxy(F,T)}.
          |#minimize{1,F,T: initiatedAt_proxy(F,T)}.
-         |
-         |%#minimize{1,F,T: terminatedAt(F,T)}.
-         |%#minimize{1,F,T: initiatedAt(F,T)}.
          |
          |#minimize{1,F,T : fns(holdsAt(F,T))}.
          |#minimize{1,F,T : fps(holdsAt(F,T))}.
@@ -489,10 +495,10 @@ object LearningUtils {
          |matches(initiatedAt_proxy(F,T), initiatedAt(F,T)) :- fluent(F), time(T).
          |matches(terminatedAt_proxy(F,T), terminatedAt(F,T)) :- fluent(F), time(T).
          |
-         |matchesMode(ModeCounter,Atom,Mode) :- mode(ModeCounter,Atom, Mode), true(Atom), matches(Atom, Mode).
+         |matchesMode(ModeCounter,Atom,Mode) :- mode(ModeCounter,Atom, Mode), abduced(Atom), matches(Atom, Mode).
          |
-         |true(initiatedAt_proxy(F,T)) :- initiatedAt_proxy(F,T).
-         |true(terminatedAt_proxy(F,T)) :- terminatedAt_proxy(F,T).
+         |abduced(initiatedAt_proxy(F,T)) :- initiatedAt_proxy(F,T).
+         |abduced(terminatedAt_proxy(F,T)) :- terminatedAt_proxy(F,T).
          |
          |#show matchesMode/3.
          |

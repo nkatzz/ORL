@@ -18,7 +18,7 @@
 package oled.logic.parsers
 
 import com.typesafe.scalalogging.LazyLogging
-import oled.logic.{LogicalExpression, ModeAtom, PlmrkConst, PlmrkNeg, PlmrkPos}
+import oled.logic.{Constant, LogicalExpression, ModeAtom, PlmrkConst, PlmrkNeg, PlmrkPos}
 
 import scala.util.parsing.combinator.JavaTokenParsers
 
@@ -27,6 +27,7 @@ final class ModesParser extends JavaTokenParsers with LazyLogging {
   def lowerCaseIdent: Parser[String] = """[a-z][a-zA-Z0-9_]*""".r
   def upperCaseIdent: Parser[String] = """[A-Z][a-zA-Z0-9_]*""".r
   def num: Parser[String] = """[0-9]*""".r
+  def number: Parser[String] = floatingPointNumber
   def innerPositionTerms: Parser[List[String]] = "(" ~> repsep(num, ",") <~ ")"
   def naf: Parser[String] = "not " ~ rep("\\s+") ^^ { _ => "not" }
   def mh: Parser[String] = "modeh" ^^ { x => x }
@@ -34,11 +35,16 @@ final class ModesParser extends JavaTokenParsers with LazyLogging {
   def ep: Parser[String] = "examplePattern" ^^ { x => x }
   def ip: Parser[String] = "inputPredicate" ^^ { x => x }
   def cp: Parser[String] = "comparisonPredicate" ^^ { x => x }
+
   def posplmrk: Parser[PlmrkPos] = "+" ~ lowerCaseIdent ^^ { case "+" ~ x => PlmrkPos(x) }
   def negplmrk: Parser[PlmrkNeg] = "-" ~ lowerCaseIdent ^^ { case "-" ~ x => PlmrkNeg(x) }
   def constplmrk: Parser[PlmrkConst] = "#" ~ lowerCaseIdent ^^ { case "#" ~ x => PlmrkConst(x) }
   def placemarker: Parser[LogicalExpression] = (posplmrk | negplmrk | constplmrk) ^^ { x => x }
-  def inner: Parser[List[LogicalExpression]] = "(" ~> repsep(modeAtom | placemarker, ",") <~ ")"
+
+  // This is used for allowing mode declarations with specific constant values, e.g. close (X0, X1, 25, X2).
+  def constant: Parser[LogicalExpression] = (lowerCaseIdent | number) ^^ { x => Constant(x) }
+
+  def inner: Parser[List[LogicalExpression]] = "(" ~> repsep(modeAtom | placemarker | constant, ",") <~ ")"
 
   def modeAtom: Parser[ModeAtom] =
     (naf ~ lowerCaseIdent ~ inner ^^ { case not ~ x ~ y => ModeAtom(predSymbol = x.toString, args = y, isNAF = true) }

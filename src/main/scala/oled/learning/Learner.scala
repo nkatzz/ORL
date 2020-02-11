@@ -26,6 +26,7 @@ import oled.datahandling.Example
 import oled.inference.{ASPSolver, MAPSolver}
 import oled.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
 import oled.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
+import oled.learning.weights.Test2
 import oled.logic.{Clause, Literal, LogicUtils}
 import oled.utils.Utils.{underline, underlineStars}
 import org.slf4j.LoggerFactory
@@ -57,6 +58,15 @@ class Learner[T <: InputSource](
 
   //private var previousPredicateCompletion = Set[WeightedFormula]()
   //private var previousCNF = Vector[lomrf.logic.Clause]()
+
+  /*// Use a hand-crafted theory for debugging
+  def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+  val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test")
+  val list = source.getLines.filter(line => !matches( """""".r, line) && !line.startsWith("%"))
+  val rulesList = list.map(x => Clause.parse(x)).toList
+  source.close
+  state.updateRules(rulesList, "add", inps)
+  withHandCrafted = true*/
 
   private def getTrainingData = trainingDataFunction(trainingDataOptions)
   private def getNextBatch = if (data.isEmpty) Example() else data.next()
@@ -112,7 +122,7 @@ class Learner[T <: InputSource](
 
     //logger.info("\n"+underline(s"*** BATCH $batchCount *** "))
 
-    val e = LearningUtils.dataToMLNFormat(exmpl, inps)
+    var e = Example()
 
     var rules = List.empty[Clause]
     var inferredState = Map.empty[String, Boolean]
@@ -121,28 +131,48 @@ class Learner[T <: InputSource](
     var fnCounts = 0
     var totalGroundings = 0
     var rulesCompressed = List.empty[Clause]
+    var inferenceTime = 0.0
+    var scoringTime = 0.0
+
+    if (batchCount == 76) {
+      val stop = "stop"
+    }
 
     if (inps.weightLean) {
 
-      //rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
+      e = LearningUtils.dataToMLNFormat(exmpl, inps)
 
-      rules = state.getAllRules(inps, "top")
+      rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
+      //rules = state.getAllRules(inps, "top")
 
-      //rules = state.getBestRules(inps.globals)
+/***** DEBUG *****/
+      val all = rules.flatMap(x => x.refinements :+ x)
+      if (all.size > 50) {
+        val stop = "stop"
+        val r = Test2.transform(rules)
+        val stopAgain = ""
+      }
+/***** DEBUG *****/
 
       rulesCompressed = LogicUtils.compressTheory(rules)
       //rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
 
-      //println("MAP inference...")
-      val mapInfResult = MAPSolver.solve(rulesCompressed, e, this.inertiaAtoms, inps)
+      val map = oled.utils.Utils.time(MAPSolver.solve(rulesCompressed, e, this.inertiaAtoms, inps))
+      val mapInfResult = map._1
+      inferenceTime = map._2
 
       inferredState = mapInfResult._1
 
       // Doing this in parallel is trivial (to speed things up in case of many rules/large batches).
       // Simply split the rules to multiple workers, the grounding/counting tasks executed are completely rule-independent.
       //println("      Scoring...")
-      val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
-        LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps, "all").toVector, inps, logger, batchCount = batchCount)
+
+      val scoring = oled.utils.Utils.time {
+        LearningUtils.scoreAndUpdateWeights(e, inferredState,
+                                            state.getAllRules(inps, "all").toVector, inps, logger, batchCount = batchCount)
+      }
+      val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) = scoring._1
+      scoringTime = scoring._2
 
       tpCounts = _tpCounts
       fpCounts = _fpCounts
@@ -152,17 +182,20 @@ class Learner[T <: InputSource](
 
       /*=============== OLED ================*/
     } else {
+      e = exmpl
       rulesCompressed = state.getBestRules(inps.globals, "score") //.filter(x => x.score(inps.scoringFun) >= 0.9)
-      val inferredState = ASPSolver.crispLogicInference(rulesCompressed, e, inps.globals)
-
-      val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
-        LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
-
-      tpCounts = _tpCounts
-      fpCounts = _fpCounts
-      fnCounts = _fnCounts
-      totalGroundings = _totalGroundings
-      inertiaAtoms = _inertiaAtoms.toSet
+      if (rulesCompressed.nonEmpty) {
+        val inferredState = ASPSolver.crispLogicInference(rulesCompressed, e, inps.globals)
+        val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
+          LearningUtils.scoreAndUpdateWeights(e, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
+        tpCounts = _tpCounts
+        fpCounts = _fpCounts
+        fnCounts = _fnCounts
+        totalGroundings = _totalGroundings
+        inertiaAtoms = _inertiaAtoms.toSet
+      } else {
+        fnCounts = e.queryAtoms.size
+      }
     }
 
     updateStats(tpCounts, fpCounts, fnCounts)
@@ -172,7 +205,7 @@ class Learner[T <: InputSource](
 
     state.perBatchError = state.perBatchError :+ (fpCounts + fnCounts)
 
-    logger.info(batchInfoMsg(rulesCompressed, tpCounts, fpCounts, fnCounts))
+    logger.info(batchInfoMsg(rulesCompressed, tpCounts, fpCounts, fnCounts, inferenceTime, scoringTime))
 
     //logger.info(s"\n${state.perBatchError}")
     //logger.info(s"\nFPs: $fpCounts, FNs: $fnCounts")
@@ -184,21 +217,23 @@ class Learner[T <: InputSource](
       var newInit = List.empty[Clause]
       var newTerm = List.empty[Clause]
 
-      if (fpCounts != 0 || fnCounts != 0) {
-        /*val topInit = state.initiationRules.filter(_.body.nonEmpty)
-        val topTerm = state.terminationRules.filter(_.body.nonEmpty)
-        val growNewInit = growNewRuleTest(topInit, e, inps.globals, "initiatedAt")
-        val growNewTerm = growNewRuleTest(topTerm, e, inps.globals, "terminatedAt")
-        newInit = if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
-        newTerm = if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
-        //newInit = generateNewRules(topInit, e, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
-        //newTerm = generateNewRules(topTerm, e, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
-        */
+      if (fpCounts > 0 || fnCounts > 0) {
+        //if (fpCounts > 2 || fnCounts > 2) {
 
+        /*if (!inps.weightLean) {
+          val topInit = state.initiationRules.filter(_.body.nonEmpty)
+          val topTerm = state.terminationRules.filter(_.body.nonEmpty)
+          val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, e, inps.globals, "initiatedAt")
+          val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, e, inps.globals, "terminatedAt")
+          //newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, e, "initiatedAt", inps.globals) else Nil
+          //newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, e, "terminatedAt", inps.globals) else Nil
+          newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, e, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
+          newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, e, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
+        }*/
+
+        //This is the "correct one" so far.
         val theory = rulesCompressed
-
         val newRules = OldStructureLearningFunctions.generateNewRules(theory, e, inps)
-
         val (init, term) = newRules.partition(x => x.head.predSymbol == "initiatedAt")
 
         newInit = init //.filter(p => !state.isBlackListed(p))
@@ -207,12 +242,14 @@ class Learner[T <: InputSource](
         val allNew = newInit ++ newTerm
         if (allNew.nonEmpty) LearningUtils.showNewRulesMsg(fpCounts, fnCounts, allNew, logger)
         state.updateRules(newInit ++ newTerm, "add", inps)
+
       }
 
       val newRules = newInit ++ newTerm
 
       // score the new rules and update their weights
-      LearningUtils.scoreAndUpdateWeights(e, inferredState, newRules.toVector, inps, logger, newRules = true)
+      val newRulesWithRefs = newRules.flatMap(x => x.refinements :+ x).toVector
+      LearningUtils.scoreAndUpdateWeights(e, inferredState, newRulesWithRefs, inps, logger, newRules = true)
 
       /* Rules' expansion. */
       // We only need the top rules for expansion here.
@@ -222,7 +259,7 @@ class Learner[T <: InputSource](
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      //val pruningSpecs = new PruningSpecs(0.8, 2, 15000)
+      //val pruningSpecs = new PruningSpecs(0.8, 2, 100)
       //val pruned = state.pruneRules(pruningSpecs, inps, logger)
     }
   }
@@ -281,9 +318,11 @@ class Learner[T <: InputSource](
     defaultNumFormat.format(x)
   }
 
-  def batchInfoMsg(theoryForPrediction: List[Clause], tpCounts: Int, fpCounts: Int, fnCounts: Int) = {
+  def batchInfoMsg(theoryForPrediction: List[Clause], tpCounts: Int, fpCounts: Int,
+      fnCounts: Int, inferenceTime: Double, scoringTime: Double) = {
+
     val batchMsg = underlineStars(s"*** BATCH $batchCount ***")
-    val theoryMsg = underline(s"TPs: $tpCounts, FPs: $fpCounts, FNs: $fnCounts. Theory used for prediction:")
+    val theoryMsg = underline(s"TPs: $tpCounts, FPs: $fpCounts, FNs: $fnCounts. Inference time: $inferenceTime, scoring time: $scoringTime. Theory used for prediction:")
     val theory = {
       if (inps.weightLean) {
         theoryForPrediction.map(x => s"${x.tostring} | W: ${format(x.weight)} | Precision: ${format(x.precision)} | (TPs,FPs): (${x.tps}, ${x.fps}) ").mkString("\n")

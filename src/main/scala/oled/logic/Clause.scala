@@ -433,9 +433,11 @@ case class Clause(
       //------------------------------------
       refinement.supportSet = this.supportSet
       //------------------------------------
+      refinement.setTypePredsLit(refinement.supportSet.head.typesPreds)
     }
 
-    this.refinements = flattend
+    this.refinements = flattend :+ this.supportSet.head
+    //this.refinements = List(this.supportSet.head)
   }
 
   def tostringFormal: String = this.toStrList match {
@@ -487,11 +489,25 @@ case class Clause(
     out
   }
 
+  var typesPreds = List.empty[Literal]
+
+  def setTypePredsStr(types: List[String]) = {
+    val toLits = types.asInstanceOf[List[String]].map(Literal.parse(_))
+    typesPreds = toLits
+  }
+
+  def setTypePredsLit(types: List[Literal]) = {
+    typesPreds = types
+  }
+
   def withTypePreds(modes: List[ModeAtom], extraTypePreds: List[String] = List()): Clause = {
-    val types = (for (x <- this.toLiteralList)
+    var types = (for (x <- this.toLiteralList)
       yield x.getTypePredicates(modes)).filter { z => z != Nil }.
       flatten.++(extraTypePreds).distinct.
       map { y => Literal.parse(y) }
+
+    if (types.isEmpty) types = supportSet.head.typesPreds // This is only used for hard-coded bottom clauses.
+
     Clause(head = this.head, body = this.body ::: types)
   }
 

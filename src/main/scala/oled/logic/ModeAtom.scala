@@ -17,8 +17,6 @@
 
 package oled.logic
 
-import oled.app.runutils.Globals
-
 /**
   * Created by nkatz at 4/12/19
   */
@@ -142,3 +140,4 @@ case class ModeAtom(predSymbol: String, args: List[LogicalExpression], isNAF: Bo
   }
 
 }
+

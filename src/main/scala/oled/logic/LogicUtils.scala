@@ -17,6 +17,8 @@
 
 package oled.logic
 
+import oled.logic.parsers.ModesParser
+
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -74,6 +76,42 @@ object LogicUtils {
 
   def showTheoryWithStats(clauses: Iterable[Clause], scoreFun: String, showWeights: Boolean = true) = {
     clauses.map(x => x.showWithStatsFormal(scoreFun, showWeights)).mkString("\n")
+  }
+
+  def main(args: Array[String]) = {
+
+    val p = new ModesParser
+    //val e = "modeb(close(+person,+person,24,+time))"
+    val e = "modeh(initiatedAt(meeting(+person,+person),+time))"
+    val t = p.getParseResult(p.parseModes(p.modeAtom, e))
+    val args = t.args
+    println(t.tostring)
+    println(t.varbed.tostring)
+  }
+
+  /**
+    * Generates a bottom clause directly from the mode declarations.
+    * This is for the case where we don't use a data-driven BC, to cope with the noise in the data.
+    *
+    */
+  def bottomClauseFromModes(headDecl: ModeAtom, bodyDecls: List[ModeAtom]) = {
+
+    val p = new ModesParser
+    //def parse(expression: String) = p.getParseResult(p.parseModes(p.mode, expression))
+
+    var variables = ListBuffer.empty[Variable]
+    var constants = ListBuffer.empty[Constant]
+    var inputVariables = ListBuffer.empty[Variable]
+    var outputVariables = ListBuffer.empty[Variable] /*TODO*/
+
+      /**
+        * Generates atoms for the BC from one mode declaration
+        */
+      def generateHeadBCAtom() = {
+        val predSymbol = headDecl.predSymbol
+        //headDecl.
+      }
+
   }
 
 }

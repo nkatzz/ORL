@@ -53,12 +53,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
 
     //val clingo = "/home/nkatz/software/clingo-5.4.0/build/bin/clingo"
     //val command = Seq(clingo, filePath, "0", "-Wno-atom-undefined", aspCores)
-
-    val clingo = "/home/manosl/OLED/external_dependencies/clingo/clingo-4.5.4-source/build/release/clingo"
-
-    val command = Seq(clingo, filePath, "0", "-Wno-atom-undefined", aspCores)
-
-    //val command = Seq("clingo", filePath, "0", "-Wno-atom-undefined", aspCores)
+    val command = Seq("clingo", filePath, "0", "-Wno-atom-undefined", aspCores)
 
     val res = command.mkString(" ").lineStream_!
     val results = res.toVector
@@ -94,7 +89,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
   def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {
     val modes = globals.MODEHS ++ globals.MODEBS
     val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
-    val program = e.toASP().mkString("\n") + t + "#show.\n" + s"""#include "${globals.BK_WHOLE_EC}".""" + "\n" + "#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
+    val program = e.toASP().mkString("\n") + t + "\n" + s"""#include "${globals.BK_WHOLE_EC}".""" + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
     val results = solve(program)
     results.map(x => x -> true).toMap
   }
