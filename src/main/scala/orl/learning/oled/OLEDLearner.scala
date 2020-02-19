@@ -17,11 +17,12 @@
 
 package orl.learning.oled
 
-import orl.app.runutils.InputHandling.InputSource
+import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.inference.ASPSolver
 import orl.learning.Learner
+import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
 import orl.logic.{Clause, Literal}
@@ -129,7 +130,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
   /**
     * Generates new rules by (minimally) abducing new rule heads from the data, using the
     * existing rules in the theory to avoid abducing redundant atoms.
-    * */
+    */
   def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps)
   }
@@ -137,7 +138,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
   /**
     * Generates new rules directly from the commited mistakes.
     * This method does not actually use the existing theory.
-    * */
+    */
   def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     val topInit = state.initiationRules.filter(_.body.nonEmpty)
     val topTerm = state.terminationRules.filter(_.body.nonEmpty)
@@ -150,5 +151,28 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     newInit ++ newTerm
   }
 
+  /**
+    * Prints statistics & evaluates on test set (if one provided)
+    * */
+  def wrapUp() = {
+    logger.info(s"\nFinished the data")
+    if (repeatFor > 0) {
+      self ! new StartOver
+    } else if (repeatFor == 0) {
+      val theory = state.getAllRules(inps, "top")
+
+      showStats(theory)
+
+      if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
+        val testData = testingDataFunction(testingDataOptions)
+        WoledMLNLearnerUtils.evalOnTestSet(testData, theory, inps)
+      }
+
+      shutDown()
+
+    } else { // Just to be on the safe side...
+      throw new RuntimeException("This should never have happened (repeatFor is negative).")
+    }
+  }
 
 }

@@ -17,9 +17,12 @@
 
 package orl.learning.woledasp
 
-import orl.app.runutils.InputHandling.InputSource
+import java.text.DecimalFormat
+
+import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
+import orl.learning.Types.StartOver
 import orl.learning.{Learner, PruningSpecs}
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
@@ -36,8 +39,8 @@ import orl.utils.Utils.{underline, underlineStars}
   * and weights for rules.
   */
 class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
-                                        testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
-                                        testingDataFunction: T => Iterator[Example])
+    testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
+    testingDataFunction: T => Iterator[Example])
   extends Learner(inps, trainingDataOptions, testingDataOptions, trainingDataFunction, testingDataFunction) {
 
   val showTheory: Boolean = true // show the theory used for inference at each step.
@@ -49,7 +52,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     * Otherwise, if a top rule that has resulted from a Hoeffding test has at least one
     * literal to its body we use that rule.
     *
-    * */
+    */
   def getRulesForPrediction() = {
     val topRules = state.getTopTheory()
     topRules flatMap { rule =>
@@ -69,7 +72,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       * holdsAt(visible) predicate in the input, that messes everything up.
       * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
       * This is related to the meta-rules used for scoring the actual rules.
-      * */
+      */
     val exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
 
     //val rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
@@ -77,10 +80,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     val rulesCompressed = getRulesForPrediction()
 
+    if (batchCount == 92) {
+      val stop = "stop"
+    }
+
     //val rulesCompressed = LogicUtils.compressTheory(rules)
     //val rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
-
-
 
     /** Get the inferred state. */
     val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
@@ -96,8 +101,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     /** Generate new rules from mistakes */
     if (!withHandCrafted) {
       if (fpCounts > 0 || fnCounts > 0) {
-        newRules = generateNewRulesConservative(rulesCompressed, exmpl, inps)//.filter(p => !state.isBlackListed(p))
-        //newRules = generateNewRulesEager(rulesCompressed, exmpl, inps)//.filter(p => !state.isBlackListed(p))
+        newRules = generateNewRules(rulesCompressed, exmpl, inps)//.filter(p => !state.isBlackListed(p))
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
       }
     }
@@ -150,7 +154,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     }
   }
 
-
   def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     generateNewRulesConservative(existingTheory, ex, inps)
     //generateNewRulesEager(existingTheory, ex, inps)
@@ -159,7 +162,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   /**
     * Generates new rules by (minimally) abducing new rule heads from the data, using the
     * existing rules in the theory to avoid abducing redundant atoms.
-    * */
+    */
   def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps)
     //val abd = new ASPWeightedInference(existingTheory, ex, inps)
@@ -169,23 +172,26 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   /**
     * Generates new rules directly from the commited mistakes.
     * This method does not actually use the existing theory.
-    * */
+    */
   def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     val topInit = state.initiationRules.filter(_.body.nonEmpty)
     val topTerm = state.terminationRules.filter(_.body.nonEmpty)
-    val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
-    val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
-    val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
-    val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
-    //val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
-    //val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
+    //val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
+    //val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
+    //val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
+    //val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
+    val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
+    val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
     newInit ++ newTerm
   }
 
-
-
   def batchInfoMsg(theoryForPrediction: List[Clause], newRules: List[Clause],
-                   tpCounts: Int, fpCounts: Int, fnCounts: Int, inferenceTime: Double, scoringTime: Double) = {
+      tpCounts: Int, fpCounts: Int, fnCounts: Int, inferenceTime: Double, scoringTime: Double) = {
+
+      def format(x: Double) = {
+        val defaultNumFormat = new DecimalFormat("0.#####")
+        defaultNumFormat.format(x)
+      }
 
     val batchMsg = underlineStars(s"*** BATCH $batchCount ***")
     val theoryMsg = {
@@ -203,7 +209,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       }
     }*/
 
-    val theory = theoryForPrediction.map(x => s"${x.weight} ${x.tostring}").mkString("\n")
+    val theory = theoryForPrediction.map(x => s"${format(x.weight)} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps})").mkString("\n")
 
     val inferenceMsg = {
       if (theoryForPrediction.nonEmpty) {
@@ -217,7 +223,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       }
     }
 
-    val newRulesMessage = if (newRules.nonEmpty) newRulesMsg(fpCounts,fnCounts,newRules) else ""
+    val newRulesMessage = if (newRules.nonEmpty) newRulesMsg(fpCounts, fnCounts, newRules) else ""
 
     val message = {
       if (!showTheory) {
@@ -229,7 +235,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     message
   }
-
 
   /* Used for debugging */
   /*def batchInfoMsg(theoryForPrediction: List[Clause], newRules: List[Clause],
@@ -259,20 +264,19 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     s"\n$batchMsg\n$m\n\n$m1"
   }*/
 
-
   def newRulesMsg(fps: Int, fns: Int, newRules: List[Clause]) = {
 
-    def showBCs(bottomClause: Clause) = {
-      bottomClause.toStrList match {
-        case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
-        case h :: ts =>
-          ts.length match {
-            case 0 => s"$h."
-            case 1 => s"$h :- ${ts.head}."
-            case _ => s"""$h :- ${(for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) x + "." else x + ",").mkString(" ")}"""
-          }
+      def showBCs(bottomClause: Clause) = {
+        bottomClause.toStrList match {
+          case Nil => throw new RuntimeException("Cannot generate a Clause object for the empty clause")
+          case h :: ts =>
+            ts.length match {
+              case 0 => s"$h."
+              case 1 => s"$h :- ${ts.head}."
+              case _ => s"""$h :- ${(for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) x + "." else x + ",").mkString(" ")}"""
+            }
+        }
       }
-    }
 
     val msg = s"Mistakes: FPs: $fps, FNs: $fns. Growing new rules from the following BCs:"
     val umsg = "\n" + underline(msg)
@@ -281,5 +285,66 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     message
   }
 
+
+  /**
+    * Prints statistics & evaluates on test set (if one provided)
+    * */
+  def wrapUp() = {
+
+    def iterationWrapUp() = {
+      val theory = getRulesForPrediction()
+      showStats(theory)
+      if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
+        val testData = testingDataFunction(testingDataOptions)
+        evalOnTestSet(testData, theory, inps)
+      }
+    }
+    logger.info(s"\nFinished the data")
+    if (repeatFor > 0) {
+      iterationWrapUp()
+      self ! new StartOver
+    } else if (repeatFor == 0) {
+      iterationWrapUp()
+      shutDown()
+    } else { // Just to be on the safe side...
+      throw new RuntimeException("This should never have happened (repeatFor is negative).")
+    }
+  }
+
+  def evalOnTestSet(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {
+
+    logger.info("\nEvaluating on the test set...")
+
+    var totalTPs = 0
+    var totalFPs = 0
+    var totalFNs = 0
+
+    testData foreach { _batch =>
+
+      /**
+        * TODO
+        *
+        * I'm doing this here (though we're not using LoMRF) to avoid the
+        * holdsAt(visible) predicate in the input, that messes everything up.
+        * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
+        * This is related to the meta-rules used for scoring the actual rules.
+        */
+      val batch = WoledMLNLearnerUtils.dataToMLNFormat(_batch, inps)
+
+      val inference = new ASPWeightedInference(rules, batch, inps)
+      inference.performInference()
+      totalTPs += inference.TPs
+      totalFPs += inference.FPs
+      totalFNs += inference.FNs
+    }
+
+    val precision = totalTPs.toDouble / (totalTPs + totalFPs)
+    val recall = totalTPs.toDouble / (totalTPs + totalFNs)
+    val f1 = 2 * (precision * recall) / (precision + recall)
+    val theory = rules.map(x => s"${format(x.weight)} ${x.tostring}").mkString("\n")
+    val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
+    logger.info(msg)
+    orl.utils.Utils.dumpToFile(msg, "/home/nkatz/Desktop/kernel", "append")
+  }
 
 }

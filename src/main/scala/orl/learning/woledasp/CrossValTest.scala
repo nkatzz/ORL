@@ -1,12 +1,29 @@
+/*
+ * Copyright (C) 2016  Nikos Katzouris
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package orl.learning.woledasp
 
 import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.CMDArgs
-import orl.app.runutils.InputHandling.MongoDataOptions
+import orl.datahandling.InputHandling.MongoDataOptions
 import orl.datahandling.Example
 import orl.learning.woledmln.WoledMLNLearnerUtils
 import orl.logic.{Clause, Literal}
-import orl.app.runutils.InputHandling.getMongoData
+import orl.datahandling.InputHandling.getMongoData
 
 import scala.io.Source
 
@@ -24,7 +41,7 @@ object Drafts extends App {
 
 }
 
-object CrossValTest extends LazyLogging{
+object CrossValTest extends LazyLogging {
 
   def main(args: Array[String]) = {
     val argsok = CMDArgs.argsOk(args)
@@ -33,10 +50,10 @@ object CrossValTest extends LazyLogging{
       val runningOptions = CMDArgs.getOLEDInputArgs(args)
 
       val source = Source.fromFile("/home/nkatz/tmp/test.lp")
-      val rules = source.getLines.filter(x => (x.replaceAll("\\s", "") != "" ) && !x.startsWith("%")).toList.map { line =>
+      val rules = source.getLines.filter(x => (x.replaceAll("\\s", "") != "") && !x.startsWith("%")).toList.map { line =>
         val split = line.split(" ")
         val weight = split(0)
-        val rule = line.split(weight+" ")(1)
+        val rule = line.split(weight + " ")(1)
         val clause = Clause.parse(rule)
         clause.weight = weight.toDouble
         clause
@@ -45,8 +62,8 @@ object CrossValTest extends LazyLogging{
       source.close
 
       val testingDataOptions =
-        new MongoDataOptions(dbNames = MeetingTrainTestSets.meeting1._2,
-          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
+        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting1._2,
+                             chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
       val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
 
@@ -65,8 +82,5 @@ object CrossValTest extends LazyLogging{
       System.exit(-1)
     }
   }
-
-
-
 
 }

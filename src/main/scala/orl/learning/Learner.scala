@@ -21,7 +21,7 @@ import java.text.DecimalFormat
 
 import akka.actor.{Actor, PoisonPill}
 import org.slf4j.{Logger, LoggerFactory}
-import orl.app.runutils.InputHandling.InputSource
+import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
@@ -62,13 +62,13 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   //private var previousCNF = Vector[lomrf.logic.Clause]()
 
   // Use a hand-crafted theory for debugging
-  def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+  /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
   val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test")
   val list = source.getLines.filter(line => !matches( """""".r, line) && !line.startsWith("%"))
   val rulesList = list.map(x => Clause.parse(x)).toList
   source.close
   state.updateRules(rulesList, "add", inps)
-  withHandCrafted = true
+  withHandCrafted = true*/
 
   private def getTrainingData: Iterator[Example] = trainingDataFunction(trainingDataOptions)
   private def getNextBatch: Example = if (data.isEmpty) Example() else data.next()
@@ -76,14 +76,22 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   /**
     * Abstract method, to be implemented by specific learners.
     *
-    * */
+    */
   def process(exmpl: Example): Unit
 
   /**
     * Abstract method, to be implemented by specific learners.
     *
-    * */
+    */
   def generateNewRules(existingTheory: List[Clause], exmpl: Example, inps: RunningOptions): List[Clause]
+
+  /**
+    * Abstract method, to be implemented by specific learners.
+    * It displays statistics from the learning process, performs cross-validation
+    * (if testing set is provided) etc.
+    *
+    * */
+  def wrapUp()
 
   /**
     * The logic for data processing follows.
@@ -107,7 +115,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
     * data batches, the learner is in control state. Communication protocols with other learners should be implemented
     * when the learner is in control state. For instance, it could be specified that if the learner has just finished
     * its k-th data batch, it should broadcast its current theory to a global coordinator.
-    * */
+    */
 
   def receive: PartialFunction[Any, Unit] = {
     case _: Run =>
@@ -154,29 +162,6 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
       batchCount += 1
       become(controlState)
       self ! new FinishedBatch
-  }
-
-
-
-  def wrapUp() = {
-    logger.info(s"\nFinished the data")
-    if (repeatFor > 0) {
-      self ! new StartOver
-    } else if (repeatFor == 0) {
-      val theory = state.getAllRules(inps, "top")
-
-      showStats(theory)
-
-      if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-        val testData = testingDataFunction(testingDataOptions)
-        WoledMLNLearnerUtils.evalOnTestSet(testData, theory, inps)
-      }
-
-      shutDown()
-
-    } else { // Just to be on the safe side...
-      throw new RuntimeException("This should never have happened (repeatFor is negative).")
-    }
   }
 
   def shutDown() = {

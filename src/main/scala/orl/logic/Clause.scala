@@ -296,11 +296,11 @@ case class Clause(
       // The - sign is to sort with decreasing order (default is with increasing)
       // Also sort clauses by length, so that sorter clauses be preferred over longer ones with the same score
       val allSorted =
-      if (scoringFunction == "foilgain")
-      // The parent rule should not be included here (otherwise it will always win, see the foil gain formula)
-      this.refinements.sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
-      else
-      (List(this) ++ this.refinements).sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
+        if (scoringFunction == "foilgain")
+          // The parent rule should not be included here (otherwise it will always win, see the foil gain formula)
+          this.refinements.sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
+        else
+          (List(this) ++ this.refinements).sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
 
       val bestTwo = allSorted.take(2)
 
@@ -309,7 +309,7 @@ case class Clause(
       // the refinements lists is empty (this has only occurred when I use basic and auxiliary predicates in fraud).
       // This should be handled generically, a clause with no candidate refs should not be considered for specialization
       val (best, secondBest) =
-      if (bestTwo.length > 1) (bestTwo.head, bestTwo.tail.head) else (bestTwo.head, bestTwo.head)
+        if (bestTwo.length > 1) (bestTwo.head, bestTwo.tail.head) else (bestTwo.head, bestTwo.head)
       val newDiff = best.score(scoringFunction) - secondBest.score(scoringFunction)
       val newMeanDiff = ((previousMeanDiff * previousMeanDiffCount) + newDiff) / (previousMeanDiffCount + 1)
 
@@ -469,7 +469,7 @@ case class Clause(
       ts.length match {
         case 0 => h + "."
         case 1 => h + " :- " + ts.head + "."
-        case _ => h + " :- " + (for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) s"$x." else s"$x,").mkString(" ")
+        case _ => h + " :- " + (for (x <- ts) yield if (ts.indexOf(x) == ts.length - 1) s"$x." else s"$x,").mkString("")
       }
   }
 
@@ -501,8 +501,6 @@ case class Clause(
     val out = Clause(head = l.head, body = l.tail)
     out
   }
-
-
 
   def withTypePreds(modes: List[ModeAtom], extraTypePreds: List[String] = List()): Clause = {
     var types = (for (x <- this.toLiteralList)

@@ -117,8 +117,6 @@ object Utils {
     s"$u\n$x\n"
   }
 
-
-
   def underlineStars(x: String) = {
     val l = x.length
     val u = (for (i <- 1 to l) yield "*").mkString("")

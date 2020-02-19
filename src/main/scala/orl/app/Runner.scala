@@ -20,10 +20,11 @@ package orl.app
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.CMDArgs
-import orl.app.runutils.InputHandling.{MongoDataOptions, getMongoData}
+import orl.datahandling.InputHandling.{MongoDataOptions, getMongoData}
 import orl.datahandling.Example
 import orl.learning.LocalCoordinator
 import orl.learning.Types.RunSingleCore
+import orl.learning.woledasp.MeetingTrainTestSets
 
 /**
   * Created by nkatz on 7/10/19.
@@ -47,32 +48,28 @@ object Runner extends LazyLogging {
         "caviar-video-25", "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27", "caviar-video-28-meeting",
         "caviar-video-29", "caviar-video-30")
 
-      //val train1 = Vector("caviar-video-1-meeting-moving")
-
       val evalOneTestSet = false
 
       if (!evalOneTestSet) {
 
         /* Single-pass run on the entire dataset */
-        val trainingDataOptions = new MongoDataOptions(dbNames       = train1,
-                                                       chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+        /*val trainingDataOptions = new MongoDataOptions(dbNames = train1,
+          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
-        val testingDataOptions = trainingDataOptions
+        val testingDataOptions = trainingDataOptions*/
+
+        val trainingDataOptions =
+          new MongoDataOptions(dbNames = MeetingTrainTestSets.meeting1._1,
+            chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+
+        val testingDataOptions =
+          new MongoDataOptions(dbNames = MeetingTrainTestSets.meeting1._2,
+            chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
 
-        /*val data = getMongoData(trainingDataOptions)
-        var accum = List[String]()
-        for (x <- data) {
-          if (x.queryAtoms.nonEmpty) {
-            //println(x.queryAtoms)
-            for (y <- x.queryAtoms ) if (accum.contains(y)) println(s"Duplicate: $y")
-            accum = accum ++ x.queryAtoms
-          }
-        }
-        println(accum.size)
-        val stop = "stop"*/
+
 
         val system = ActorSystem("LocalLearningSystem")
         val startMsg = new RunSingleCore

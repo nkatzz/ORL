@@ -15,11 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package orl.app.runutils
+package orl.datahandling
 
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
-import orl.datahandling.Example
 
 /**
   * Created by nkatz at 13/12/19

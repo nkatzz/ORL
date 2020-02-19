@@ -17,10 +17,11 @@
 
 package orl.learning.woledmln
 
-import orl.app.runutils.InputHandling.InputSource
+import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.learning.Learner
+import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.logic.{Clause, Literal, LogicUtils}
 
@@ -94,7 +95,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     if (!withHandCrafted) {
       if (fpCounts > 0 || fnCounts > 0) {
-        newRules = generateNewRulesConservative(rulesCompressed, e, inps)//.filter(p => !state.isBlackListed(p))
+        newRules = generateNewRulesConservative(rulesCompressed, e, inps) //.filter(p => !state.isBlackListed(p))
         //newRules = generateNewRulesEager(rulesCompressed, e, inps)//.filter(p => !state.isBlackListed(p))
         if (newRules.nonEmpty) {
           WoledMLNLearnerUtils.showNewRulesMsg(fpCounts, fnCounts, newRules, logger)
@@ -127,7 +128,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   /**
     * Generates new rules by (minimally) abducing new rule heads from the data, using the
     * existing rules in the theory to avoid abducing redundant atoms.
-    * */
+    */
   def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps)
   }
@@ -135,7 +136,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   /**
     * Generates new rules directly from the commited mistakes.
     * This method does not actually use the existing theory.
-    * */
+    */
   def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     val topInit = state.initiationRules.filter(_.body.nonEmpty)
     val topTerm = state.terminationRules.filter(_.body.nonEmpty)
@@ -146,6 +147,30 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
     val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
     newInit ++ newTerm
+  }
+
+  /**
+    * Prints statistics & evaluates on test set (if one provided)
+    * */
+  def wrapUp() = {
+    logger.info(s"\nFinished the data")
+    if (repeatFor > 0) {
+      self ! new StartOver
+    } else if (repeatFor == 0) {
+      val theory = state.getAllRules(inps, "top")
+
+      showStats(theory)
+
+      if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
+        val testData = testingDataFunction(testingDataOptions)
+        WoledMLNLearnerUtils.evalOnTestSet(testData, theory, inps)
+      }
+
+      shutDown()
+
+    } else { // Just to be on the safe side...
+      throw new RuntimeException("This should never have happened (repeatFor is negative).")
+    }
   }
 
 }

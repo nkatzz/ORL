@@ -108,7 +108,7 @@ class State(inps: RunningOptions) {
     * I added this to avoid the assertion exception from LoMRL (units + noUnits > 0).
     * It seemed that the error occurred because two contradicting initiation rules with only one condition in their bodies,
     * "visible" and "not visible" respectively, and the same weight were added to the theory that was used for prediction.
-    * This created something like a hard constraint that was responsible for the problem. The two rules were just two random
+    * This created something like a hard constraint that was responsible for the problem (I think?). The two rules were just two random
     * specializations of an immature rule with an empty body. With this method we exclude rules like that to be added
     * unless no other more mature rule (non-empty bodied rule) with the same head exists in the top theory.
     *
@@ -207,41 +207,41 @@ class State(inps: RunningOptions) {
   /**
     * Removes a rule r1 that theta-subsumes a rule r2, if infoGain(r1,r2) > 0.
     * Only applied to rules with body >= 1, to avoid pruning very young rules.
-    * */
+    */
   def subsumptionBasedPruning() = {
 
-    def showSubsumptionBasedPruned(c: Clause): Unit = {
-      val msg =
-        s"\n===========================================================\n" +
-          s"\nPruned clause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns} | Weight: ${c.weight})\n\n${c.tostring}\n\n" +
-          s"because it submsumed another, of higher quality." +
-          s"\nAfter ${c.seenExmplsNum} examples.\nThe corresponding bottom rule is:\n${c.supportSet.head.tostring}" +
-          s"\n===========================================================\n"
-    }
-
-    def prune(rule: Clause): Unit = {
-
-      val pool = getTopTheory().filter(r => r.head.predSymbol == rule.head.predSymbol)
-
-      val (others, thiss) = pool.partition( _ != rule )
-
-      if (others.nonEmpty && thiss.isEmpty) {
-        val msg = s"Subsumption-based prunning: " +
-          s"Cannot find rule\n${rule.tostring} in pool of\n${others.map(_.tostring).mkString("\n")}."
-        throw new RuntimeException(msg)
+      def showSubsumptionBasedPruned(c: Clause): Unit = {
+        val msg =
+          s"\n===========================================================\n" +
+            s"\nPruned clause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns} | Weight: ${c.weight})\n\n${c.tostring}\n\n" +
+            s"because it submsumed another, of higher quality." +
+            s"\nAfter ${c.seenExmplsNum} examples.\nThe corresponding bottom rule is:\n${c.supportSet.head.tostring}" +
+            s"\n===========================================================\n"
       }
 
-      val subsumees = others.foldLeft(List.empty[Clause]) { (x, otherRule) =>
-        if (rule.thetaSubsumes(otherRule)) x :+ otherRule else x
-      }
+      def prune(rule: Clause): Unit = {
 
-      val shouldPrune = subsumees.exists(rulesChild => LogicUtils.informationGain(rulesChild, rule) > 0)
+        val pool = getTopTheory().filter(r => r.head.predSymbol == rule.head.predSymbol)
 
-      if (shouldPrune) {
-        showSubsumptionBasedPruned(rule)
-        if (rule.head.predSymbol == "initiatedAt") initiationRules = others else terminationRules = others
+        val (others, thiss) = pool.partition(_ != rule)
+
+        if (others.nonEmpty && thiss.isEmpty) {
+          val msg = s"Subsumption-based prunning: " +
+            s"Cannot find rule\n${rule.tostring} in pool of\n${others.map(_.tostring).mkString("\n")}."
+          throw new RuntimeException(msg)
+        }
+
+        val subsumees = others.foldLeft(List.empty[Clause]) { (x, otherRule) =>
+          if (rule.thetaSubsumes(otherRule)) x :+ otherRule else x
+        }
+
+        val shouldPrune = subsumees.exists(rulesChild => LogicUtils.informationGain(rulesChild, rule) > 0)
+
+        if (shouldPrune) {
+          showSubsumptionBasedPruned(rule)
+          if (rule.head.predSymbol == "initiatedAt") initiationRules = others else terminationRules = others
+        }
       }
-    }
 
     getTopTheory().filter(_.body.nonEmpty).foreach(prune)
 

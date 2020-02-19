@@ -65,35 +65,25 @@ object CMDArgs extends LazyLogging {
     val randomOrder = getMatchingArgumentValue("--randorder")
     val scoringFun = getMatchingArgumentValue("--scorefun")
     val minEvaluatedOn = getMatchingArgumentValue("--eval-atleast-on")
-    val cores = getMatchingArgumentValue("--coresnum")
-    val compress_new_rules = getMatchingArgumentValue("--compress-new-rules")
     val mintps = getMatchingArgumentValue("--min-pos-covered")
-    val processBatchBeforeMailBox = getMatchingArgumentValue("--mailbox-check")
     val shuffleData = getMatchingArgumentValue("--shuffle-data")
     val showRefs = getMatchingArgumentValue("--showrefs")
     val pruneAfter = getMatchingArgumentValue("--prune-after")
     val mongoCol = getMatchingArgumentValue("--mongo-collection")
-    val dataLimit = getMatchingArgumentValue("--data-limit")
     val tpWeight = getMatchingArgumentValue("--tps-weight")
     val fpWeight = getMatchingArgumentValue("--fps-weight")
     val fnWeight = getMatchingArgumentValue("--fns-weight")
     val withInertia = getMatchingArgumentValue("--with-inertia")
     val weightLearn = getMatchingArgumentValue("--weight-learning")
-    val mlnWeightThreshold = getMatchingArgumentValue("--mln-weight-at-least")
     val parallelClauseEval = getMatchingArgumentValue("--parallel-clause-eval")
     val adagradDelta = getMatchingArgumentValue("--ada-delta")
     val adaLearnRate = getMatchingArgumentValue("--ada-learn-rate")
     val adaRegularization = getMatchingArgumentValue("--ada-regularization")
     val adaLossFunction = getMatchingArgumentValue("--ada-loss-function")
     val withEventCalculus = getMatchingArgumentValue("--with-ec")
-    val showStats = getMatchingArgumentValue("--show-stats")
     val saveTheoryTo = getMatchingArgumentValue("--saveto")
-    val holdout = getMatchingArgumentValue("--holdout")
-    val prequential = getMatchingArgumentValue("--prequential")
     val train = getMatchingArgumentValue("--train")
     val test = getMatchingArgumentValue("--test")
-    val selfTraining = getMatchingArgumentValue("--selftrain")
-    val preprune = getMatchingArgumentValue("--preprune")
 
     //-------------
     // Global sets:
@@ -116,18 +106,17 @@ object CMDArgs extends LazyLogging {
 
     val inps = new RunningOptions(entryPath.toString, delta.toString.toDouble, pruningThreshold.toString.toDouble,
                                   minSeenExmpls.toString.toInt, specializationDepth.toString.toInt, breakTiesThreshold.toString.toDouble,
-                                  repeatFor.toString.toInt, chunkSize.toString.toInt, processBatchBeforeMailBox.toString.toInt,
-                                  onlinePruning.toString.toBoolean, withPostPruning.toString.toBoolean, targetConcept.toString,
-                                  compress_new_rules.toString.toBoolean, mintps.toString.toInt, tryMoreRules.toString.toBoolean,
+                                  repeatFor.toString.toInt, chunkSize.toString.toInt,
+                                  onlinePruning.toString.toBoolean, withPostPruning.toString.toBoolean,
+                                  targetConcept.toString, mintps.toString.toInt, tryMoreRules.toString.toBoolean,
                                   trainSetNum.toString.toInt, randomOrder.toString.toBoolean, scoringFun.toString, with_jep.toString.toBoolean,
-                                  evaluate_existing.toString, train.toString, globals, minEvaluatedOn.toString.toInt, cores.toString.toInt,
+                                  evaluate_existing.toString, train.toString, globals, minEvaluatedOn.toString.toInt,
                                   shuffleData.toString.toBoolean, showRefs.toString.toBoolean, pruneAfter.toString.toInt, mongoCol.toString,
-                                  dataLimit.toString.toInt, tpWeight.toString.toInt, fpWeight.toString.toInt, fnWeight.toString.toInt,
-                                  withInertia.toString.toBoolean, weightLearn.toString.toBoolean, mlnWeightThreshold.toString.toDouble,
+                                  tpWeight.toString.toInt, fpWeight.toString.toInt, fnWeight.toString.toInt,
+                                  withInertia.toString.toBoolean, weightLearn.toString.toBoolean,
                                   parallelClauseEval.toString.toBoolean, adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble,
                                   adaRegularization.toString.toDouble, adaLossFunction.toString, withEventCalculus.toString.toBoolean,
-                                  showStats.toString.toBoolean, saveTheoryTo.toString, holdout.toString.toInt, prequential.toString.toBoolean,
-                                  test.toString, selfTraining.toString.toBoolean, preprune.toString.toDouble)
+                                  saveTheoryTo.toString, test.toString)
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
@@ -282,11 +271,9 @@ class RunningOptions(
     val breakTiesThreshold: Double,
     val repeatFor: Int,
     val chunkSize: Int,
-    val processBatchBeforeMailBox: Int,
     val onlinePruning: Boolean,
     val withPostPruning: Boolean,
     val targetHLE: String,
-    val compressNewRules: Boolean,
     val minTpsRequired: Int,
     val tryMoreRules: Boolean,
     val trainSetNum: Int,
@@ -297,29 +284,21 @@ class RunningOptions(
     val train: String,
     val globals: Globals,
     val minEvalOn: Int,
-    val cores: Int,
     val shuffleData: Boolean,
     val showRefs: Boolean,
     val pruneAfter: Int,
     val mongoCollection: String,
-    val dataLimit: Int,
     val tpWeight: Int,
     val fpWeight: Int,
     val fnWeight: Int,
     val withInertia: Boolean,
     val weightLean: Boolean,
-    val mlnWeightThreshold: Double,
     val parallelClauseEval: Boolean,
     val adaGradDelta: Double,
     val adaLearnRate: Double,
     val adaRegularization: Double,
     val adaLossFunction: String,
     val withEventCalculs: Boolean,
-    val showStats: Boolean,
     val saveTheoryTo: String,
-    val holdout: Int,
-    val prequential: Boolean,
-    val test: String,
-    val selfTraining: Boolean,
-    val preprune: Double)
+    val test: String)
 

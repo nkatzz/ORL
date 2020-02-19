@@ -18,7 +18,7 @@
 package orl.learning
 
 import akka.actor.{Actor, Props}
-import orl.app.runutils.InputHandling.InputSource
+import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.learning.Types.{LocalLearnerFinished, Run, RunSingleCore}
@@ -47,11 +47,11 @@ class LocalCoordinator[T <: InputSource](inps: RunningOptions, trainingDataOptio
           if (mode == "MLN") {
             context.actorOf(Props(
               new WoledMLNLearner(inps, trainingDataOptions, testingDataOptions,
-                trainingDataFunction, testingDataFunction)), name = s"worker-${this.##}")
+                                  trainingDataFunction, testingDataFunction)), name = s"worker-${this.##}")
           } else {
             context.actorOf(Props(
               new WoledASPLearner(inps, trainingDataOptions, testingDataOptions,
-                trainingDataFunction, testingDataFunction)), name = s"worker-${this.##}")
+                                  trainingDataFunction, testingDataFunction)), name = s"worker-${this.##}")
           }
         }
         worker ! new Run
@@ -60,13 +60,11 @@ class LocalCoordinator[T <: InputSource](inps: RunningOptions, trainingDataOptio
 
         val worker = context.actorOf(Props(
           new OLEDLearner(inps, trainingDataOptions, testingDataOptions,
-            trainingDataFunction, testingDataFunction)), name = s"worker-${this.##}")
+                          trainingDataFunction, testingDataFunction)), name = s"worker-${this.##}")
 
         worker ! new Run
 
       }
-
-
 
     case _: LocalLearnerFinished => context.system.terminate()
   }

@@ -184,7 +184,12 @@ class Globals(val entryPath: String) extends LazyLogging {
 
   val modesParser = new ModesParser
 
-  val MODES: List[String] = Source.fromFile(modesFile).getLines.toList.filter(line => !matches("""""".r, line) && !line.startsWith("%"))
+  val MODES: List[String] = {
+    val source = Source.fromFile(modesFile)
+    val content = source.getLines.toList.filter(line => !matches("""""".r, line) && !line.startsWith("%"))
+    source.close()
+    content
+  }
 
   val MODEHS: List[ModeAtom] = MODES.filter(m => m.contains("modeh") && !m.startsWith("%")).map(x => x).
     map(x => modesParser.getParseResult(modesParser.parseModes(modesParser.modeh, x)))
