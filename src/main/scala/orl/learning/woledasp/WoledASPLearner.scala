@@ -94,16 +94,23 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     val res = orl.utils.Utils.time{ inference.performInference(inferenceMetaProgram) }
 
     val inferenceTime = res._2
-    val tpCounts = inference.TPs
-    val fpCounts = inference.FPs
-    val fnCounts = inference.FNs
+    val tpCounts = inference.TPs.size
+    val fpCounts = inference.FPs.size
+    val fnCounts = inference.FNs.size
 
     var newRules = List.empty[Clause]
 
     /** Generate new rules from mistakes */
     if (!withHandCrafted) {
       if (fpCounts > 0 || fnCounts > 0) {
-        newRules = generateNewRules(rulesCompressed, exmpl, inps) //.filter(p => !state.isBlackListed(p))
+
+        val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
+        val atomsFromFNMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
+
+        newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes )
+
+        //newRules = generateNewRules(rulesCompressed, exmpl, inps)
+
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
       }
     }
@@ -156,24 +163,37 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     }
   }
 
+  /**
+    * This class needs to implement the abstract method.
+    * */
   def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
-    //generateNewRulesConservative(existingTheory, ex, inps)
-    generateNewRulesEager(existingTheory, ex, inps)
+    generateNewRules(existingTheory, ex, inps, Set())
+  }
+
+  def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
+    generateNewRulesConservative(existingTheory, ex, inps, mistakes)
+    //generateNewRulesEager(existingTheory, ex, inps)
   }
 
   /**
-    * Generates new rules by (minimally) abducing new rule heads from the data, using the
+    * Generates new rules by abducing new rule heads from the data, using the
     * existing rules in the theory to avoid abducing redundant atoms.
+    *
+    * Mistakes are head atoms generated from actual prediction mistakes. If non-empty
+    * there is no abduction and these atoms are used instead.
     */
-  def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
-    //OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps)
-    val abd = new ASPWeightedInference(existingTheory, ex, inps)
-    abd.abduction()
+  def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
+    OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps, mistakes)
+    //val abd = new ASPWeightedInference(existingTheory, ex, inps)
+    //abd.abduction()
   }
 
   /**
-    * Generates new rules directly from the commited mistakes.
+    * Generates new rules directly from the committed mistakes.
     * This method does not actually use the existing theory.
+    *
+    * Mistakes are head atoms generated from actual prediction mistakes. If non-empty
+    * * there is no abduction and these atoms are used instead.
     */
   def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     val topInit = state.initiationRules.filter(_.body.nonEmpty)
@@ -336,9 +356,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       val inference = new ASPWeightedInference(rules, batch, inps)
       inference.performInference()
-      totalTPs += inference.TPs
-      totalFPs += inference.FPs
-      totalFNs += inference.FNs
+      totalTPs += inference.TPs.size
+      totalFPs += inference.FPs.size
+      totalFNs += inference.FNs.size
     }
 
     val precision = totalTPs.toDouble / (totalTPs + totalFPs)

@@ -448,9 +448,9 @@ case class Clause(
     }
 
     if (supportSet.nonEmpty) supportSet.head.parentClause = this
-    this.refinements = flattend :+ this.supportSet.head
+    //this.refinements = flattend :+ this.supportSet.head
     //this.refinements = flattend
-    //this.refinements = List(this.supportSet.head)
+    this.refinements = List(this.supportSet.head)
   }
 
   def tostringFormal: String = this.toStrList match {

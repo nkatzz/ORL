@@ -34,9 +34,9 @@ import orl.logic.{Clause, Literal}
 
 class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps: RunningOptions) {
 
-  var TPs = 0
-  var FPs = 0
-  var FNs = 0
+  var TPs = Set.empty[String]
+  var FPs = Set.empty[String]
+  var FNs = Set.empty[String]
 
   private def minDiff = {
 
@@ -499,9 +499,9 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     val fps = inferredState.diff(trueState).filter(x => !x.startsWith("test"))
     val fns = trueState.diff(inferredState).filter(x => !x.startsWith("test"))
 
-    TPs = tps.size
-    FPs = fps.size
-    FNs = fns.size
+    TPs = tps//.size
+    FPs = fps//.size
+    FNs = fns//.size
 
     (satAtoms, inferredAtoms) // This is returned for debugging purposes
   }

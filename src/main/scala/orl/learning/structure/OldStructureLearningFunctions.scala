@@ -57,7 +57,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     }
   }
 
-  def generateNewRules(topTheory: List[Clause], examples: Example, inps: RunningOptions) = {
+  def generateNewRules(topTheory: List[Clause], examples: Example, inps: RunningOptions, mistakes: Set[String] = Set()) = {
     val bcs = KSGeneration(topTheory, examples, inps)
     bcs map { x =>
       val c = Clause(head = x.head, body = List())
@@ -66,11 +66,16 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     }
   }
 
-  def KSGeneration(topTheory: List[Clause], examples: Example, inps: RunningOptions) = {
+  def KSGeneration(topTheory: List[Clause], examples: Example, inps: RunningOptions, mistakes: Set[String] = Set()) = {
 
-    val _abduced1 = WoledMLNLearnerUtils.abduce(examples, inps, topTheory) //.head.atoms
-
-    val _abduced = if (_abduced1.nonEmpty) _abduced1.head.atoms else List.empty[String]
+    val _abduced = {
+      if (mistakes.isEmpty) {
+        val _abduced1 = WoledMLNLearnerUtils.abduce(examples, inps, topTheory) //.head.atoms
+        if (_abduced1.nonEmpty) _abduced1.head.atoms else List.empty[String]
+      } else {
+        mistakes.toList
+      }
+    }
 
     val abduced = _abduced map { atom =>
 
