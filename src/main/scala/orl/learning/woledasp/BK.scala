@@ -99,10 +99,10 @@ object BK {
       |inferredTrue(F,T,RuleId) :- topRule(RuleId), fluent(F), time(T), satisfied(terminatedAt(F,T),RuleId).
       |
       |% All true groundings.
-      |trueGrounding(F,T,RuleId) :- trueGroundingInit(F,T,RuleId).
-      |trueGrounding(F,T,RuleId) :- trueGroundingTerm(F,T,RuleId).
-      |falseGrounding(F,T,RuleId) :- falseGroundingInit(F,T,RuleId).
-      |falseGrounding(F,T,RuleId) :- falseGroundingTerm(F,T,RuleId).
+      |trueGrounding(F,T,RuleId) :- trueGroundingInit(F,T,RuleId), fluent(F), time(T).
+      |trueGrounding(F,T,RuleId) :- trueGroundingTerm(F,T,RuleId), fluent(F), time(T).
+      |falseGrounding(F,T,RuleId) :- falseGroundingInit(F,T,RuleId), fluent(F), time(T).
+      |falseGrounding(F,T,RuleId) :- falseGroundingTerm(F,T,RuleId), fluent(F), time(T).
       |
       |% A specialization does not participate in the inference process, so it doesn't have satisfied/2 instances. However,
       |% we may assume that its inferred-as-true instances, had it taken part in the inference, would
@@ -134,10 +134,10 @@ object BK {
       |% Example coverage counts.
       |resultTopRule(RuleId, ActualTrueGroundings, ActualFalseGroundings, TrueInferredAsTrue, FalseInferredAsTrue) :-
       |    ruleId(RuleId),
-      |    ActualTrueGroundings = #count {F,T: trueGrounding(F,T,RuleId)},
-      |    ActualFalseGroundings = #count {F,T: falseGrounding(F,T,RuleId)},
-      |    TrueInferredAsTrue = #count {F,T: trueGrounding(F,T,RuleId), inferredTrue(F,T,RuleId)},
-      |    FalseInferredAsTrue = #count {F,T: falseGrounding(F,T,RuleId), inferredTrue(F,T,RuleId)}.
+      |    ActualTrueGroundings = #count {F,T: trueGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    ActualFalseGroundings = #count {F,T: falseGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    TrueInferredAsTrue = #count {F,T: trueGrounding(F,T,RuleId), inferredTrue(F,T,RuleId), fluent(F), time(T)},
+      |    FalseInferredAsTrue = #count {F,T: falseGrounding(F,T,RuleId), inferredTrue(F,T,RuleId), fluent(F), time(T)}.
       |
       |% No fluent/1 predicate here, we need the inferred ones, not all groundings
       |inertia(holdsAt(F,T)) :- holdsAt(F,T), endTime(T).

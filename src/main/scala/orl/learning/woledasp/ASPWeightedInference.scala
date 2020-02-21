@@ -21,7 +21,6 @@ import java.io.File
 import java.text.DecimalFormat
 import java.util.UUID
 
-import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.inference.ASPSolver
@@ -70,7 +69,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     }
   }
 
-  private lazy val scaleFactor = 200.0 / minDiff
+  private lazy val scaleFactor = 2000.0 / minDiff
   private lazy val rulesWithintWeights = rules.map(x => (x, x.weight)).map(x => (x._1, math.round(x._2 * scaleFactor)))
 
   var satisfiedAtoms = Set.empty[String]
@@ -110,60 +109,19 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     *
     */
 
-  /*private def transformRules = {
-
-    val litsToString = (x: Seq[Literal]) => x.map(_.tostring).mkString(",")
-
-    val all = rulesWithintWeights map { case (rule, intWeight) =>
-      val satAtom = Literal.parse(s"satisfied(${rule.head.tostring},${rule.##})")
-      val typePreds = getTypePredicates(rule)
-
-      val satClause = {
-        if(rule.weight >= 0.0) {
-          Clause(head = rule.head, body = List(satAtom) ++ rule.body ++ typePreds).tostring
-        } else {
-          //Clause(head = Literal.parse("-"+rule.head.tostring), body = List(satAtom) ++ rule.body ++ typePreds).tostring
-          //Clause(head = rule.head.negated, body = List(satAtom) ++ rule.body ++ typePreds).tostring
-          s":- ${satAtom.tostring}, ${rule.head.tostring}, ${litsToString(rule.body ++ typePreds)}."
-
-        }
-      }
-
-      //val satClause = Clause(head = rule.head, body = List(satAtom) ++ typePreds).tostring
-      //val satClause = Clause(head = rule.head, body = List(satAtom) ++ rule.body ++ typePreds).tostring
-
-      val choiceRule = s"{${satAtom.tostring}} :- ${typePreds.map(_.tostring).mkString(",")}."
-
-      val weakConstraint = {
-        val body = if (rule.body.nonEmpty) s"${litsToString(rule.body)}, ${litsToString(typePreds)}" else litsToString(typePreds)
-        if (rule.weight >= 0.0) s":~ not ${satAtom.tostring},$body,${litsToString(typePreds)}. [$intWeight,${rule.getVars.map(_.name).mkString(",")}]"
-
-        //else s":~ ${satAtom.tostring}, $body. [${-intWeight},${rule.getVars.map(_.name).mkString(",")}]"
-        else s":~ not ${satAtom.tostring},$body,${litsToString(typePreds)}. [${-intWeight},${rule.getVars.map(_.name).mkString(",")}]"
-      }
-
-      // Avoid generating satisfied/1 instances without actual groundings of the rule's body satisfying the head of
-      // the rule out of thin air. (thus Not needed if we write the body literals in the satisfied/1 clause.
-      val hardConstraints = {
-        if (rule.body.nonEmpty) {
-          rule.body.map(bodyAtom => s":- ${satAtom.tostring}, not ${bodyAtom.tostring}, ${typePreds.map(_.tostring).mkString(",")}.").mkString("\n")
-        } else {
-          ""
-        }
-      }
-
-      val testClause = s"test(${rule.head.tostring},${rule.##}) :- ${rule.head.tostring}, not satisfied(${rule.head.tostring},${rule.##})."
-
-      s"$satClause\n$choiceRule\n$weakConstraint\n$hardConstraints\n$testClause\n"
-    }
-    all.mkString("\n")
-  }*/
-
-  //private def transformRules = transformRulesUNSAT
-  private def transformRules = transformRulesSAT
 
 
+  private def inferenceProgramUNSAT = transformRulesUNSAT
+  private def inferenceProgramSAT = transformRulesSAT
 
+  /**
+    *  The i-th rule: head(X) :- body(X).
+    *
+    *  Transformed:
+    *  unsat(head(X),i) :- head(X), not body(X).
+    *  head(X) :- body(X), not unsat(X).
+    *
+    * */
   private def transformRulesUNSAT = {
     val litsToString = (x: Seq[Literal]) => x.map(_.tostring).mkString(",")
     val all = rulesWithintWeights map { case (rule, intWeight) =>
@@ -171,14 +129,14 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       val typePreds = getTypePredicates(rule)
       val unsatDefinition = Clause(head = unsatAtom, body = rule.body ++ typePreds :+ rule.head.negated).tostring
       val ruleDefinition = Clause(head = rule.head, body = rule.body ++ typePreds :+ unsatAtom.negated).tostring
-      val weakCosntr = s":~ ${unsatAtom.tostring},${litsToString(typePreds)}. [${intWeight},${rule.##},${rule.getVars.map(_.name).mkString(",")}]"
+      val weakCosntr = s":~ unsatisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T). [$intWeight,${rule.##},F,T]"
       val ruleIdPred = s"ruleId(${rule.##})."
 
       // Be very careful with cases like this one.
       // Here, a definition of the form:
       // satisfied(p(X), Id) :- not satisfied(p(X), Id), entity(X), ruleId(Id).
       // can cause groundings of satisfied/2 with irrelevant ruleid's.
-      val satDefinition = s"satisfied(${rule.head.tostring},${rule.##}) :- not unsatisfied(${rule.head.tostring},${rule.##}),${litsToString(typePreds)}."
+      val satDefinition = s"satisfied(${rule.head.predSymbol}(F,T),${rule.##}) :- not unsatisfied(${rule.head.predSymbol}(F,T),${rule.##}),fluent(F),time(T)."
       s"$unsatDefinition\n$ruleDefinition\n$weakCosntr\n$ruleIdPred\n$satDefinition"
     }
     all.mkString("\n")
@@ -200,18 +158,17 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
       val satAtom = Literal.parse(s"satisfied(${rule.head.tostring},${rule.##})")
 
-      val ruleDefinition = Clause(head = rule.head, body = List(satAtom)).tostring // ++ typePreds
+      val ruleDefinition = s"${rule.head.predSymbol}(F,T) :- satisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T)."
 
-      val choiceRule = s"{${satAtom.tostring}} :- ${(rule.body ++ typePreds).map(x => x.tostring).mkString(",")}."
+      val choiceRule = s"{${satAtom.tostring}} :- ${(rule.body ++ typePreds).map(x => x.tostring).mkString(",")}, X0 != X1."
 
-      //val choiceRule = s"{${satAtom.tostring} : ${litsToString(typePreds)}} :- ${rule.body.map(x => x.tostring).mkString(",")}."
-
-      val weakCosntr = s":~ ${satAtom.tostring}. [${-intWeight},${rule.##},${rule.getVars.map(_.name).mkString(",")}]"
+      val weakCosntr = s":~ satisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T). [${-intWeight},${rule.##},F,T]"
 
       s"$ruleDefinition\n$choiceRule\n$weakCosntr\n"
     }
     all.mkString("\n")
   }
+
 
   def getTypePredicates(rule: Clause): List[Literal] = {
     //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
@@ -411,7 +368,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     val program = {
 
       val data = exmpl.toASP().mkString(" ")
-      val rs = transformRules
+      val rs = inferenceProgramUNSAT
       val abductionBK = BK.abductionMetaProgram
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
       s"$data\n$rs\n$abductionBK\n$include\n"
@@ -474,28 +431,19 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     * Performs inference with the weighted rules to assess the performance of the current theory.
     *
     */
-  def performInference() = {
+  def performInference(metaProgram: String = "UNSAT") = {
 
-    val debugSATWithNegativeWeightsMap = rules.filter(x => x.weight < 0).map(x => x.##).toSet
-      def debugNegativeWeights(satAtoms: Set[String]) = {
-        val satRuleIds = satAtoms.map(Literal.parse(_).terms.tail.head.name.toInt)
-        debugSATWithNegativeWeightsMap.intersect(satRuleIds)
-      }
+    val idsMap = rules.flatMap(x => List(x)++x.refinements).map(x =>  x.## -> x).toMap
 
     val program = {
       // The only reason we add the examples here (instead of having the observations only)
       // is to get the last time point in the batch (see the time(T) :- example(holdsAt(_,T)). in the bk)
       // This is necessary in order to not miss positives in the last time point.
       val data = exmpl.toASP().mkString(" ")
-      val rs = transformRules
+      val rs = if (metaProgram == "UNSAT") inferenceProgramUNSAT else inferenceProgramSAT
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
 
-      //val a = s"test(initiatedAt(F,T),I) :- fluent(F), time(T), not satisfied(initiatedAt(F,T),I), initiatedAt(F,T).\n"
-      //val b = s"test(terminatedAt(F,T),I) :- fluent(F), time(T), not satisfied(terminatedAt(F,T),I), terminatedAt(F,T).\n"
-      //val c = rules.map(x => s"ruleId(${x.##}).").mkString(" ")
-      //val d = a+b+c+"\n"
-
-      val shows = s"#show holdsAt/2.\n#show satisfied/2." //\n#show test/2.
+      val shows = s"#show holdsAt/2.\n#show satisfied/2."
       s"$data\n$rs\n$include\n$shows"
     }
 
@@ -508,6 +456,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     //val theory = rules.map(x => s"${x.weight} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps})").mkString("\n")
     //println("THEORY:\n"+theory)
 
+    // --opt-strategy=usc helps to boost performance if a large number of heads may be inferred.
     var options = s"--opt-mode=opt --opt-strategy=usc" //--opt-strategy=usc
     var result = ASPSolver.solve(program, options)
 
@@ -534,10 +483,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
     satisfiedAtoms = satAtoms
 
-    val debug = debugNegativeWeights(satAtoms)
-    if (debug.nonEmpty) {
-      val stop = "stop"
-    }
+    //println(satAtoms)
+    //println(inferredAtoms)
 
     val trueState = exmpl.queryAtoms.toSet
     val inferredState = inferredAtoms
@@ -549,6 +496,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     TPs = tps.size
     FPs = fps.size
     FNs = fns.size
+
+    (satAtoms, inferredAtoms) // This is returned for debugging purposes
   }
 
 }

@@ -19,11 +19,11 @@ package orl.learning.woledasp
 
 import java.text.DecimalFormat
 
-import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
-import orl.learning.Types.StartOver
+import orl.datahandling.InputHandling.InputSource
 import orl.learning.{Learner, PruningSpecs}
+import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
 import orl.logic.Clause
@@ -63,6 +63,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     }
   }
 
+  val inferenceMetaProgram = "SAT"
+
   def process(_exmpl: Example) = {
 
     /**
@@ -89,7 +91,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     /** Get the inferred state. */
     val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
-    val res = orl.utils.Utils.time{ inference.performInference() }
+    val res = orl.utils.Utils.time{ inference.performInference(inferenceMetaProgram) }
 
     val inferenceTime = res._2
     val tpCounts = inference.TPs
@@ -125,7 +127,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val allRules = rulesCompressed ++ newRulesSpecializationsOnly // newRules
 
       val inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
-      val res = orl.utils.Utils.time{ inferenceNew.performInference() }
+      val res = orl.utils.Utils.time{ inferenceNew.performInference(inferenceMetaProgram) }
       secondInferenceTime = res._2
 
       val ((_totalGroundings, _inertiaAtoms), _scoringTime) =

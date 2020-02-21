@@ -53,18 +53,18 @@ object Runner extends LazyLogging {
       if (!evalOneTestSet) {
 
         // Single-pass run on the entire dataset
-        val trainingDataOptions = new MongoDataOptions(dbNames = train1,
+        /*val trainingDataOptions = new MongoDataOptions(dbNames = train1,
           chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
-        val testingDataOptions = trainingDataOptions
+        val testingDataOptions = trainingDataOptions*/
 
-        /*val trainingDataOptions =
+        val trainingDataOptions =
           new MongoDataOptions(dbNames = MeetingTrainTestSets.meeting1._1,
             chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
         val testingDataOptions =
           new MongoDataOptions(dbNames = MeetingTrainTestSets.meeting1._2,
-            chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")*/
+            chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
