@@ -153,7 +153,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
 
   /**
     * Prints statistics & evaluates on test set (if one provided)
-    * */
+    */
   def wrapUp() = {
     logger.info(s"\nFinished the data")
     if (repeatFor > 0) {

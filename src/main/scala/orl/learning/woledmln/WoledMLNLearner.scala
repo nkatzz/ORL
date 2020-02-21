@@ -151,7 +151,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
   /**
     * Prints statistics & evaluates on test set (if one provided)
-    * */
+    */
   def wrapUp() = {
     logger.info(s"\nFinished the data")
     if (repeatFor > 0) {

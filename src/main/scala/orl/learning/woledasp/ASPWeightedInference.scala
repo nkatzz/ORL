@@ -40,11 +40,11 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
   private def minDiff = {
 
-    // I'm using this to keep the weights low, otherwise Clingo may crash (it has crashed with Adam).
-    def format(x: Double) = {
-      val defaultNumFormat = new DecimalFormat("0.######")
-      defaultNumFormat.format(x).toDouble
-    }
+      // I'm using this to keep the weights low, otherwise Clingo may crash (it has crashed with Adam).
+      def format(x: Double) = {
+        val defaultNumFormat = new DecimalFormat("0.######")
+        defaultNumFormat.format(x).toDouble
+      }
 
     val weights = rules.map(x => x.weight).toSet
     if (weights.size == 1) {
@@ -63,7 +63,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         * *** ERROR: (clingo): void Clasp::MinimizeBuilder::prepareLevels(const Clasp::Solver&, Clasp::SumVec&,
         * Clasp::WeightVec&)@651: Value too large for defined data type: MinimizeBuilder: weight too large
         *
-        * */
+        */
       //rules.map(x => format(x.weight)).toSet.subsets(2).map(pair => math.abs(pair.head - pair.tail.head)).toVector.min
       rules.map(x => x.weight).toSet.subsets(2).map(pair => math.abs(pair.head - pair.tail.head)).toVector.min
     }
@@ -109,8 +109,6 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     *
     */
 
-
-
   private def inferenceProgramUNSAT = transformRulesUNSAT
   private def inferenceProgramSAT = transformRulesSAT
 
@@ -121,7 +119,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     *  unsat(head(X),i) :- head(X), not body(X).
     *  head(X) :- body(X), not unsat(X).
     *
-    * */
+    */
   private def transformRulesUNSAT = {
     val litsToString = (x: Seq[Literal]) => x.map(_.tostring).mkString(",")
     val all = rulesWithintWeights map { case (rule, intWeight) =>
@@ -150,11 +148,16 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     * {satisfied(head(X),i)} :- body(X).
     * :~ satisfied(head(X),i). [w_i]
     *
-    * */
+    */
   private def transformRulesSAT = {
     val litsToString = (x: Seq[Literal]) => x.map(_.tostring).mkString(",")
     val all = rulesWithintWeights map { case (rule, intWeight) =>
+
       val typePreds = getTypePredicates(rule)
+
+      val ruleIdPred = s"ruleId(${rule.##})."
+
+      val initOrTermPred = s"${rule.head.predSymbol}(${rule.##})."
 
       val satAtom = Literal.parse(s"satisfied(${rule.head.tostring},${rule.##})")
 
@@ -164,11 +167,10 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
       val weakCosntr = s":~ satisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T). [${-intWeight},${rule.##},F,T]"
 
-      s"$ruleDefinition\n$choiceRule\n$weakCosntr\n"
+      s"$ruleDefinition\n$choiceRule\n$weakCosntr\n$ruleIdPred\n$initOrTermPred\n\n"
     }
     all.mkString("\n")
   }
-
 
   def getTypePredicates(rule: Clause): List[Literal] = {
     //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
@@ -217,6 +219,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         s"fires(${rule.head.tostring}, $ruleId) :- $bodyWithTypePreds."
       }
 
+    def initOrTermPred(rule: Clause) = s"${rule.head.predSymbol}(${rule.##})."
+
     val topRules = rules // This includes level-1 specializations for rules with an empty body.
     val _rulesIdMap = topRules.map(x => x.## -> x) toMap
     var rulesIdMap = _rulesIdMap
@@ -240,12 +244,13 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         rulesIdMap = rulesIdMap + (refId -> refinement)
         val parentAtom = s"parent($refId,$id)."
         val specializationAtom = s"specialization($refId)."
+        val initOrTerm = initOrTermPred(refinement)
         val metaRule = firesMetaRule(refinement)
-        s"$parentAtom $specializationAtom\n$metaRule"
+        s"$parentAtom $specializationAtom $initOrTerm\n$metaRule"
       }
     }.mkString("\n")
 
-    val topRulesAtoms = _rulesIdMap.map(x => s"topRule(${x._1}).").mkString(" ")
+    val topRulesAtoms = _rulesIdMap.map(x => s"topRule(${x._1}). ${initOrTermPred(x._2)}").mkString(" ")
 
     /**
       * The empty-bodied top rules do not participate in the inference process.
@@ -259,13 +264,14 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
       val parent = level_1_Specialization.parentClause
       val atom = s"emptyBodied(${parent.##})."
+      val initOrTerm = initOrTermPred(parent)
 
       if (!rulesIdMap.keySet.contains(parent.##)) {
         rulesIdMap = rulesIdMap + (parent.## -> parent)
       }
 
       val metaRule = firesMetaRule(parent)
-      s"$atom\n$metaRule"
+      s"$atom\n$metaRule\n$initOrTerm"
     }.mkString("\n")
 
     /**
@@ -433,7 +439,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     */
   def performInference(metaProgram: String = "UNSAT") = {
 
-    val idsMap = rules.flatMap(x => List(x)++x.refinements).map(x =>  x.## -> x).toMap
+    val idsMap = rules.flatMap(x => List(x) ++ x.refinements).map(x => x.## -> x).toMap
 
     val program = {
       // The only reason we add the examples here (instead of having the observations only)

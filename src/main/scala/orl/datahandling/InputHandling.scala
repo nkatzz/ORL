@@ -20,6 +20,8 @@ package orl.datahandling
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
 
+import scala.util.Random
+
 /**
   * Created by nkatz at 13/12/19
   */
@@ -120,6 +122,7 @@ object InputHandling {
       }
     }
     exmplIters.foldLeft(Iterator[Example]())(_ ++ _)
+    //Random.shuffle(exmplIters.foldLeft(Iterator[Example]())(_ ++ _))
   }
 
 }

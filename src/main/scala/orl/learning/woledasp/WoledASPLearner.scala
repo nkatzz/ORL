@@ -103,7 +103,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     /** Generate new rules from mistakes */
     if (!withHandCrafted) {
       if (fpCounts > 0 || fnCounts > 0) {
-        newRules = generateNewRules(rulesCompressed, exmpl, inps)//.filter(p => !state.isBlackListed(p))
+        newRules = generateNewRules(rulesCompressed, exmpl, inps) //.filter(p => !state.isBlackListed(p))
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
       }
     }
@@ -166,9 +166,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     * existing rules in the theory to avoid abducing redundant atoms.
     */
   def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
-    OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps)
-    //val abd = new ASPWeightedInference(existingTheory, ex, inps)
-    //abd.abduction()
+    //OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps)
+    val abd = new ASPWeightedInference(existingTheory, ex, inps)
+    abd.abduction()
   }
 
   /**
@@ -178,12 +178,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     val topInit = state.initiationRules.filter(_.body.nonEmpty)
     val topTerm = state.terminationRules.filter(_.body.nonEmpty)
-    val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
-    val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
-    val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
-    val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
-    //val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
-    //val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
+    //val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
+    //val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
+    //val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
+    //val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
+    val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
+    val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
     newInit ++ newTerm
   }
 
@@ -191,7 +191,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       tpCounts: Int, fpCounts: Int, fnCounts: Int, inferenceTime: Double, scoringTime: Double) = {
 
       def format(x: Double) = {
-        val defaultNumFormat = new DecimalFormat("0.#####")
+        val defaultNumFormat = new DecimalFormat("0.######")
+        //val defaultNumFormat = new DecimalFormat("0.###############")
+
         defaultNumFormat.format(x)
       }
 
@@ -211,7 +213,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       }
     }*/
 
-    val theory = theoryForPrediction.map(x => s"${format(x.weight)} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps})").mkString("\n")
+    val theory = theoryForPrediction.filter(_.weight != 0.0).map(x => s"${format(x.weight)} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps})").mkString("\n")
 
     val inferenceMsg = {
       if (theoryForPrediction.nonEmpty) {
@@ -287,20 +289,19 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     message
   }
 
-
   /**
     * Prints statistics & evaluates on test set (if one provided)
-    * */
+    */
   def wrapUp() = {
 
-    def iterationWrapUp() = {
-      val theory = getRulesForPrediction()
-      showStats(theory)
-      if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-        val testData = testingDataFunction(testingDataOptions)
-        evalOnTestSet(testData, theory, inps)
+      def iterationWrapUp() = {
+        val theory = getRulesForPrediction()
+        showStats(theory)
+        if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
+          val testData = testingDataFunction(testingDataOptions)
+          evalOnTestSet(testData, theory, inps)
+        }
       }
-    }
     logger.info(s"\nFinished the data")
     if (repeatFor > 0) {
       iterationWrapUp()

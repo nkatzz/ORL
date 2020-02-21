@@ -31,16 +31,6 @@ import scala.io.Source
   * Created by nkatz at 17/2/20
   */
 
-object Drafts extends App {
-
-  val x = Literal.parse("p(X)").negated
-
-  println(x.tostring)
-
-  println(x.negated.tostring)
-
-}
-
 object CrossValTest extends LazyLogging {
 
   def main(args: Array[String]) = {
@@ -61,9 +51,8 @@ object CrossValTest extends LazyLogging {
 
       source.close
 
-      val testingDataOptions =
-        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting1._2,
-                             chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
+      val testingDataOptions = new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting1._2,
+                                                    chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
       val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
 

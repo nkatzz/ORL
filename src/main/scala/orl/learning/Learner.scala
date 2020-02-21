@@ -90,7 +90,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
     * It displays statistics from the learning process, performs cross-validation
     * (if testing set is provided) etc.
     *
-    * */
+    */
   def wrapUp()
 
   /**
