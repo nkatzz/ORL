@@ -275,8 +275,8 @@ object MeetingTrainTestSets {
       "caviar-video-21-meeting-moving", "caviar-video-23-moving", "caviar-video-18",
       "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27",
       "caviar-video-28-meeting", "caviar-video-29", "caviar-video-30")
-  private val test8 = Vector("caviar-video-22-meeting-moving", "caviar-video-17", "caviar-video-10")
-
+  private val test8 = Vector("caviar-video-22-meeting-moving", "caviar-video-10")
+//"caviar-video-17"
   val meeting8: (Vector[String], Vector[String]) = (train8, test8)
 
   private val train9 =
