@@ -105,9 +105,10 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val bottomTheory = topTheory flatMap (x => x.supportSet)
 
-    val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
+    //val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
 
-    goodKernelRules
+    //goodKernelRules
+    varKernel
   }
 
   def generateNewBottomClauses(topTheory: List[Clause], e: Example, initorterm: String, globals: Globals) = {
