@@ -105,7 +105,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       if (fpCounts > 0 || fnCounts > 0) {
 
         val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
-        val atomsFromFNMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
+        val atomsFromFNMistakes = inference.FNs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
 
         newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
 
