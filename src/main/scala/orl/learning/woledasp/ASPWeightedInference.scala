@@ -219,7 +219,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         s"fires(${rule.head.tostring}, $ruleId) :- $bodyWithTypePreds."
       }
 
-    def initOrTermPred(rule: Clause) = s"${rule.head.predSymbol}(${rule.##})."
+      def initOrTermPred(rule: Clause) = s"${rule.head.predSymbol}(${rule.##})."
 
     val topRules = rules // This includes level-1 specializations for rules with an empty body.
     val _rulesIdMap = topRules.map(x => x.## -> x) toMap
@@ -499,9 +499,9 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     val fps = inferredState.diff(trueState).filter(x => !x.startsWith("test"))
     val fns = trueState.diff(inferredState).filter(x => !x.startsWith("test"))
 
-    TPs = tps//.size
-    FPs = fps//.size
-    FNs = fns//.size
+    TPs = tps //.size
+    FPs = fps //.size
+    FNs = fns //.size
 
     (satAtoms, inferredAtoms) // This is returned for debugging purposes
   }

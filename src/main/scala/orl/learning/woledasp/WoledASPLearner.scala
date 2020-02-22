@@ -107,7 +107,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
         val atomsFromFNMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
 
-        newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes )
+        newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
 
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
@@ -165,7 +165,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
   /**
     * This class needs to implement the abstract method.
-    * */
+    */
   def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     generateNewRules(existingTheory, ex, inps, Set())
   }

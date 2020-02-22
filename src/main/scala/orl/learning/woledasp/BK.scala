@@ -63,8 +63,6 @@ object BK {
        |
        |""".stripMargin
 
-
-
   /*val ScoreAndUpdateWeightsMetaProgram: String =
     """
       |
@@ -160,7 +158,6 @@ object BK {
       |
       |
       |""".stripMargin*/
-
 
   val ScoreAndUpdateWeightsMetaProgram: String =
     """
