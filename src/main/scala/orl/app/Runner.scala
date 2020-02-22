@@ -59,11 +59,11 @@ object Runner extends LazyLogging {
         val testingDataOptions = trainingDataOptions*/
 
         val trainingDataOptions =
-          new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting8._1,
+          new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting1._1,
                                chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
         val testingDataOptions =
-          new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting8._2,
+          new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting1._2,
                                chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
