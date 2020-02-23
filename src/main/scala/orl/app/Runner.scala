@@ -20,8 +20,8 @@ package orl.app
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.CMDArgs
-import orl.datahandling.InputHandling.{MongoDataOptions, getMongoData}
-import orl.datahandling.Example
+import orl.datahandling.{Example, InputHandling}
+import orl.datahandling.InputHandling.MongoDataOptions
 import orl.learning.LocalCoordinator
 import orl.learning.Types.RunSingleCore
 import orl.learning.woledasp.MeetingTrainTestSets
@@ -48,17 +48,17 @@ object Runner extends LazyLogging {
         "caviar-video-25", "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27", "caviar-video-28-meeting",
         "caviar-video-29", "caviar-video-30")
 
-      val evalOneTestSet = false
+      val evalOnTestSet = true
 
-      if (!evalOneTestSet) {
+      if (!evalOnTestSet) {
 
         // Single-pass run on the entire dataset
-        /*val trainingDataOptions = new MongoDataOptions(dbNames = train1,
+        val trainingDataOptions = new MongoDataOptions(dbNames = train1,
           chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
-        val testingDataOptions = trainingDataOptions*/
+        val testingDataOptions = trainingDataOptions
 
-        val trainingDataOptions =
+        /*val trainingDataOptions =
           new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting8._1,
                                chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
@@ -76,13 +76,13 @@ object Runner extends LazyLogging {
           new LocalCoordinator(runningOptions, trainingDataOptions,
                                testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
 
-        coordinator ! startMsg
+        coordinator ! startMsg*/
 
       } else {
 
-        /*val caviarNum = args.find(x => x.startsWith("caviar-num")).get.split("=")(1)
+        val caviarNum = args.find(x => x.startsWith("caviar-num")).get.split("=")(1)
 
-      val trainSet = Map(1 -> MeetingTrainTestSets.meeting1, 2 -> MeetingTrainTestSets.meeting2, 3 -> MeetingTrainTestSets.meeting3,
+        val trainSet = Map(1 -> MeetingTrainTestSets.meeting1, 2 -> MeetingTrainTestSets.meeting2, 3 -> MeetingTrainTestSets.meeting3,
         4 -> MeetingTrainTestSets.meeting4, 5 -> MeetingTrainTestSets.meeting5, 6 -> MeetingTrainTestSets.meeting6,
         7 -> MeetingTrainTestSets.meeting7, 8 -> MeetingTrainTestSets.meeting8, 9 -> MeetingTrainTestSets.meeting9,
         10 -> MeetingTrainTestSets.meeting10)
@@ -97,14 +97,17 @@ object Runner extends LazyLogging {
         new MongoDataOptions(dbNames = dataset._2,
           chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
-      val trainingDataFunction: MongoDataOptions => Iterator[Example] = FullDatasetHoldOut.getMongoData
-      val testingDataFunction: MongoDataOptions => Iterator[Example] = FullDatasetHoldOut.getMongoData
+        val trainingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
+        val testingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
 
-      val system = ActorSystem("HoeffdingLearningSystem")
-      val startMsg = "start"
+        val system = ActorSystem("LocalLearningSystem")
+        val startMsg = new RunSingleCore
 
-      system.actorOf(Props(new Dispatcher(runningOptions, trainingDataOptions, testingDataOptions,
-        trainingDataFunction, testingDataFunction) ), name = "Learner") ! startMsg*/
+        val coordinator = system.actorOf(Props(
+          new LocalCoordinator(runningOptions, trainingDataOptions,
+            testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
+
+        coordinator ! startMsg
 
       }
 
