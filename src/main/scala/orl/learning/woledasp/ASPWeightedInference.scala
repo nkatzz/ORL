@@ -30,9 +30,16 @@ import orl.logic.{Clause, Literal}
 
 /**
   * Created by nkatz at 11/2/20
+  *
+  * Performs Marko Logic-style MAP inference with a set of weighted rules.
+  * @param rules: the current weighted theory.
+  * @param exmpl: the current data batch.
+  * @param inps: Object carrying values for various parameters.
+  * @param newBCs: (optional) a set of bottom clauses generated in response to mistakes. If this is not empty
+  *           new rules are generated from the bottom clauses, XHAIL-style
   */
 
-class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps: RunningOptions) {
+class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps: RunningOptions, val newBCs: Seq[Clause] = Nil) {
 
   var TPs = Set.empty[String]
   var FPs = Set.empty[String]
@@ -78,6 +85,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   private var inferenceProgram = ""
   private var scoringProgram = ""
   private var abductionProgram = ""
+
+  var newClausesFromBCs: List[Clause] = List.empty[Clause]
 
   /**
     * Generates choice rules and weak constraints from rules and their weights in order to perform weighted
@@ -150,7 +159,9 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     *
     */
   private def transformRulesSAT = {
+
     val litsToString = (x: Seq[Literal]) => x.map(_.tostring).mkString(",")
+
     val all = rulesWithintWeights map { case (rule, intWeight) =>
 
       val typePreds = getTypePredicates(rule)
@@ -172,10 +183,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     all.mkString("\n")
   }
 
-  def getTypePredicates(rule: Clause): List[Literal] = {
-    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-    List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
-  }
+
 
   /**
     * Updates the weights and the example coverage counts for the rules in the current theory,
@@ -433,6 +441,68 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     }
   }
 
+
+  def bottomClausesMetaProgram = {
+
+    val metaProgram = newBCs map { bc =>
+
+      /**
+        * for the j-th literal p(X) in the i-th clause, construct a tuple of the form (tryAtom, useAtom), where
+        * tryAtom is "try(vars(X),j,i)" and useAtom is "use(j,i)" (X represents the variables that appear in the literal).
+        *
+        * */
+      val useTryAtoms = (bc.body zip (1 to bc.body.length)).map{ case (literal, literalId) =>
+        val variablesTerm = s"vars(${literal.getVars.map(x => x.name).mkString(",")})"
+        val tryAtom = s"try($variablesTerm,$literalId,${bc.##})"
+        val useAtom = s"use($literalId,${bc.##})"
+        val typePreds = getTypePredicates(literal).map(_.tostring).mkString(",")
+        (tryAtom, useAtom, literal.tostring, typePreds)
+      }
+
+      /**
+        * Transform the i-th clause of the form p(X) :- q1(X),...,qn(X) to
+        *
+        * p(X) :- use(0,i), try(vars(X),1,i),...,try(vars(X),n,i),typesOfVariables(X).
+        *
+        * (X represents the variables that appear in the literal)
+        *
+        * */
+      val useClause = s"${bc.head.tostring} :- " +
+        s"use(0,${bc.##}),${useTryAtoms.map(x => x._1).mkString(",")},${getTypePredicates(bc).map(_.tostring).mkString(",")}.\n"
+
+      /**
+        * for the j-th literal p(X) in the i-th clause, construct two clauses of the form:
+        *
+        * try(vars(X),j,i) :- use(j,i),p(X),typeOfVariable(X).
+        * try(vars(X),j,i) :- not use(j,i).
+        *
+        * (X represents the variables that appear in the literal)
+        *
+        * */
+      val tryClauses = useTryAtoms map { case (tryAtom, useAtom, literal, typePreds) =>
+        val use = s"$tryAtom :- $useAtom,$literal,$typePreds."
+        val notUse = s"$tryAtom :- not $useAtom,$typePreds."
+        s"$use\n$notUse\n"
+      }
+
+      val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J)."
+      val minimizeStatement = "#minimize{1,I,J:use(J,I)}."
+
+      val idPredicates = {
+        val bcPreds = newBCs.map(x => s"bottomClauseId(${x.##}).").mkString(" ")
+        val literalPreds = {
+          val largestBCLength = newBCs.sortBy(x => -x.body.length).head.body.length
+          (0 to largestBCLength).map(x => s"literalId($x).").mkString(" ")
+        }
+        s"$bcPreds\n$literalPreds\n"
+      }
+
+      s"$useClause\n${tryClauses.mkString("\n")}\n\n$choiceRule\n$minimizeStatement\n$idPredicates\n"
+    }
+    metaProgram.mkString("\n")
+  }
+
+
   /**
     * Performs inference with the weighted rules to assess the performance of the current theory.
     *
@@ -449,48 +519,39 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       val rs = if (metaProgram == "UNSAT") inferenceProgramUNSAT else inferenceProgramSAT
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
 
-      val shows = s"#show holdsAt/2.\n#show satisfied/2."
-      s"$data\n$rs\n$include\n$shows"
+      val bcsMetaProgram = if (newBCs.nonEmpty) bottomClausesMetaProgram else ""
+
+      val fnsFpsMinimizeStatement = {
+        if (newBCs.nonEmpty) {
+          s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T)." +
+            s"\nfps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T)." +
+            s"\ntps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T)." +
+            s"\n#minimize{1,F,T : fns(holdsAt(F,T))}." +
+            s"\n#minimize{1,F,T : fps(holdsAt(F,T))}." +
+            s"\n#maximize{1,F,T : tps(holdsAt(F,T))}."
+        } else ""
+      }
+
+      val shows = if (newBCs.isEmpty) s"#show holdsAt/2.\n#show satisfied/2." else s"#show holdsAt/2.\n#show satisfied/2.\n#show use/2."
+
+      s"$data\n$rs\n$bcsMetaProgram\n$fnsFpsMinimizeStatement\n$include\n$shows"
     }
 
     inferenceProgram = program // Save the program (for debugging purposes)
 
     //var optCost = 1000
     //var options = s"--opt-mode=enum,$optCost"
-    //var result = ASPSolver.solve(program) // No use of options, just return all models.
-
-    //val theory = rules.map(x => s"${x.weight} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps})").mkString("\n")
-    //println("THEORY:\n"+theory)
-
     // --opt-strategy=usc helps to boost performance if a large number of heads may be inferred.
     var options = s"--opt-mode=opt --opt-strategy=usc" //--opt-strategy=usc
     var result = ASPSolver.solve(program, options)
 
-    /*val smallIncrement = 10000
-    val bigIncrement = 10000000
-    var countTries = 0
-    var solutionFound = false
-    if (result.nonEmpty) {
-      if (result.head == "UNSATISFIABLE") {
-        while (!solutionFound) {
-          countTries += 1
-          if (countTries <= 10) optCost += smallIncrement else optCost += bigIncrement
-          println(s"Trying $options")
-          options = s"--opt-mode=enum,$optCost"
-          result = ASPSolver.solve(program, options)
-          if (result.head != "UNSATISFIABLE") solutionFound = true
-        }
-      }
-    }*/
-
-    val (satAtoms, inferredAtoms) = result.foldLeft(Set.empty[String], Set.empty[String]) { (x, y) =>
-      if (y.startsWith("satisfied")) (x._1 + y, x._2) else (x._1, x._2 + y)
+    val (satAtoms, useAtoms, inferredAtoms) = result.foldLeft(Set.empty[String], Set.empty[String], Set.empty[String]) { (x, y) =>
+      if (y.startsWith("satisfied")) (x._1 + y, x._2, x._3)
+      else if (y.startsWith("use")) (x._1, x._2 + y, x._3)
+      else (x._1, x._2, x._3 + y)
     }
 
     satisfiedAtoms = satAtoms
-
-    //println(satAtoms)
-    //println(inferredAtoms)
 
     val trueState = exmpl.queryAtoms.toSet
     val inferredState = inferredAtoms
@@ -503,7 +564,51 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     FPs = fps //.size
     FNs = fns //.size
 
+    if (useAtoms.nonEmpty) {
+      val newClauses = formRulesFromUseAtoms(useAtoms)
+      newClausesFromBCs = newClauses.toList
+    }
+
     (satAtoms, inferredAtoms) // This is returned for debugging purposes
+  }
+
+
+  def formRulesFromUseAtoms(useAtoms: Set[String]) = {
+
+    val bcsIdMap = newBCs map (x => x.## -> x) toMap
+    val useAtomsParsed = useAtoms map (Literal.parse(_))
+    val useAtomsPerBC = useAtomsParsed.groupBy(x => x.terms.tail.head.name.toInt)
+
+    val newClauses = useAtomsPerBC map { case (bcId, literals) =>
+
+      val bc = bcsIdMap(bcId)
+
+      val (headAtom, bodyLiteralAtoms) = literals.foldLeft(Set.empty[Literal], Set.empty[Literal]) { (x, y) =>
+        if (y.terms.head.name.toInt == 0) (x._1 + y, x._2) else (x._1, x._2 + y)
+      }
+
+      if (headAtom.isEmpty) {
+        throw new RuntimeException(s"No head use/2 atom inferred for BC: ${bc.tostring}")
+      } else {
+        val bodyLitsMap = ((1 to bc.body.length) zip bc.body).map(x => x._1 -> x._2).toMap
+
+        val body = bodyLiteralAtoms.map(x => bodyLitsMap(x.terms.head.name.toInt)).toList
+
+        val newRule = Clause(head = bc.head, body = body)
+        newRule.supportSet = List(bc)
+        newRule
+      }
+    }
+    newClauses
+  }
+
+  def getTypePredicates(rule: Clause): List[Literal] = {
+    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
+  }
+
+  private def getTypePredicates(lit: Literal) = {
+    lit.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
   }
 
 }

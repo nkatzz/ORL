@@ -22,7 +22,7 @@ import java.text.DecimalFormat
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.datahandling.InputHandling.InputSource
-import orl.learning.{Learner, PruningSpecs}
+import orl.learning.Learner
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
@@ -82,7 +82,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     val rulesCompressed = getRulesForPrediction()
 
-    if (batchCount == 92) {
+    if (batchCount == 56) {
       val stop = "stop"
     }
 
@@ -107,8 +107,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
         val atomsFromFNMistakes = inference.FNs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
 
-        newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
-
+        newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
+        //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
@@ -131,7 +131,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       // In this case we need to preform inference again, this time with the augmented theory.
       val newRulesSpecializationsOnly = newRules.flatMap(_.refinements)
-      val allRules = rulesCompressed ++ newRulesSpecializationsOnly // newRules
+      val allRules = rulesCompressed ++ newRules ++ newRulesSpecializationsOnly // newRules
 
       val inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
       val res = orl.utils.Utils.time{ inferenceNew.performInference(inferenceMetaProgram) }
@@ -157,8 +157,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      val pruningSpecs = new PruningSpecs(0.3, 2, 15000)
-      state.lowQualityBasedPruning(pruningSpecs, inps, logger)
+      //val pruningSpecs = new PruningSpecs(0.3, 2, 15000)
+      //state.lowQualityBasedPruning(pruningSpecs, inps, logger)
       //state.subsumptionBasedPruning() // This has never worked...
     }
   }
@@ -171,8 +171,16 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   }
 
   def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
-    generateNewRulesConservative(existingTheory, ex, inps, mistakes)
-    //generateNewRulesEager(existingTheory, ex, inps)
+    //generateNewRulesConservative(existingTheory, ex, inps, mistakes)
+    generateNewRulesEager(existingTheory, ex, inps)
+  }
+
+  def generateNewRules_1(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
+    val topRules = generateNewRulesConservative(existingTheory, ex, inps, mistakes)
+    val bcs = topRules.map(x => x.supportSet.head)
+    val inference = new ASPWeightedInference(existingTheory, ex, in, bcs)
+    inference.performInference(inferenceMetaProgram)
+    inference.newClausesFromBCs
   }
 
   /**

@@ -58,7 +58,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
   }
 
   def generateNewRules(topTheory: List[Clause], examples: Example, inps: RunningOptions, mistakes: Set[String] = Set()) = {
-    val bcs = KSGeneration(topTheory, examples, inps)
+    val bcs = KSGeneration(topTheory, examples, inps, mistakes)
     bcs map { x =>
       val c = Clause(head = x.head, body = List())
       c.addToSupport(x)
@@ -74,12 +74,26 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
         if (_abduced1.nonEmpty) _abduced1.head.atoms else List.empty[String]
       } else {
         mistakes.toList
+        //mistakes.map(Literal.parse(_)).toList
       }
     }
 
-    val abduced = _abduced map { atom =>
+    val abduced = _abduced map { _atom =>
 
       // atom = matchesMode(1,initiatedAt_proxy(meeting(id4,id5),5680),initiatedAt(meeting(id4,id5),5680))
+
+      // This is a dirty hack to transform atoms generated directly from mistakes
+      // which are of the form initiatedAt(meeting(id4,id5),5680) into atoms of the form
+      // matchesMode(1,initiatedAt_proxy(meeting(id4,id5),5680),initiatedAt(meeting(id4,id5),5680))
+      val atom = {
+        if (_atom.startsWith("matchesMode")) _atom
+        else {
+          val predSymbol = if (_atom.startsWith("initiatedAt")) "initiatedAt" else "terminatedAt"
+          val proxyPredSymbol = s"$predSymbol"+"_proxy"
+          val mode = if (predSymbol == "initiatedAt") "1" else "2"
+          s"matchesMode($mode,${_atom.replaceAll(predSymbol,proxyPredSymbol)},${_atom})"
+        }
+      }
 
       val lit = Literal.parse(atom)
 
@@ -105,10 +119,10 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val bottomTheory = topTheory flatMap (x => x.supportSet)
 
-    //val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
+    val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
 
-    //goodKernelRules
-    varKernel
+    goodKernelRules
+    //varKernel
   }
 
   def generateNewBottomClauses(topTheory: List[Clause], e: Example, initorterm: String, globals: Globals) = {
