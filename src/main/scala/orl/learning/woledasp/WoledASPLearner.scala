@@ -22,7 +22,7 @@ import java.text.DecimalFormat
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.datahandling.InputHandling.InputSource
-import orl.learning.Learner
+import orl.learning.{Learner, PruningSpecs}
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
