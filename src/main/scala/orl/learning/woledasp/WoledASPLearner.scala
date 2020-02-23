@@ -157,8 +157,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      //val pruningSpecs = new PruningSpecs(0.3, 2, 15000)
-      //state.lowQualityBasedPruning(pruningSpecs, inps, logger)
+      val pruningSpecs = new PruningSpecs(0.3, 2, 15000)
+      state.lowQualityBasedPruning(pruningSpecs, inps, logger)
       //state.subsumptionBasedPruning() // This has never worked...
     }
   }
