@@ -21,12 +21,59 @@ import java.io.File
 import java.text.DecimalFormat
 import java.util.UUID
 
+import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.inference.ASPSolver
 import orl.learning.structure.OldStructureLearningFunctions
 import orl.learning.weights.UpdateWeights
+import orl.learning.woledmln.WoledMLNLearnerUtils
 import orl.logic.{Clause, Literal}
+
+object ASPWeightedInference extends LazyLogging {
+
+  def evalOnTestSet(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {
+
+      def format(x: Double) = {
+        val defaultNumFormat = new DecimalFormat("0.###")
+        defaultNumFormat.format(x)
+      }
+
+    logger.info("\nEvaluating on the test set...")
+
+    var totalTPs = 0
+    var totalFPs = 0
+    var totalFNs = 0
+
+    testData foreach { _batch =>
+
+      /**
+        * TODO
+        *
+        * I'm doing this here (though we're not using LoMRF) to avoid the
+        * holdsAt(visible) predicate in the input, that messes everything up.
+        * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
+        * This is related to the meta-rules used for scoring the actual rules.
+        */
+      val batch = WoledMLNLearnerUtils.dataToMLNFormat(_batch, inps)
+
+      val inference = new ASPWeightedInference(rules, batch, inps)
+      inference.performInference()
+      totalTPs += inference.TPs.size
+      totalFPs += inference.FPs.size
+      totalFNs += inference.FNs.size
+    }
+
+    val precision = totalTPs.toDouble / (totalTPs + totalFPs)
+    val recall = totalTPs.toDouble / (totalTPs + totalFNs)
+    val f1 = 2 * (precision * recall) / (precision + recall)
+    val theory = rules.map(x => s"${format(x.weight)} ${x.tostring}").mkString("\n")
+    val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
+    logger.info(msg)
+    orl.utils.Utils.dumpToFile(msg, "/home/nkatz/Desktop/kernel", "append")
+    println("Done")
+  }
+}
 
 /**
   * Created by nkatz at 11/2/20
@@ -118,7 +165,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     *
     */
 
-  private def inferenceProgramUNSAT = transformRulesUNSAT
+  //private def inferenceProgramUNSAT = transformRulesUNSAT
   private def inferenceProgramSAT = transformRulesSAT
 
   /**
@@ -182,8 +229,6 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     }
     all.mkString("\n")
   }
-
-
 
   /**
     * Updates the weights and the example coverage counts for the rules in the current theory,
@@ -382,7 +427,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     val program = {
 
       val data = exmpl.toASP().mkString(" ")
-      val rs = inferenceProgramUNSAT
+      val rs = inferenceProgramSAT
       val abductionBK = BK.abductionMetaProgram
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
       s"$data\n$rs\n$abductionBK\n$include\n"
@@ -441,7 +486,6 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     }
   }
 
-
   def bottomClausesMetaProgram = {
 
     val metaProgram = newBCs map { bc =>
@@ -450,7 +494,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         * for the j-th literal p(X) in the i-th clause, construct a tuple of the form (tryAtom, useAtom), where
         * tryAtom is "try(vars(X),j,i)" and useAtom is "use(j,i)" (X represents the variables that appear in the literal).
         *
-        * */
+        */
       val useTryAtoms = (bc.body zip (1 to bc.body.length)).map{ case (literal, literalId) =>
         val variablesTerm = s"vars(${literal.getVars.map(x => x.name).mkString(",")})"
         val tryAtom = s"try($variablesTerm,$literalId,${bc.##})"
@@ -466,7 +510,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         *
         * (X represents the variables that appear in the literal)
         *
-        * */
+        */
       val useClause = s"${bc.head.tostring} :- " +
         s"use(0,${bc.##}),${useTryAtoms.map(x => x._1).mkString(",")},${getTypePredicates(bc).map(_.tostring).mkString(",")}.\n"
 
@@ -478,7 +522,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         *
         * (X represents the variables that appear in the literal)
         *
-        * */
+        */
       val tryClauses = useTryAtoms map { case (tryAtom, useAtom, literal, typePreds) =>
         val use = s"$tryAtom :- $useAtom,$literal,$typePreds."
         val notUse = s"$tryAtom :- not $useAtom,$typePreds."
@@ -502,12 +546,11 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     metaProgram.mkString("\n")
   }
 
-
   /**
     * Performs inference with the weighted rules to assess the performance of the current theory.
     *
     */
-  def performInference(metaProgram: String = "UNSAT") = {
+  def performInference() = {
 
     val idsMap = rules.flatMap(x => List(x) ++ x.refinements).map(x => x.## -> x).toMap
 
@@ -516,7 +559,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       // is to get the last time point in the batch (see the time(T) :- example(holdsAt(_,T)). in the bk)
       // This is necessary in order to not miss positives in the last time point.
       val data = exmpl.toASP().mkString(" ")
-      val rs = if (metaProgram == "UNSAT") inferenceProgramUNSAT else inferenceProgramSAT
+      //val rs = if (metaProgram == "UNSAT") inferenceProgramUNSAT else inferenceProgramSAT
+      val rs = inferenceProgramSAT
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
 
       val bcsMetaProgram = if (newBCs.nonEmpty) bottomClausesMetaProgram else ""
@@ -572,7 +616,6 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     (satAtoms, inferredAtoms) // This is returned for debugging purposes
   }
 
-
   def formRulesFromUseAtoms(useAtoms: Set[String]) = {
 
     val bcsIdMap = newBCs map (x => x.## -> x) toMap
@@ -603,8 +646,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   }
 
   def getTypePredicates(rule: Clause): List[Literal] = {
-    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-    //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
+    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
   }
 
   private def getTypePredicates(lit: Literal) = {

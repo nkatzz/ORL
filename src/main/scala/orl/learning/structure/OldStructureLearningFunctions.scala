@@ -89,9 +89,9 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
         if (_atom.startsWith("matchesMode")) _atom
         else {
           val predSymbol = if (_atom.startsWith("initiatedAt")) "initiatedAt" else "terminatedAt"
-          val proxyPredSymbol = s"$predSymbol"+"_proxy"
+          val proxyPredSymbol = s"$predSymbol" + "_proxy"
           val mode = if (predSymbol == "initiatedAt") "1" else "2"
-          s"matchesMode($mode,${_atom.replaceAll(predSymbol,proxyPredSymbol)},${_atom})"
+          s"matchesMode($mode,${_atom.replaceAll(predSymbol, proxyPredSymbol)},${_atom})"
         }
       }
 

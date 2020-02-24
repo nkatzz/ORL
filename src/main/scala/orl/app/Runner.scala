@@ -53,8 +53,8 @@ object Runner extends LazyLogging {
       if (!evalOnTestSet) {
 
         // Single-pass run on the entire dataset
-        val trainingDataOptions = new MongoDataOptions(dbNames = train1,
-          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+        val trainingDataOptions = new MongoDataOptions(dbNames       = train1,
+                                                       chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
         val testingDataOptions = trainingDataOptions
 
@@ -83,19 +83,22 @@ object Runner extends LazyLogging {
         val caviarNum = args.find(x => x.startsWith("caviar-num")).get.split("=")(1)
 
         val trainSet = Map(1 -> MeetingTrainTestSets.meeting1, 2 -> MeetingTrainTestSets.meeting2, 3 -> MeetingTrainTestSets.meeting3,
-        4 -> MeetingTrainTestSets.meeting4, 5 -> MeetingTrainTestSets.meeting5, 6 -> MeetingTrainTestSets.meeting6,
-        7 -> MeetingTrainTestSets.meeting7, 8 -> MeetingTrainTestSets.meeting8, 9 -> MeetingTrainTestSets.meeting9,
-        10 -> MeetingTrainTestSets.meeting10)
+          4 -> MeetingTrainTestSets.meeting4, 5 -> MeetingTrainTestSets.meeting5, 6 -> MeetingTrainTestSets.meeting6,
+          7 -> MeetingTrainTestSets.meeting7, 8 -> MeetingTrainTestSets.meeting8, 9 -> MeetingTrainTestSets.meeting9,
+          10 -> MeetingTrainTestSets.meeting10)
 
-      val dataset = trainSet(caviarNum.toInt)
+        val dataset = trainSet(caviarNum.toInt)
 
-      val trainingDataOptions =
-        new MongoDataOptions(dbNames = dataset._1,//trainShuffled, //
-          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+        val shuffled = scala.util.Random.shuffle(dataset._1)
+        println(shuffled)
 
-      val testingDataOptions =
-        new MongoDataOptions(dbNames = dataset._2,
-          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
+        val trainingDataOptions =
+          new MongoDataOptions(dbNames       = shuffled, //trainShuffled, //
+                               chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+
+        val testingDataOptions =
+          new MongoDataOptions(dbNames       = dataset._2,
+                               chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
@@ -105,7 +108,7 @@ object Runner extends LazyLogging {
 
         val coordinator = system.actorOf(Props(
           new LocalCoordinator(runningOptions, trainingDataOptions,
-            testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
+                               testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
 
         coordinator ! startMsg
 

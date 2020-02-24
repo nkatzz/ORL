@@ -41,6 +41,9 @@ object CrossValTest extends LazyLogging {
 
       val source = Source.fromFile("/home/nkatz/tmp/test.lp")
       val rules = source.getLines.filter(x => (x.replaceAll("\\s", "") != "") && !x.startsWith("%")).toList.map { line =>
+
+        println(line)
+
         val split = line.split(" ")
         val weight = split(0)
         val rule = line.split(weight + " ")(1)
@@ -51,20 +54,19 @@ object CrossValTest extends LazyLogging {
 
       source.close
 
-      val testingDataOptions = new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting1._2,
-                                                    chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
+      val testingDataOptions =
+        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting7._2,
+                             chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
       val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData
 
       val data = testingDataFunction(testingDataOptions)
 
-      //val m = new ASPWeightedInference(rules, data.next(), runningOptions)
-      //m.performInference()
-      //println("ok")
+      // MLN
+      //WoledMLNLearnerUtils.evalOnTestSet(data, rules, runningOptions)
 
-      WoledMLNLearnerUtils.evalOnTestSet(data, rules, runningOptions)
-
-      val test = "stop"
+      // ASP
+      ASPWeightedInference.evalOnTestSet(data, rules, runningOptions)
 
     } else {
       logger.error(argsok._2)
