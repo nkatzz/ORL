@@ -89,11 +89,11 @@ object Runner extends LazyLogging {
 
         val dataset = trainSet(caviarNum.toInt)
 
-        val shuffled = scala.util.Random.shuffle(dataset._1)
-        println(shuffled)
+        //val shuffled = scala.util.Random.shuffle(dataset._1)
+        //println(shuffled)
 
         val trainingDataOptions =
-          new MongoDataOptions(dbNames       = shuffled, //trainShuffled, //
+          new MongoDataOptions(dbNames       = dataset._1,//shuffled, //trainShuffled, //
                                chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
         val testingDataOptions =

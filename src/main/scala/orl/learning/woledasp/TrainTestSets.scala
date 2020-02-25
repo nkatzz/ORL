@@ -173,7 +173,7 @@ object MeetingTrainTestSets {
       "caviar-video-22-meeting-moving", "caviar-video-23-moving", "caviar-video-25",
       "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27",
       "caviar-video-28-meeting", "caviar-video-29", "caviar-video-4")
-  private val test1 = Vector("caviar-video-1-meeting-moving", "caviar-video-3", "caviar-video-30")
+  private val test1 = Vector("caviar-video-1-meeting-moving", "caviar-video-3", "caviar-video-17")
 
   val meeting1: (Vector[String], Vector[String]) = (train1, test1)
 
@@ -275,7 +275,7 @@ object MeetingTrainTestSets {
       "caviar-video-21-meeting-moving", "caviar-video-23-moving", "caviar-video-18",
       "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27",
       "caviar-video-28-meeting", "caviar-video-29", "caviar-video-30")
-  private val test8 = Vector("caviar-video-22-meeting-moving", "caviar-video-10", "caviar-video-17")
+  private val test8 = Vector("caviar-video-22-meeting-moving", "caviar-video-10", "caviar-video-30")
   //"caviar-video-17"
   val meeting8: (Vector[String], Vector[String]) = (train8, test8)
 
