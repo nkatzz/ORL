@@ -473,9 +473,9 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
     val bottomTheory = rules flatMap (x => x.supportSet)
 
-    val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
+    //val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
 
-    goodKernelRules
+    val goodKernelRules = varKernel
 
     val bcs = goodKernelRules
 

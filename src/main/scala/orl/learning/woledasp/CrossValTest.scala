@@ -55,7 +55,7 @@ object CrossValTest extends LazyLogging {
       source.close
 
       val testingDataOptions =
-        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting7._2,
+        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting2._2,
                              chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
       val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData

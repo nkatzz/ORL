@@ -26,7 +26,7 @@ import orl.learning.{Learner, PruningSpecs}
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
-import orl.logic.Clause
+import orl.logic.{Clause, LogicUtils}
 import orl.utils.Utils.{underline, underlineStars}
 
 /**
@@ -107,6 +107,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
         val atomsFromFNMistakes = inference.FNs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
 
+        //newRules = generateNewRulesXHAIL(rulesCompressed, exmpl, inps)
         newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
@@ -118,6 +119,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     var totalGroundings = 0
     var scoringTime = 0.0
     var secondInferenceTime = 0.0
+
+
+
 
     /** Update weights and coverage counts for existing and new rules. */
 
@@ -157,8 +161,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      val pruningSpecs = new PruningSpecs(0.3, 1, 10000)
-      state.lowQualityBasedPruning(pruningSpecs, inps, logger)
+      //val pruningSpecs = new PruningSpecs(0.3, 1, 10000)
+      //state.lowQualityBasedPruning(pruningSpecs, inps, logger)
       //state.subsumptionBasedPruning() // This has never worked...
     }
   }
@@ -196,6 +200,15 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     //abd.abduction()
   }
 
+  // This doesn't seem to work, it doesn't fine the proper rules.
+  def generateNewRulesXHAIL(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
+    val abd = new ASPWeightedInference(existingTheory, ex, inps)
+    val bottomClauses = abd.abduction().map(x => x.supportSet.head)
+    val inference = new ASPWeightedInference(existingTheory, ex, in, bottomClauses)
+    inference.performInference()
+    inference.newClausesFromBCs
+  }
+
   /**
     * Generates new rules directly from the committed mistakes.
     * This method does not actually use the existing theory.
@@ -206,12 +219,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
     val topInit = state.initiationRules.filter(_.body.nonEmpty)
     val topTerm = state.terminationRules.filter(_.body.nonEmpty)
-    //val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
-    //val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
-    //val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
-    //val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
-    val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
-    val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
+    val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
+    val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
+    val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
+    val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
+    //val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
+    //val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
     newInit ++ newTerm
   }
 
@@ -325,8 +338,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       def iterationWrapUp() = {
         //val theory = getRulesForPrediction()
-        val theory = state.getTopTheory().filter(_.body.nonEmpty)
+        val theory = state.getTopTheory().filter(x => x.body.nonEmpty)//.filter(x => x.actualGroundings > 2000)
+
+        //val theory = LogicUtils.compressTheoryKeepMoreSpecific(state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.actualGroundings > 2000))
+
         showStats(theory)
+
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           val testData = testingDataFunction(testingDataOptions)
           evalOnTestSet(testData, theory, inps)
@@ -377,7 +394,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     val theory = rules.map(x => s"${format(x.weight)} ${x.tostring}").mkString("\n")
     val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
     logger.info(msg)
-    orl.utils.Utils.dumpToFile(msg, "/home/nkatz/Desktop/kernel", "append")
+    orl.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
   }
 
 }
