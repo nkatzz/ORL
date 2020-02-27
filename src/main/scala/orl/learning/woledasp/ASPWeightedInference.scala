@@ -127,6 +127,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   private lazy val rulesWithintWeights = rules.map(x => (x, x.weight)).map(x => (x._1, math.round(x._2 * scaleFactor)))
 
   var satisfiedAtoms = Set.empty[String]
+  var inferredAtoms = Set.empty[String]
 
   // Store the programs for debugging.
   private var inferenceProgram = ""
@@ -345,17 +346,25 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       *
       */
 
-    // These are not used
-    //def f(x: Clause) = s"${x.head.predSymbol}Rule(${x##})."
-    //val initTermAtoms = rules.flatMap { x => x.refinements.map(f) :+ f(x) } mkString(" ")
+    val endTime = {
+      val times = (exmpl.queryAtoms ++ exmpl.observations) map { x =>
+        val time = Literal.parse(x).terms.last.name.toInt
+        time
+      }
+      val sorted = times.distinct.sorted
+      //println(sorted)
+      s"endTime(${sorted.last})."
+    }
 
     val program = {
       val data = exmpl.toASP().mkString(" ")
       val satAtoms = satisfiedAtoms.map(_ + ".").mkString(" ")
+      val inferredAtoms = this.inferredAtoms.map(_ + ".").mkString(" ")
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
       val scoringRules = BK.ScoreAndUpdateWeightsMetaProgram
 
-      s"$data\n$satAtoms\n$topRulesAtoms\n$specializationDeclarationAtomsAndFireMetaRules\n$fireMetaRulesForTopRules\n$emptyBodiedRulesInfo\n\n$include\n$scoringRules"
+      // We need the inferred atoms to find those that should be carried over to the next batch due to inertia.
+      s"$data\n$satAtoms\n$inferredAtoms\n$topRulesAtoms\n$specializationDeclarationAtomsAndFireMetaRules\n$fireMetaRulesForTopRules\n$emptyBodiedRulesInfo\n\n$include\n$scoringRules\n\n$endTime\n"
     }
 
     scoringProgram = program // Save the program (for debugging purposes)
@@ -596,6 +605,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     }
 
     satisfiedAtoms = satAtoms
+    this.inferredAtoms = inferredAtoms
 
     val trueState = exmpl.queryAtoms.toSet
     val inferredState = inferredAtoms

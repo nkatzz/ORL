@@ -73,7 +73,7 @@ object CMDArgs extends LazyLogging {
     val tpWeight = getMatchingArgumentValue("--tps-weight")
     val fpWeight = getMatchingArgumentValue("--fps-weight")
     val fnWeight = getMatchingArgumentValue("--fns-weight")
-    val withInertia = getMatchingArgumentValue("--with-inertia")
+    val withInertia = getMatchingArgumentValue("--inertia")
     val weightLearn = getMatchingArgumentValue("--weight-learning")
     val parallelClauseEval = getMatchingArgumentValue("--parallel-clause-eval")
     val adagradDelta = getMatchingArgumentValue("--ada-delta")
@@ -175,7 +175,7 @@ object CMDArgs extends LazyLogging {
     Arg(name      = "--tps-weight", valueType = "Int", text = "Weight on true positive instances.", default = "1"),
     Arg(name      = "--fps-weight", valueType = "Int", text = "Weight on false positive instances.", default = "1"),
     Arg(name      = "--fns-weight", valueType = "Int", text = "Weight on false negative instances.", default = "10"),
-    Arg(name      = "--with-inertia", valueType = "Boolean", text = "If true learns with inertia from edge interval points only.", default = "false"),
+    Arg(name      = "--inertia", valueType = "Boolean", text = "If true learns with inertia from edge interval points only.", default = "false"),
     Arg(name      = "--weight-learning", valueType = "Boolean", text = "If true use AdaGrad to learn weighted clauses.", default = "false"),
     Arg(name      = "--mln-weight-at-least", valueType = "Double", text = "Remove rules with mln-weight lower than this.", default = "0.1"),
     Arg(name      = "--parallel-clause-eval", valueType = "Boolean", text = "Evaluate clauses in parallel during weight learning.", default = "true"),

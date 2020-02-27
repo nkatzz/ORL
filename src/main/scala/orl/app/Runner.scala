@@ -48,7 +48,7 @@ object Runner extends LazyLogging {
         "caviar-video-25", "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27", "caviar-video-28-meeting",
         "caviar-video-29", "caviar-video-30")
 
-      val evalOnTestSet = false
+      val evalOnTestSet = true
 
       if (!evalOnTestSet) {
 
@@ -59,8 +59,6 @@ object Runner extends LazyLogging {
                                                        chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
         val testingDataOptions = trainingDataOptions
-
-
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData

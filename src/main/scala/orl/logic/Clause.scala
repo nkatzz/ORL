@@ -65,7 +65,7 @@ case class Clause(
   var parentClause: Clause = Clause.empty
   var isBottomRule = false
   var isTopRule = false
-  var weight: Double = 0.001
+  var weight: Double = 0.00001
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
 
@@ -447,10 +447,14 @@ case class Clause(
       //------------------------------------
     }
 
-    if (supportSet.nonEmpty) supportSet.head.parentClause = this
-    this.refinements = flattend :+ this.supportSet.head
-    //this.refinements = flattend
-    //this.refinements = List(this.supportSet.head)
+    if (supportSet.nonEmpty) {
+      supportSet.head.parentClause = this
+      //this.refinements = flattend :+ this.supportSet.head
+      //this.refinements = List(this.supportSet.head)
+      this.refinements = flattend
+    } else {
+      this.refinements = flattend
+    }
   }
 
   def tostringFormal: String = this.toStrList match {

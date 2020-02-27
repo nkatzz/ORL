@@ -26,7 +26,7 @@ import orl.learning.{Learner, PruningSpecs}
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
-import orl.logic.{Clause, LogicUtils}
+import orl.logic.{Clause, Literal}
 import orl.utils.Utils.{underline, underlineStars}
 
 /**
@@ -75,16 +75,16 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
       * This is related to the meta-rules used for scoring the actual rules.
       */
-    val exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
+    var exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
+
+    if (inps.withInertia) {
+      exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
+    }
 
     //val rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
     //val rules = state.getAllRules(inps, "top")
 
     val rulesCompressed = getRulesForPrediction()
-
-    if (batchCount == 56) {
-      val stop = "stop"
-    }
 
     //val rulesCompressed = LogicUtils.compressTheory(rules)
     //val rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
@@ -108,9 +108,13 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         val atomsFromFNMistakes = inference.FNs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
 
         //newRules = generateNewRulesXHAIL(rulesCompressed, exmpl, inps)
-        newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
+
+        newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
+
+        val newRulesFiltered = newRules.filter(newRule => ! rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
+        newRules = newRulesFiltered
 
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
       }
@@ -120,8 +124,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     var scoringTime = 0.0
     var secondInferenceTime = 0.0
 
-
-
+    var inert = Set.empty[Literal]
 
     /** Update weights and coverage counts for existing and new rules. */
 
@@ -129,7 +132,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       // In this case the theory is the same, we only need to count groundings in the inferred state.
       val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inference.updateWeightsAndScore(batchCount))
       totalGroundings = _totalGroundings
-      this.inertiaAtoms = _inertiaAtoms.toSet
+      inert = _inertiaAtoms.toSet
       scoringTime = _scoringTime
     } else {
 
@@ -141,12 +144,21 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val res = orl.utils.Utils.time{ inferenceNew.performInference() }
       secondInferenceTime = res._2
 
+      logger.info(s"*********************************************************" +
+        s"\nNEW COUNTS AFTER NEW RULES:\nTPs: ${inferenceNew.TPs.size}, FPs: ${inferenceNew.FPs.size}, FNs: ${inferenceNew.FNs.size}")
+
       val ((_totalGroundings, _inertiaAtoms), _scoringTime) =
         orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
 
       totalGroundings = _totalGroundings
-      this.inertiaAtoms = _inertiaAtoms.toSet
+      inert = _inertiaAtoms.toSet
       scoringTime = _scoringTime
+    }
+
+    this.inertiaAtoms = inert
+
+    if (this.inertiaAtoms.nonEmpty) {
+      val stop = "stop"
     }
 
     updateStats(tpCounts, fpCounts, fnCounts, totalGroundings) // Per batch error is updated here.
@@ -161,8 +173,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      //val pruningSpecs = new PruningSpecs(0.3, 1, 10000)
-      //state.lowQualityBasedPruning(pruningSpecs, inps, logger)
+      val pruningSpecs = new PruningSpecs(0.3, 2, 10000)
+      state.lowQualityBasedPruning(pruningSpecs, inps, logger)
       //state.subsumptionBasedPruning() // This has never worked...
     }
   }

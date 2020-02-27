@@ -175,15 +175,15 @@ class State(inps: RunningOptions) {
 
         rules.foldLeft(List.empty[Clause]) { (accum, rule) =>
           if (rule.body.length >= maxBodyLength) {
-            if (rule.precision <= acceptablePrecision && !rule.refinements.exists(x => x.precision > acceptablePrecision)) {
-              //if (rule.precision <= acceptablePrecision || (weightLearning && rule.weight == 0.0)) {
+            //if (rule.precision <= acceptablePrecision && !rule.refinements.exists(x => x.precision > acceptablePrecision)) {
+            if (rule.tps <= 20) {
               remove(rule)
               accum
             } else {
               accum :+ rule
             }
           } else {
-            if (rule.seenExmplsNum >= oldness) {
+            /*if (rule.seenExmplsNum >= oldness) {
               if (rule.precision <= acceptablePrecision) {
                 remove(rule)
                 accum
@@ -192,7 +192,8 @@ class State(inps: RunningOptions) {
               }
             } else {
               accum :+ rule
-            }
+            }*/
+            accum :+ rule
           }
 
         }
