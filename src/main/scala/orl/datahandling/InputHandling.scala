@@ -19,7 +19,7 @@ package orl.datahandling
 
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
-
+import scala.io.Source
 import scala.util.Random
 
 /**
@@ -55,6 +55,27 @@ object InputHandling {
 
   // TODO
   trait FileSource
+
+  case class FileDataOptions(
+    file: String,
+    chunkSize: Int = 1,
+    targetConcept: String = "None",
+    sort: String = "ascending",
+    what: String = "training",
+    sortByFunction: String => Int)
+
+  def getFileData(opts: FileDataOptions): Iterator[Example] = {
+    val source = Source.fromFile(opts.file)
+    val grouped = source.getLines.toList.groupBy(line => opts.sortByFunction(line)).toList
+    val sorted = if (opts.sort == "ascending") grouped.sortBy(_._1) else grouped.sortWith(_._1 < _._1)
+    val examples = sorted.map(_._2).grouped(opts.chunkSize).map { list =>
+      val time = opts.sortByFunction(list.head.head)
+      val (queryAtoms, evidenceAtoms) = list.flatten.partition(x => x.contains(opts.targetConcept))
+      Example(queryAtoms, evidenceAtoms, time.toString)
+    }
+    source.close
+    examples
+  }
 
   /*
   def getData[T <: Source](opts: T, dataFunc: (T) => Iterator[Example]) = {
