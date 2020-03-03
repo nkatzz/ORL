@@ -112,7 +112,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
-        val newRulesFiltered = newRules.filter(newRule => ! rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
+        val newRulesFiltered = newRules.filter(newRule => !rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
         newRules = newRulesFiltered
 
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
