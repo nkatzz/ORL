@@ -349,7 +349,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       def iterationWrapUp() = {
         //val theory = getRulesForPrediction()
-        val theory = state.getTopTheory().filter(x => x.body.nonEmpty)//.filter(x => x.actualGroundings > 2000)
+        val theory = state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.seenExmplsNum > 10000)
 
         //val theory = LogicUtils.compressTheoryKeepMoreSpecific(state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.actualGroundings > 2000))
 
