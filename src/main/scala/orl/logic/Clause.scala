@@ -397,7 +397,7 @@ case class Clause(
   }
 
   /**
-    * @param rulesThatAlreadyExists is an optional paramater to avoid generating the same stuff.
+    * @param rulesThatAlreadyExists is an optional parameter to avoid generating the same stuff.
     */
   def generateCandidateRefs(
       spDepth: Int,
@@ -449,9 +449,9 @@ case class Clause(
 
     if (supportSet.nonEmpty) {
       supportSet.head.parentClause = this
-      //this.refinements = flattend :+ this.supportSet.head
+      this.refinements = flattend :+ this.supportSet.head
       //this.refinements = List(this.supportSet.head)
-      this.refinements = flattend
+      //this.refinements = flattend
     } else {
       this.refinements = flattend
     }
