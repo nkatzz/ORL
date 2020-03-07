@@ -19,7 +19,11 @@ package orl.datahandling
 
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
+<<<<<<< HEAD
 import com.typesafe.scalalogging.LazyLogging
+=======
+
+>>>>>>> custom file runner
 import scala.io.Source
 
 /**
@@ -58,7 +62,7 @@ object InputHandling extends LazyLogging {
 
   case class FileDataOptions(
     file: String,
-    chunkSize: Int = 1,
+    chunkSize: Int = 100,
     targetConcept: String = "None",
     sort: String = "ascending",
     what: String = "training",
