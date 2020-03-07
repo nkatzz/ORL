@@ -19,8 +19,8 @@ package orl.datahandling
 
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
+
 import scala.io.Source
-import scala.util.Random
 
 /**
   * Created by nkatz at 13/12/19
@@ -58,7 +58,7 @@ object InputHandling {
 
   case class FileDataOptions(
     file: String,
-    chunkSize: Int = 1,
+    chunkSize: Int = 100,
     targetConcept: String = "None",
     sort: String = "ascending",
     what: String = "training",
