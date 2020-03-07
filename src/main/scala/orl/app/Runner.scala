@@ -54,7 +54,7 @@ object Runner extends LazyLogging {
 
         /**
           * Single-pass run on the entire dataset
-          * */
+          */
         val trainingDataOptions = new MongoDataOptions(dbNames       = train1,
                                                        chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
 
@@ -74,7 +74,7 @@ object Runner extends LazyLogging {
 
         /**
           * Cross-validation.
-          * */
+          */
 
       } else {
 

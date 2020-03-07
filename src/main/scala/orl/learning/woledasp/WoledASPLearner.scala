@@ -112,7 +112,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
-        val newRulesFiltered = newRules.filter(newRule => ! rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
+        val newRulesFiltered = newRules.filter(newRule => !rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
         newRules = newRulesFiltered
 
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
@@ -172,9 +172,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       state.updateRules(expandedTheory._1, "replace", inps)
 
-      val pruningSpecs = new PruningSpecs(0.3, 2, 10000)
-      state.lowQualityBasedPruning(pruningSpecs, inps, logger)
-      //state.subsumptionBasedPruning() // This has never worked...
+      if (inps.onlinePruning) {
+        val pruningSpecs = new PruningSpecs(0.3, 2, 10000)
+        state.lowQualityBasedPruning(pruningSpecs, inps, logger)
+        //state.subsumptionBasedPruning() // This never worked...
+      }
+
     }
   }
 
