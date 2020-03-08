@@ -98,6 +98,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     val res = orl.utils.Utils.time{ inference.performInference() }
 
     val inferenceTime = res._2
+
+    state.inferenceTime = state.inferenceTime :+ inferenceTime
+
     var tpCounts = inference.TPs.size
     var fpCounts = inference.FPs.size
     var fnCounts = inference.FNs.size
@@ -393,6 +396,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         //val theory = LogicUtils.compressTheoryKeepMoreSpecific(state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.actualGroundings > 2000))
 
         showStats(theory)
+
+        logger.info(s"Inference time: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           val testData = testingDataFunction(testingDataOptions)

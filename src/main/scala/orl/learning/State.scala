@@ -35,6 +35,8 @@ class State(inps: RunningOptions) {
   var initiationRules: List[Clause] = List[Clause]()
   var terminationRules: List[Clause] = List[Clause]()
 
+  var inferenceTime = Vector.empty[Double]
+
   var perBatchError: Vector[Int] = Vector.empty[Int]
 
   var runningRulesNumber: Vector[Int] = Vector.empty[Int]
