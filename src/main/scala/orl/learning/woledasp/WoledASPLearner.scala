@@ -84,21 +84,59 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     //val rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
     //val rules = state.getAllRules(inps, "top")
 
-    val rulesCompressed = getRulesForPrediction()
+    var rulesCompressed = getRulesForPrediction()
 
     //val rulesCompressed = LogicUtils.compressTheory(rules)
     //val rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
+
+    if (batchCount == 33) {
+      val stop = "stop"
+    }
 
     /** Get the inferred state. */
     val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
     val res = orl.utils.Utils.time{ inference.performInference() }
 
     val inferenceTime = res._2
-    val tpCounts = inference.TPs.size
-    val fpCounts = inference.FPs.size
-    val fnCounts = inference.FNs.size
+    var tpCounts = inference.TPs.size
+    var fpCounts = inference.FPs.size
+    var fnCounts = inference.FNs.size
+
+    val (tps, fps, fns) = (tpCounts, fpCounts, fnCounts)
 
     var newRules = List.empty[Clause]
+
+    if (fpCounts + fnCounts > 0) {
+      val stop = "stop"
+    }
+
+    /**
+      * EXPERIMENTAL: Try to update the weights of existing rules first, to avoid generating
+      * redundant rules in response to mistakes generated from low-weight rules
+      * */
+    /*=====================================================================================*/
+    inference.updateWeightsAndScore(batchCount)
+
+    /** Attempt to expand existing rules. */
+    if (!withHandCrafted) {
+      val init = state.initiationRules
+      val term = state.terminationRules
+      val expandedTheory = RuleExpansion.expandRules(init ++ term, inps, logger)
+      state.updateRules(expandedTheory._1, "replace", inps)
+    }
+
+    // Perform inference once again to see if mistakes are corrected by the weight
+    // updates & the specializations. If not, then generate new rules.
+
+    rulesCompressed = getRulesForPrediction()
+
+    val inferenceNew = new ASPWeightedInference(rulesCompressed, exmpl, inps)
+    orl.utils.Utils.time{ inferenceNew.performInference() }
+
+    tpCounts = inferenceNew.TPs.size
+    fpCounts = inferenceNew.FPs.size
+    fnCounts = inferenceNew.FNs.size
+    /*=====================================================================================*/
 
     /** Generate new rules from mistakes */
     if (!withHandCrafted) {
@@ -112,8 +150,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
-        val newRulesFiltered = newRules.filter(newRule => !rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
-        newRules = newRulesFiltered
+        //val newRulesFiltered = newRules.filter(newRule => !rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
+        //newRules = newRulesFiltered
 
         if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
       }
@@ -128,11 +166,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     /** Update weights and coverage counts for existing and new rules. */
 
     if (newRules.isEmpty) {
+      // We do this earlier, right after the prediction.
       // In this case the theory is the same, we only need to count groundings in the inferred state.
-      val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inference.updateWeightsAndScore(batchCount))
+      /*val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inference.updateWeightsAndScore(batchCount))
       totalGroundings = _totalGroundings
       inert = _inertiaAtoms.toSet
-      scoringTime = _scoringTime
+      scoringTime = _scoringTime*/
     } else {
 
       // In this case we need to preform inference again, this time with the augmented theory.
@@ -142,9 +181,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
       val res = orl.utils.Utils.time{ inferenceNew.performInference() }
       secondInferenceTime = res._2
-
-      logger.info(s"*********************************************************" +
-        s"\nNEW COUNTS AFTER NEW RULES:\nTPs: ${inferenceNew.TPs.size}, FPs: ${inferenceNew.FPs.size}, FNs: ${inferenceNew.FNs.size}")
 
       val ((_totalGroundings, _inertiaAtoms), _scoringTime) =
         orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
@@ -162,15 +198,15 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     updateStats(tpCounts, fpCounts, fnCounts, totalGroundings) // Per batch error is updated here.
 
-    logger.info(batchInfoMsg(rulesCompressed, newRules, tpCounts, fpCounts, fnCounts, inferenceTime + secondInferenceTime, scoringTime))
+    logger.info(batchInfoMsg(rulesCompressed, newRules, tps, fps, fns, inferenceTime + secondInferenceTime, scoringTime))
 
     if (!withHandCrafted) {
       /** Attempt to expand existing rules. */
-      val init = state.initiationRules
+      /*val init = state.initiationRules
       val term = state.terminationRules
       val expandedTheory = RuleExpansion.expandRules(init ++ term, inps, logger)
 
-      state.updateRules(expandedTheory._1, "replace", inps)
+      state.updateRules(expandedTheory._1, "replace", inps)*/
 
       if (inps.onlinePruning) {
         val pruningSpecs = new PruningSpecs(0.3, 2, 10000)
@@ -269,7 +305,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     }*/
 
     val theory = theoryForPrediction.filter(_.weight != 0.0).map(x =>
-      s"${format(x.weight)} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps}, Age: ${x.seenExmplsNum}, Actual groundings: ${x.actualGroundings})").mkString("\n")
+      s"${format(x.weight)} ${x.tostring} (TPs: ${x.tps}, FPs: ${x.fps}, Actual groundings: ${x.actualGroundings})").mkString("\n")
 
     val inferenceMsg = {
       if (theoryForPrediction.nonEmpty) {

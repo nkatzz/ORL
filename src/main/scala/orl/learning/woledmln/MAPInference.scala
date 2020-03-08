@@ -46,7 +46,7 @@ object MAPInference {
   type MapInferenceResult = (MAPState, Set[WeightedFormula], Vector[lomrf.logic.Clause])
   type ExistingPredicateCompletedTheory = (Set[WeightedFormula], Vector[lomrf.logic.Clause])
 
-  def solve(rules: List[Clause], e: Example, inertiaAtoms: Set[Literal], inps: RunningOptions): MapInferenceResult = {
+  def solve(rules: List[Clause], e: Example, inertiaAtoms: Set[Literal], inps: RunningOptions, batchCount: Int = 0): MapInferenceResult = {
 
     val queryAtoms = Set(
       AtomSignature("HoldsAt", 2),
@@ -139,17 +139,25 @@ object MAPInference {
 
     val evidence = evidenceBuilder.result()
 
-    println("Predicate completion...")
+    var t0 = System.nanoTime()
     val resultedFormulas = PredicateCompletion(formulas, definiteClauses.toSet, PredicateCompletionMode.Decomposed)(kb.predicateSchema, kb.functionSchema, constants)
     val cnf = NormalForm.compileFastCNF(resultedFormulas)(constants).toVector
+    var t1 = System.nanoTime()
+    val completionTime = (t1-t0)/1000000000.0
+    WoledMLNLearner.averagePredCompletionTime = (WoledMLNLearner.averagePredCompletionTime + completionTime)/batchCount.toDouble
+    println(s"Predicate completion: $completionTime sec")
 
     // This prints out the lifted rules in CNF form.
     //println(cnf.map(_.toText()).mkString("\n"))
 
-    println("Building MLN...")
+    t0 = System.nanoTime()
     val mln = MLN(kb.schema, evidence, queryAtoms, cnf)
     val builder = new MRFBuilder(mln, createDependencyMap = true)
     val mrf = builder.buildNetwork
+    t1 = System.nanoTime()
+    val groundingTime = (t1-t0)/1000000000.0
+    WoledMLNLearner.averageGroundingTime = (WoledMLNLearner.averageGroundingTime + groundingTime)/batchCount.toDouble
+    println(s"Building MRF: $groundingTime sec")
 
     /* FOR DEBUGGING (print out the ground program) */
     /*val constraints = mrf.constraints.iterator()
@@ -159,11 +167,13 @@ object MAPInference {
       println(constraint.decodeFeature(10000)(mln))
     }*/
 
-    println("Solving...")
+    t0 = System.nanoTime()
     val solver = ILP(mrf)
-    //solver.infer()
-
     val s = solver.infer
+    t1 = System.nanoTime()
+    val solvingTime = (t1-t0)/1000000000.0
+    WoledMLNLearner.averageSolvingTime = (WoledMLNLearner.averageSolvingTime + solvingTime)/batchCount.toDouble
+    println(s"Solving: $solvingTime sec")
 
     var result = Map.empty[String, Boolean]
 

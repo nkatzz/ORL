@@ -21,11 +21,10 @@ import java.text.DecimalFormat
 
 import akka.actor.{Actor, PoisonPill}
 import org.slf4j.{Logger, LoggerFactory}
-import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
+import orl.datahandling.InputHandling.InputSource
 import orl.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
-import orl.learning.woledmln.WoledMLNLearnerUtils
 import orl.logic.{Clause, Literal, LogicUtils}
 import orl.utils.Utils.{underline, underlineStars}
 
@@ -53,7 +52,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   var state = new State(inps)
 
   var inertiaAtoms = Set.empty[Literal]
-  var batchCount = 0
+  var batchCount = 1
   var withHandCrafted = false
 
   var avgNumberOfMistakesSoFar = 0.0
@@ -62,13 +61,13 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   //private var previousCNF = Vector[lomrf.logic.Clause]()
 
   // Use a hand-crafted theory for debugging
-  /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+  def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
   val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test")
   val list = source.getLines.filter(line => !matches( """""".r, line) && !line.startsWith("%"))
   val rulesList = list.map(x => Clause.parse(x)).toList
   source.close
   state.updateRules(rulesList, "add", inps)
-  withHandCrafted = true*/
+  withHandCrafted = true
 
   private def getTrainingData: Iterator[Example] = trainingDataFunction(trainingDataOptions)
   private def getNextBatch: Example = if (data.isEmpty) Example() else data.next()
@@ -171,7 +170,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
 
   def showStats(theory: List[Clause]) = {
 
-      // used for printing out the avegare loss vector
+      // used for printing out the average loss vector
       def avgLoss(in: Vector[Int]) = {
         in.foldLeft(0, 0, Vector.empty[Double]) { (x, y) =>
           val (count, prevSum, avgVector) = (x._1, x._2, x._3)

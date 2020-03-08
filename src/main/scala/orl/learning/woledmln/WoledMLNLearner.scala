@@ -17,6 +17,8 @@
 
 package orl.learning.woledmln
 
+import java.text.DecimalFormat
+
 import orl.datahandling.InputHandling.InputSource
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
@@ -32,6 +34,12 @@ import orl.logic.{Clause, Literal, LogicUtils}
   * This is an implementation of the original version of the WOLED algorithm.
   *
   */
+
+object WoledMLNLearner {
+  var averageGroundingTime = 0.0
+  var averagePredCompletionTime = 0.0
+  var averageSolvingTime = 0.0
+}
 
 class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
     testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
@@ -57,7 +65,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     println("MAP Inference...")
 
-    val map = orl.utils.Utils.time(MAPInference.solve(rulesCompressed, e, this.inertiaAtoms, inps))
+    val map = orl.utils.Utils.time(MAPInference.solve(rulesCompressed, e, this.inertiaAtoms, inps, batchCount = batchCount))
     val mapInfResult = map._1
     inferenceTime = map._2
 
@@ -160,6 +168,15 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val theory = state.getAllRules(inps, "top")
 
       showStats(theory)
+
+      def format(x: Double) = {
+        val defaultNumFormat = new DecimalFormat("0.######")
+        defaultNumFormat.format(x)
+      }
+
+      logger.info(s"\nAverage predicate completion time: " +
+        s"${format(WoledMLNLearner.averagePredCompletionTime)}\nAverage grounding time: " +
+        s"${format(WoledMLNLearner.averageGroundingTime)}\nAverage solving time: ${format(WoledMLNLearner.averageSolvingTime)}")
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
         val testData = testingDataFunction(testingDataOptions)

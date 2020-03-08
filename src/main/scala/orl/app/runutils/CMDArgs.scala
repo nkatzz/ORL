@@ -181,7 +181,7 @@ object CMDArgs extends LazyLogging {
     Arg(name      = "--parallel-clause-eval", valueType = "Boolean", text = "Evaluate clauses in parallel during weight learning.", default = "true"),
     Arg(name      = "--ada-delta", valueType = "Double", text = "Delta parameter for AdaGrad (weight learning).", default = "1.0"),
     Arg(name      = "--ada-learn-rate", valueType = "Double", text = "Learning rate parameter (eta) for AdaGrad (weight learning).", default = "1.0"),
-    Arg(name      = "--ada-regularization", valueType = "Double", text = "Regularization parameter (lambda) for AdaGrad (weight learning).", default = "0.00001"),
+    Arg(name      = "--ada-regularization", valueType = "Double", text = "Regularization parameter (lambda) for AdaGrad (weight learning).", default = "0.001"),
     Arg(name      = "--ada-loss-function", valueType = "String", text = "Loss function for AdaGrad. Either 'default' (for predictive loss) or 'custom'", default = "default"),
     Arg(name      = "--with-ec", valueType = "Boolean", text = "Learning using the Event Calculus in the Background knowledge.", default = "true"),
     Arg(name      = "--show-stats", valueType = "Boolean", text = "If true performance stats are printed out.", default = "false"),

@@ -34,8 +34,8 @@ class LocalCoordinator[T <: InputSource](inps: RunningOptions, trainingDataOptio
     testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
     testingDataFunction: T => Iterator[Example]) extends Actor {
 
-  //val mode = "MLN"
-  val mode = "ASP"
+  val mode = "MLN"
+  //val mode = "ASP"
 
   def receive = {
 
