@@ -397,7 +397,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
         showStats(theory)
 
-        logger.info(s"Inference time: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
+        logger.info(s"\nAverage grounding+solving time: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           val testData = testingDataFunction(testingDataOptions)

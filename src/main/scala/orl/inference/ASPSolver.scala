@@ -93,6 +93,10 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     }
   }
 
+  def measureSizeOfGroundPrograms() = {
+
+  }
+
   def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {
     val modes = globals.MODEHS ++ globals.MODEBS
     val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
