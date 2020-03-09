@@ -143,7 +143,7 @@ object MAPInference {
     val resultedFormulas = PredicateCompletion(formulas, definiteClauses.toSet, PredicateCompletionMode.Decomposed)(kb.predicateSchema, kb.functionSchema, constants)
     val cnf = NormalForm.compileFastCNF(resultedFormulas)(constants).toVector
     var t1 = System.nanoTime()
-    val completionTime = (t1-t0)/1000000000.0
+    val completionTime = (t1 - t0) / 1000000000.0
     //WoledMLNLearner.averagePredCompletionTime = (WoledMLNLearner.averagePredCompletionTime + completionTime)/batchCount.toDouble
     WoledMLNLearner.averagePredCompletionTime = WoledMLNLearner.averagePredCompletionTime :+ completionTime
     println(s"Predicate completion: $completionTime sec")
@@ -156,7 +156,7 @@ object MAPInference {
     val builder = new MRFBuilder(mln, createDependencyMap = true)
     val mrf = builder.buildNetwork
     t1 = System.nanoTime()
-    val groundingTime = (t1-t0)/1000000000.0
+    val groundingTime = (t1 - t0) / 1000000000.0
     //WoledMLNLearner.averageGroundingTime = (WoledMLNLearner.averageGroundingTime + groundingTime)/batchCount.toDouble
     WoledMLNLearner.averageGroundingTime = WoledMLNLearner.averageGroundingTime :+ groundingTime
     println(s"Building MRF: $groundingTime sec")
@@ -173,7 +173,7 @@ object MAPInference {
     val solver = ILP(mrf)
     val s = solver.infer
     t1 = System.nanoTime()
-    val solvingTime = (t1-t0)/1000000000.0
+    val solvingTime = (t1 - t0) / 1000000000.0
     //WoledMLNLearner.averageSolvingTime = (WoledMLNLearner.averageSolvingTime + solvingTime)/batchCount.toDouble
     WoledMLNLearner.averageSolvingTime = WoledMLNLearner.averageSolvingTime :+ solvingTime
     println(s"Solving: $solvingTime sec")

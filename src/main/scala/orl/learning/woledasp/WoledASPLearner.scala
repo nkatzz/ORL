@@ -120,7 +120,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     /**
       * EXPERIMENTAL: Try to update the weights of existing rules first, to avoid generating
       * redundant rules in response to mistakes generated from low-weight rules
-      * */
+      */
     /*=====================================================================================*/
     inference.updateWeightsAndScore(batchCount)
 
@@ -401,8 +401,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
         showStats(theory)
 
-        logger.info(s"\nAverage grounding+solving time: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
-        logger.info(s"\nAverage size of ground program: ${state.averageSizeOfGroundProgram.sum/state.averageSizeOfGroundProgram.length.toDouble}")
+        logger.info(s"\nAverage grounding+solving time: ${state.inferenceTime.sum / state.inferenceTime.length.toDouble}")
+        logger.info(s"\nAverage size of ground program: ${state.averageSizeOfGroundProgram.sum / state.averageSizeOfGroundProgram.length.toDouble}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           val testData = testingDataFunction(testingDataOptions)
