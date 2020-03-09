@@ -37,7 +37,7 @@ class State(inps: RunningOptions) {
 
   var inferenceTime = Vector.empty[Double]
 
-  var averageSizeOfGroundProgram = Vector.empty[Double]
+  var averageSizeOfGroundProgram = Vector.empty[Int]
 
   var perBatchError: Vector[Int] = Vector.empty[Int]
 
