@@ -93,8 +93,16 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     }
   }
 
-  def measureSizeOfGroundPrograms() = {
-
+  def measureSizeOfGroundPrograms(theory: List[Clause], e: Example, globals: Globals) = {
+    val modes = globals.MODEHS ++ globals.MODEBS
+    val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
+    val program = e.toASP().mkString("\n") + t + "\n" + s"""#include "${globals.BK_WHOLE_EC}".""" + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
+    val file = dumpToFile(program)
+    val filePath = file.getCanonicalPath
+    val command = Seq("gringo --text", filePath, "-Wno-atom-undefined")
+    val res = command.mkString(" ").lineStream_!
+    val results = res.toVector
+    results.size
   }
 
   def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {

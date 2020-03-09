@@ -93,6 +93,10 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val stop = "stop"
     }
 
+    val s = orl.inference.ASPSolver.measureSizeOfGroundPrograms(rulesCompressed, exmpl, inps.globals)
+
+    state.averageSizeOfGroundProgram = state.averageSizeOfGroundProgram :+ s
+
     /** Get the inferred state. */
     val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
     val res = orl.utils.Utils.time{ inference.performInference() }
@@ -398,6 +402,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         showStats(theory)
 
         logger.info(s"\nAverage grounding+solving time: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
+        logger.info(s"\nAverage size of ground program: ${state.averageSizeOfGroundProgram.sum/state.averageSizeOfGroundProgram.length.toDouble}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           val testData = testingDataFunction(testingDataOptions)
