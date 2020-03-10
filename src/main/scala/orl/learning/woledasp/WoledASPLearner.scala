@@ -75,7 +75,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
       * This is related to the meta-rules used for scoring the actual rules.
       */
-    var exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
+    //var exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
+    var exmpl = _exmpl
+
 
     if (inps.withInertia) {
       exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
@@ -89,7 +91,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     //val rulesCompressed = LogicUtils.compressTheory(rules)
     //val rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
 
-    if (batchCount == 33) {
+    if (batchCount == 91) {
       val stop = "stop"
     }
 
@@ -120,7 +122,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     /*=====================================================================================*/
     inference.updateWeightsAndScore(batchCount)
 
-    /** Attempt to expand existing rules. */
+    // Attempt to expand existing rules.
     if (!withHandCrafted) {
       val init = state.initiationRules
       val term = state.terminationRules
@@ -148,8 +150,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
         val atomsFromFNMistakes = inference.FNs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
 
-        newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
-        //newRules = generateNewRulesXHAIL(rulesCompressed, exmpl, inps)
+        //newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
+        newRules = generateNewRulesXHAIL(rulesCompressed, exmpl, inps)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
@@ -391,9 +393,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       def iterationWrapUp() = {
         //val theory = getRulesForPrediction()
-        val theory = state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.seenExmplsNum > 10000)
-
         //val theory = LogicUtils.compressTheoryKeepMoreSpecific(state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.actualGroundings > 2000))
+        val theory = state.getTopTheory().filter(x => x.body.nonEmpty)//.filter(x => x.seenExmplsNum > 10000)
 
         showStats(theory)
 
