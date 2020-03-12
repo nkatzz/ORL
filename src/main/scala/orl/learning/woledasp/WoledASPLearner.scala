@@ -181,7 +181,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       // In this case we need to preform inference again, this time with the augmented theory.
       val newRulesSpecializationsOnly = newRules.flatMap(_.refinements)
-      val allRules = rulesCompressed ++ newRules ++ newRulesSpecializationsOnly // newRules
+      val allRules = rulesCompressed ++ newRules //++ newRulesSpecializationsOnly // newRules
 
       val inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
       val res = orl.utils.Utils.time{ inferenceNew.performInference() }
