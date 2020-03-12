@@ -150,7 +150,7 @@ object CMDArgs extends LazyLogging {
     Arg(name      = "--evalth", valueType = "String", text = "If true a hand-crafted theory in a file whose path is given by this parameter is evaluated (no learning).", default = "None"),
     Arg(name      = "--wjep", valueType = "Boolean", text = "If true the ASP solver is called via the java-embedded-python (jep) interface.", default = "false"),
     Arg(name      = "--prune", valueType = "Double", text = "Pruning threshold. Clauses with a lower score are removed. Set to 0.0 to disable pruning.", default = "0.0"),
-    Arg(name      = "--minseen", valueType = "Int", text = "Minimum number of examples to evaluate on before breaking ties.", default = "1000"),
+    Arg(name      = "--minseen", valueType = "Int", text = "Minimum number of examples to evaluate on before breaking ties.", default = "0"),
     Arg(name      = "--spdepth", valueType = "Int", text = "Specialization depth. All specializations of a rule up to this length are tried simultaneously.", default = "1"),
     Arg(name      = "--ties", valueType = "Double", text = "Tie-breaking threshold.", default = "0.05"),
     Arg(name      = "--repfor", valueType = "Int", text = "Re-see the data this-many times. ", default = "1"),
