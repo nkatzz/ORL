@@ -27,7 +27,6 @@ import orl.utils.Utils.underline
 
 class State(inps: RunningOptions) {
 
-  //private val modeDeclararions = inps.globals.MODEHS ++ inps.globals.MODEBS
   private val comparisonPredicates = inps.globals.comparisonPredicates
   private val specializationDepth = inps.specializationDepth
   private val scoringFunction = inps.scoringFun

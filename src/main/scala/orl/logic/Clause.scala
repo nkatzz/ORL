@@ -133,18 +133,22 @@ case class Clause(
 
     val isVar = (x: String) => try { Variable(x); true } catch { case _: IllegalArgumentException => false }
 
-    val (skolemised, skmap) = that.skolemise
-    var skolems = (for (y <- skmap.keySet.filter(x => isVar(x))) yield skmap(y)).toList
-    val thisVars = this.getVars
-    while (thisVars.length > skolems.length) {
-      skolems = skolems ::: skolems
+    if (this.head.predSymbol == that.head.predSymbol) {
+      val (skolemised, skmap) = that.skolemise
+      var skolems = (for (y <- skmap.keySet.filter(x => isVar(x))) yield skmap(y)).toList
+      val thisVars = this.getVars
+      while (thisVars.length > skolems.length) {
+        skolems = skolems ::: skolems
+      }
+      for (x <- skolems.permutations) {
+        val trySubstitution = (thisVars zip x).map { x => (x._1, Constant(x._2)) }.toMap
+        val repl = this.toLiteralList.map { x => x.replaceAll(trySubstitution) }.map { x => x.tostring }
+        if (isSubset(repl.toSet, skolemised.toStrList.toSet)) return true
+      }
+      false
+    } else {
+      false
     }
-    for (x <- skolems.permutations) {
-      val trySubstitution = (thisVars zip x).map { x => (x._1, Constant(x._2)) }.toMap
-      val repl = this.toLiteralList.map { x => x.replaceAll(trySubstitution) }.map { x => x.tostring }
-      if (isSubset(repl.toSet, skolemised.toStrList.toSet)) return true
-    }
-    false
   }
 
   def thetaSubsumes(t: Iterable[Clause]): Boolean = t.forall(x => this.thetaSubsumes(x))
@@ -404,16 +408,16 @@ case class Clause(
       comparisonPredicates: List[ModeAtom],
       rulesThatAlreadyExists: Vector[Clause] = Vector.empty[Clause]): Unit = {
 
-      /*
-    * Checks if a specialization is redundant. Currently a specialization is
-    * redundant if it consists only of comparison predicates of the same type.
-    * For instance, this is redundant:
-    *
-    * blah :- close(X,Y,30,12), close(X,Y,40,12), close(X,Y,50,12)
-    *
-    * where close(X, Y, Z, T) means that the Euclidean distance of X and Y at time T is less than Z.
-    *
-    * */
+      /**
+       * Checks if a specialization is redundant. That is,
+       * if it consists only of comparison predicates of the same type.
+       * For instance, this is redundant:
+       *
+       * blah :- close(X,Y,30,12), close(X,Y,40,12), close(X,Y,50,12)
+       *
+       * where close(X, Y, Z, T) means that the Euclidean distance of X and Y at time T is less than Z.
+       *
+       * */
       def redundant(newLits: Set[Literal]) = {
         val all = this.body ++ newLits
 
@@ -441,15 +445,18 @@ case class Clause(
       //------------------------------------
       refinement.weight = this.weight
       //------------------------------------
-      //refinement.w_pos = this.w_pos
+      refinement.isTopRule = false
       //------------------------------------
-      refinement.supportSet = this.supportSet
+      refinement.supportSet = this.supportSet.filter(x => refinement.thetaSubsumes(x))
       //------------------------------------
     }
 
     if (supportSet.nonEmpty) {
-      supportSet.head.parentClause = this
+      supportSet.foreach(x => x.parentClause = this)
       //this.refinements = flattend :+ this.supportSet.head
+
+      //this.refinements = flattend ++ this.supportSet
+
       //this.refinements = List(this.supportSet.head)
       this.refinements = flattend
     } else {

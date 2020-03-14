@@ -63,7 +63,13 @@ object RuleExpansion {
               val refinedRule = best
               logger.info(showInfo(parentRule, best, secondBest, epsilon, observedDiff, parentRule.seenExmplsNum, inps))
               refinedRule.seenExmplsNum = 0 // zero the counter
-              refinedRule.supportSet = parentRule.supportSet // only one clause here
+              refinedRule.isTopRule = true
+
+              /*if (refinedRule.supportSet.isEmpty) {
+                throw new RuntimeException("AAAAAAAAAAAAAAAAAAAAAAA")
+              }*/
+
+              refinedRule.supportSet = parentRule.supportSet.filter(bottomRule => refinedRule.thetaSubsumes(bottomRule))
               refinedRule.generateCandidateRefs(spDepth, comparisonPredicates)
               expanded = true
               List(refinedRule)

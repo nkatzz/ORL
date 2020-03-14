@@ -19,11 +19,9 @@ package orl.learning.woledasp
 
 import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.CMDArgs
-import orl.datahandling.InputHandling.MongoDataOptions
 import orl.datahandling.Example
-import orl.learning.woledmln.WoledMLNLearnerUtils
-import orl.logic.{Clause, Literal}
-import orl.datahandling.InputHandling.getMongoData
+import orl.datahandling.InputHandling.{MongoDataOptions, getMongoData}
+import orl.logic.Clause
 
 import scala.io.Source
 
@@ -55,7 +53,7 @@ object CrossValTest extends LazyLogging {
       source.close
 
       val testingDataOptions =
-        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting2._2,
+        new MongoDataOptions(dbNames       = MeetingTrainTestSets.meeting4._2,
                              chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
 
       val testingDataFunction: MongoDataOptions => Iterator[Example] = getMongoData

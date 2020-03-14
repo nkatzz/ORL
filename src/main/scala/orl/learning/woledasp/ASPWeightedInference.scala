@@ -641,6 +641,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       }
 
       if (headAtom.isEmpty) {
+        // At this point use/2 atoms corresponding to body literals have been
+        // generated (since useAtoms is non-empty), so if there's no head atom something's wrong
         throw new RuntimeException(s"No head use/2 atom inferred for BC: ${bc.tostring}")
       } else {
         val bodyLitsMap = ((1 to bc.body.length) zip bc.body).map(x => x._1 -> x._2).toMap
@@ -648,7 +650,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         val body = bodyLiteralAtoms.map(x => bodyLitsMap(x.terms.head.name.toInt)).toList
 
         val newRule = Clause(head = bc.head, body = body)
-        newRule.supportSet = List(bc)
+        newRule.supportSet = newBCs.toList.filter(bottomRule => newRule.thetaSubsumes(bottomRule))
         newRule
       }
     }
@@ -656,8 +658,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   }
 
   def getTypePredicates(rule: Clause): List[Literal] = {
-    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-    //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
+    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
   }
 
   private def getTypePredicates(lit: Literal) = {
