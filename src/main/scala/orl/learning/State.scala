@@ -33,12 +33,11 @@ class State(inps: RunningOptions) {
 
   var initiationRules: List[Clause] = List[Clause]()
   var terminationRules: List[Clause] = List[Clause]()
-
   var inferenceTime = Vector.empty[Double]
-
   var perBatchError: Vector[Int] = Vector.empty[Int]
-
   var runningRulesNumber: Vector[Int] = Vector.empty[Int]
+
+  var totalInferenceTime = 0.0
 
   // This is the number of examples seen so far, the N for the Hoeffding test.
   var totalGroundings = 0

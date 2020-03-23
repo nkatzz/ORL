@@ -28,6 +28,9 @@ import orl.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
 import orl.logic.{Clause, Literal, LogicUtils}
 import orl.utils.Utils.{underline, underlineStars}
 
+import scala.io.Source
+import scala.util.matching.Regex
+
 /**
   * Created by nkatz at 13/12/19
   *

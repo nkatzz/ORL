@@ -96,15 +96,13 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     //val rulesCompressed = LogicUtils.compressTheory(rules)
     //val rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
 
-    if (batchCount == 91) {
-      val stop = "stop"
-    }
-
     /** Get the inferred state. */
     val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
     val res = orl.utils.Utils.time{ inference.performInference() }
 
     val inferenceTime = res._2
+
+    state.totalInferenceTime += inferenceTime
 
     state.inferenceTime = state.inferenceTime :+ inferenceTime
 
@@ -115,10 +113,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     val (tps, fps, fns) = (tpCounts, fpCounts, fnCounts)
 
     var newRules = List.empty[Clause]
-
-    if (fpCounts + fnCounts > 0) {
-      val stop = "stop"
-    }
 
     /**
       * EXPERIMENTAL: Try to update the weights of existing rules first, to avoid generating
@@ -194,6 +188,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val res = orl.utils.Utils.time{ inferenceNew.performInference() }
       secondInferenceTime = res._2
 
+      state.inferenceTime = state.inferenceTime :+ secondInferenceTime
+
       val ((_totalGroundings, _inertiaAtoms), _scoringTime) =
         orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
 
@@ -203,10 +199,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     }
 
     this.inertiaAtoms = inert
-
-    if (this.inertiaAtoms.nonEmpty) {
-      val stop = "stop"
-    }
 
     updateStats(tpCounts, fpCounts, fnCounts, totalGroundings) // Per batch error is updated here.
 
@@ -449,7 +441,8 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
         showStats(theory)
 
-        logger.info(s"Inference time: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
+        logger.info(s"Average inference time per batch: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
+        logger.info(s"Total inference time: ${state.totalInferenceTime}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           val testData = testingDataFunction(testingDataOptions)
