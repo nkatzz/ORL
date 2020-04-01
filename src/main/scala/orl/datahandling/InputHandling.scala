@@ -17,9 +17,11 @@
 
 package orl.datahandling
 
+import java.io.File
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
 import com.typesafe.scalalogging.LazyLogging
+import scala.io.Source
 
 /**
   * Created by nkatz at 13/12/19
@@ -55,7 +57,56 @@ object InputHandling extends LazyLogging {
   // TODO
   trait FileSource
 
+  case class FileDataOptions(
+      filepath: String,
+      chunkSize: Int = 100,
+      targetConcept: String = "None",
+      sortOrder: String = "ascending",
+      setting: String = "training",
+      suffix: String = "db",
+      sortByFunction: String => Int) extends InputSource
 
+  def getFileData(opts: FileDataOptions): Iterator[Example] = {
+    val file = new File(opts.filepath)
+    val map = if (file.isFile) {
+      val source = Source.fromFile(file)
+      val grouped = source.getLines.toList.groupBy(opts.sortByFunction)
+      source.close
+      grouped
+    } else if (file.isDirectory) {
+      val dbFiles = file.listFiles.filter(_.getName.endsWith(opts.suffix))
+      var grouped = Map.empty[Int, List[String]]
+      for (db <- dbFiles) {
+        val dbSource = Source.fromFile(db)
+        grouped ++= dbSource.getLines.toList.groupBy(opts.sortByFunction)
+        dbSource.close
+      }
+      grouped
+    } else {
+      logger.error(s"Given filepath '${opts.filepath}' does not exist.")
+      sys.exit(1)
+    }
+
+    val sorted =
+      if (opts.sortOrder == "ascending") map.toList.sortWith(_._1 < _._1)
+      else map.toList.sortWith(_._1 > _._1)
+
+    if (opts.setting == "training")
+      sorted.map(_._2).grouped(opts.chunkSize).map { list =>
+        val time = opts.sortByFunction(list.head.head)
+        val (queryAtoms, evidenceAtoms) = list.flatten.partition(x => x.contains(opts.targetConcept))
+        Example(queryAtoms, evidenceAtoms, time.toString)
+      }
+    else if (opts.setting == "testing") {
+      val data = sorted.flatMap(_._2)
+      val time = opts.sortByFunction(data.head)
+      val (queryAtoms, evidenceAtoms) = data.partition(x => x.contains(opts.targetConcept))
+      Iterator(Example(queryAtoms, evidenceAtoms, time.toString))
+    } else {
+      logger.error(s"Unknown setting '${opts.setting}'")
+      sys.exit(1)
+    }
+  }
 
   /*
   def getData[T <: Source](opts: T, dataFunc: (T) => Iterator[Example]) = {
