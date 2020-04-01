@@ -409,15 +409,15 @@ case class Clause(
       rulesThatAlreadyExists: Vector[Clause] = Vector.empty[Clause]): Unit = {
 
       /**
-       * Checks if a specialization is redundant. That is,
-       * if it consists only of comparison predicates of the same type.
-       * For instance, this is redundant:
-       *
-       * blah :- close(X,Y,30,12), close(X,Y,40,12), close(X,Y,50,12)
-       *
-       * where close(X, Y, Z, T) means that the Euclidean distance of X and Y at time T is less than Z.
-       *
-       * */
+        * Checks if a specialization is redundant. That is,
+        * if it consists only of comparison predicates of the same type.
+        * For instance, this is redundant:
+        *
+        * blah :- close(X,Y,30,12), close(X,Y,40,12), close(X,Y,50,12)
+        *
+        * where close(X, Y, Z, T) means that the Euclidean distance of X and Y at time T is less than Z.
+        *
+        */
       def redundant(newLits: Set[Literal]) = {
         val all = this.body ++ newLits
 

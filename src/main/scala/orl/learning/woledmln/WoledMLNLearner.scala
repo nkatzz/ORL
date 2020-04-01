@@ -173,19 +173,19 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       showStats(theory)
 
-      def format(x: Double) = {
-        val defaultNumFormat = new DecimalFormat("0.######")
-        defaultNumFormat.format(x)
-      }
+        def format(x: Double) = {
+          val defaultNumFormat = new DecimalFormat("0.######")
+          defaultNumFormat.format(x)
+        }
 
       /*logger.info(s"\nAverage predicate completion time: " +
         s"${format(WoledMLNLearner.averagePredCompletionTime)}\nAverage grounding time: " +
         s"${format(WoledMLNLearner.averageGroundingTime)}\nAverage solving time: ${format(WoledMLNLearner.averageSolvingTime)}")*/
 
       logger.info(s"\nAverage predicate completion time: " +
-        s"${WoledMLNLearner.averagePredCompletionTime.sum/WoledMLNLearner.averagePredCompletionTime.length.toDouble}\nAverage grounding time: " +
-        s"${WoledMLNLearner.averageGroundingTime.sum/WoledMLNLearner.averageGroundingTime.length.toDouble}\nAverage solving time: " +
-        s"${WoledMLNLearner.averageSolvingTime.sum/WoledMLNLearner.averageGroundingTime.length.toDouble}")
+        s"${WoledMLNLearner.averagePredCompletionTime.sum / WoledMLNLearner.averagePredCompletionTime.length.toDouble}\nAverage grounding time: " +
+        s"${WoledMLNLearner.averageGroundingTime.sum / WoledMLNLearner.averageGroundingTime.length.toDouble}\nAverage solving time: " +
+        s"${WoledMLNLearner.averageSolvingTime.sum / WoledMLNLearner.averageGroundingTime.length.toDouble}")
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
         val testData = testingDataFunction(testingDataOptions)

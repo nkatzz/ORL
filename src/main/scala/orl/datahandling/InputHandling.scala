@@ -19,14 +19,13 @@ package orl.datahandling
 
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
-
-import scala.util.Random
+import com.typesafe.scalalogging.LazyLogging
 
 /**
   * Created by nkatz at 13/12/19
   */
 
-object InputHandling {
+object InputHandling extends LazyLogging {
 
   // TODO
   // Currently used by the maritime runner
@@ -55,6 +54,8 @@ object InputHandling {
 
   // TODO
   trait FileSource
+
+
 
   /*
   def getData[T <: Source](opts: T, dataFunc: (T) => Iterator[Example]) = {

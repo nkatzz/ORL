@@ -78,7 +78,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     //var exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
     var exmpl = _exmpl
 
-
     if (inps.withInertia) {
       exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
     }
@@ -117,7 +116,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     /**
       * EXPERIMENTAL: Try to update the weights of existing rules first, to avoid generating
       * redundant rules in response to mistakes generated from low-weight rules
-      * */
+      */
     /*=====================================================================================*/
     inference.updateWeightsAndScore(batchCount)
 
@@ -285,7 +284,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   /**
     * For each generated new rule r, either merge its support with an existing r', such that r' subsumes r,
     * or add r' to the current top theory (update the state).
-    * */
+    */
   def mergeAndUpdate(newRules: List[Clause]) = {
     val topRules = state.getTopTheory().filter(_.body.nonEmpty)
 
@@ -301,10 +300,14 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
           merge = true
         }*/
 
-        if (newRule.thetaSubsumes(topRule)) {
+        /**
+          * Do this only for rules with a non-empty body, its too dangerous to merge ones
+          * with empty body cause many interesting stuff may be missed
+          */
+        if (newRule.body.nonEmpty && newRule.thetaSubsumes(topRule)) {
           // Just merge the support sets and generate refinements again.
           val newBottomRules = newRule.supportSet.filter(topRule.thetaSubsumes)
-          if(newBottomRules.nonEmpty) {
+          if (newBottomRules.nonEmpty) {
             topRule.supportSet = topRule.supportSet ++ newRule.supportSet
             topRule.generateCandidateRefs(inps.specializationDepth, inps.globals.comparisonPredicates)
           }
@@ -319,12 +322,10 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
     actuallyNewRules foreach { newRule =>
       logger.info(s"\nCreated new rule:\n  ${newRule.tostring}\n  with support:\n  " +
-          s"${newRule.supportSet.map(_.tostring).mkString("\n")}")
-        state.updateRules(List(newRule), "add", inps)
+        s"${newRule.supportSet.map(_.tostring).mkString("\n")}")
+      state.updateRules(List(newRule), "add", inps)
     }
   }
-
-
 
   def batchInfoMsg(theoryForPrediction: List[Clause], newRules: List[Clause],
       tpCounts: Int, fpCounts: Int, fnCounts: Int, inferenceTime: Double, scoringTime: Double) = {
@@ -437,11 +438,11 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       def iterationWrapUp() = {
         //val theory = getRulesForPrediction()
         //val theory = LogicUtils.compressTheoryKeepMoreSpecific(state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.actualGroundings > 2000))
-        val theory = state.getTopTheory().filter(x => x.body.nonEmpty)//.filter(x => x.seenExmplsNum > 10000)
+        val theory = state.getTopTheory().filter(x => x.body.nonEmpty) //.filter(x => x.seenExmplsNum > 10000)
 
         showStats(theory)
 
-        logger.info(s"Average inference time per batch: ${state.inferenceTime.sum/state.inferenceTime.length.toDouble}")
+        logger.info(s"Average inference time per batch: ${state.inferenceTime.sum / state.inferenceTime.length.toDouble}")
         logger.info(s"Total inference time: ${state.totalInferenceTime}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
