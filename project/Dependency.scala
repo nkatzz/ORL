@@ -20,9 +20,7 @@ import sbt._
 object Dependency {
 
   object v {
-    //final val Akka = "2.6.3"
-    //final val Akka = "2.5.17"
-    final val Akka = "2.5.6"
+    final val Akka = "2.6.4"
     final val ScalaLogging = "3.9.2"
     final val Logback = "1.2.3"
     final val MongoDB = "3.1.1"
@@ -36,12 +34,16 @@ object Dependency {
   }
 
   // Akka.io
-  lazy val Akka = "com.typesafe.akka" %% "akka-actor" % v.Akka
+  lazy val Akka = Seq(
+    "com.typesafe.akka" %% "akka-actor" % v.Akka,
+    "com.typesafe.akka" %% "akka-remote" % v.Akka,
+    "com.typesafe.akka" %% "akka-slf4j"  % v.Akka
+  )
 
-  // Logging using SLF4J and logback
+  // Logging using logback
   lazy val Logging = Seq(
-    "com.typesafe.scala-logging" %% "scala-logging" % v.ScalaLogging,
-    "ch.qos.logback" % "logback-classic" % v.Logback
+    "ch.qos.logback" % "logback-classic" % v.Logback,
+    "com.typesafe.scala-logging" %% "scala-logging" % v.ScalaLogging
   )
 
   // MongoDB (update to "org.mongodb.scala" %% "mongo-scala-driver" % "2.1.0")
