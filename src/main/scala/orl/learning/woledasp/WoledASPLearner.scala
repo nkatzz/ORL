@@ -157,7 +157,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         //newRules = newRulesFiltered
 
         mergeAndUpdate(newRules)
-
         //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
       }
     }
