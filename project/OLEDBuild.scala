@@ -92,8 +92,12 @@ object OLEDBuild extends AutoPlugin {
      * This error started after merging LoMRF.
      */
     assemblyMergeStrategy in assembly := {
-      case PathList("META-INF", _ @ _*) => MergeStrategy.discard
-      case _ => MergeStrategy.first
+      case "logback.xml" => MergeStrategy.first
+      case "logback-debug.xml" => MergeStrategy.discard
+      case PathList("gnu", "trove", _ @ _*) => MergeStrategy.first
+      case other =>
+        val defaultStrategy = (assemblyMergeStrategy in assembly).value
+        defaultStrategy(other)
     }
   )
 
