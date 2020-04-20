@@ -424,8 +424,14 @@ object WoledMLNLearnerUtils {
         rule.tps += trueInferredAsTrueGroundings
         rule.fps += falseInferredAsTrueGroundings
       }*/
-      rule.tps += trueInferredAsTrueGroundings
-      rule.fps += falseInferredAsTrueGroundings
+      if (inps.weightLean) {
+        rule.tps += trueInferredAsTrueGroundings
+        rule.fps += falseInferredAsTrueGroundings
+      } else { // this is for OLED
+        rule.tps += actualTrueGroundings
+        rule.fps += actualFalseGroundings
+      }
+
     }
     (batchTPs, batchFPs, batchFNs, totalGroundings, inertiaAtoms)
   }

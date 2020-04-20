@@ -84,6 +84,8 @@ object CMDArgs extends LazyLogging {
     val saveTheoryTo = getMatchingArgumentValue("--saveto")
     val train = getMatchingArgumentValue("--train")
     val test = getMatchingArgumentValue("--test")
+    val ruleLearningStrategy = getMatchingArgumentValue("--rule-learning-strategy")
+    val infoGainAtLeast = getMatchingArgumentValue("--infogain")
 
     //-------------
     // Global sets:
@@ -116,7 +118,7 @@ object CMDArgs extends LazyLogging {
                                   withInertia.toString.toBoolean, weightLearn.toString.toBoolean,
                                   parallelClauseEval.toString.toBoolean, adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble,
                                   adaRegularization.toString.toDouble, adaLossFunction.toString, withEventCalculus.toString.toBoolean,
-                                  saveTheoryTo.toString, test.toString)
+                                  saveTheoryTo.toString, test.toString, ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble)
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
@@ -191,9 +193,15 @@ object CMDArgs extends LazyLogging {
     Arg(name      = "--train", valueType = "String", text = "Training set location. May either by a path to a file or a mongodb name", default = "None"),
     Arg(name      = "--test", valueType = "String", text = "Testing set location. May either by a path to a file or a mongodb name", default = "None"),
     Arg(name      = "--selftrain", valueType = "Boolean", text = "If true performs simple self-training from unlabeled data (experimental).", default = "false"),
-    Arg(name      = "--preprune", valueType = "Double", text = "Do not specialize a rule if its score is greater than this threshold.", default = "1.0"))
+    Arg(name      = "--preprune", valueType = "Double", text = "Do not specialize a rule if its score is greater than this threshold.", default = "1.0"),
+    Arg(name      = "--rule-learning-strategy", valueType = "String", text = "Specifies a rule construction strategy. " +
+      "Available options are:\n'hoeffding': Learn rules in a top-down fashion using Hoeffding tests on literals drawn from " +
+      "a bottom rule.\n'subsets': Generate all subsets of a bottom rule up to a max rule length (currently the length is " +
+      "hard-coded in the maxClauseLength variable of the orl.learning.Learner class).\n'tr': Use non-monotonic theory " +
+      "revision techniques to specialize rules in response to mistakes.", default = "hoeffding"),
+    Arg(name      = "--infogain", valueType = "Double", text = "Specialize if information gain exceeds this threshold.", default = "0.0000001"),
+  )
 
-  //--carry-last-inferred
   def checkData(dataInput: String, collection: String, trainOrTest: String) = {
     val msg = if (trainOrTest == "train") "train" else "test"
     // Check if it's a file
@@ -300,5 +308,7 @@ class RunningOptions(
     val adaLossFunction: String,
     val withEventCalculs: Boolean,
     val saveTheoryTo: String,
-    val test: String)
+    val test: String,
+    val ruleLearningStrategy: String,
+    val infoGainAtLeast: Double)
 

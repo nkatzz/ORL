@@ -18,9 +18,11 @@
 package orl.datahandling
 
 import java.io.File
+
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
 import com.typesafe.scalalogging.LazyLogging
+
 import scala.io.Source
 
 /**

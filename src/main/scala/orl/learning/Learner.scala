@@ -28,9 +28,6 @@ import orl.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
 import orl.logic.{Clause, Literal, LogicUtils}
 import orl.utils.Utils.{underline, underlineStars}
 
-import scala.io.Source
-import scala.util.matching.Regex
-
 /**
   * Created by nkatz at 13/12/19
   *
@@ -57,12 +54,25 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
 
   var avgNumberOfMistakesSoFar = 0.0
 
+  /**
+    * Maximum number of seed atoms (generated from mistakes) from which bottom clauses
+    * will be generated. Set to Double.PositiveInfinity to lift the restriction on the
+    * max seeds and used all atoms corresponding to mistakes.
+    */
+  val maxNumberOfSeedAtoms: Double = Double.PositiveInfinity // 20.0
+
+  /**
+    * This is used with the "subsets" specialization strategy, where all subsets of a bottom clause
+    * up to maxClauseLength are generated.
+    */
+  val maxClauseLength: Int = 5
+
   //private var previousPredicateCompletion = Set[WeightedFormula]()
   //private var previousCNF = Vector[lomrf.logic.Clause]()
 
   // Use a hand-crafted theory for debugging
   /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
-  val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test")
+  val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test-moving")
   val list = source.getLines.filter(line => !matches( """""".r, line) && !line.startsWith("%"))
   val rulesList = list.map(x => Clause.parse(x)).toList
   source.close

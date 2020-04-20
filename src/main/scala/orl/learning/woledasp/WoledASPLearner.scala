@@ -22,7 +22,7 @@ import java.text.DecimalFormat
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.datahandling.InputHandling.InputSource
-import orl.learning.{Learner, PruningSpecs}
+import orl.learning.{Learner, PruningSpecs, TheoryRevision}
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
@@ -38,8 +38,11 @@ import orl.utils.Utils.{underline, underlineStars}
   * This is a version of the WOLED algorithm that relies exclusively on ASP to learn structure
   * and weights for rules.
   */
-class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
-    testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
+class WoledASPLearner[T <: InputSource](
+    inps: RunningOptions,
+    trainingDataOptions: T,
+    testingDataOptions: T,
+    trainingDataFunction: T => Iterator[Example],
     testingDataFunction: T => Iterator[Example])
   extends Learner(inps, trainingDataOptions, testingDataOptions, trainingDataFunction, testingDataFunction) {
 
@@ -55,45 +58,121 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     */
   def getRulesForPrediction() = {
     val topRules = state.getTopTheory()
-    topRules flatMap { rule =>
-      // If the body is empty then use all specializations for prediction.
-      // These are 'level-1' specializations (a single literal in the body).
-      if (rule.body.isEmpty) rule.refinements //:+ rule
+    /*topRules flatMap { rule =>
+      if (rule.body.isEmpty) rule.refinements
       else List(rule)
+    }*/
+    topRules.filter(x => x.body.nonEmpty)
+  }
+
+  def process(_exmpl: Example) = {
+    if (inps.ruleLearningStrategy == "hoeffding") {
+      processDataHoeffding(_exmpl)
+    } else if (inps.ruleLearningStrategy == "subsets") {
+      processDataSubsets(_exmpl)
+    } else if (inps.ruleLearningStrategy == "tr") {
+      processTR(_exmpl)
+    } else {
+      logger.error("Specify a rule generation strategy")
+      System.exit(-1)
     }
   }
 
-  //val inferenceMetaProgram = "SAT"
+  /**
+    * Learns rules via non-monotonic theory revision techniques.
+    *
+    */
+  def processTR(_exmpl: Example) = {
 
-  def process(_exmpl: Example) = {
+    if (batchCount == 59) {
+      val stop = "stop"
+    }
 
-    /**
-      * TODO
-      *
-      * I'm doing this here (though we're not using LoMRF) to avoid the
-      * holdsAt(visible) predicate in the input, that messes everything up.
-      * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
-      * This is related to the meta-rules used for scoring the actual rules.
-      */
-    //var exmpl = WoledMLNLearnerUtils.dataToMLNFormat(_exmpl, inps)
     var exmpl = _exmpl
 
     if (inps.withInertia) {
       exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
     }
 
-    //val rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
-    //val rules = state.getAllRules(inps, "top")
+    var currentTheory = state.getTopTheory() //.filter(_.body.nonEmpty)
+    val initialTheory = currentTheory
 
-    var rulesCompressed = getRulesForPrediction()
+    val inference = new ASPWeightedInference(currentTheory, exmpl, inps)
+    val res = orl.utils.Utils.time{ inference.performInference() }
+    val inferenceTime = res._2
+    state.totalInferenceTime += inferenceTime
+    state.inferenceTime = state.inferenceTime :+ inferenceTime
+    var tpCounts = inference.TPs.size
+    var fpCounts = inference.FPs.size
+    var fnCounts = inference.FNs.size
+    val (tps, fps, fns) = (tpCounts, fpCounts, fnCounts)
 
-    /*rulesCompressed.filter(_.isTopRule) foreach { rule =>
-      println(s"Rule:${rule.tostring}\nSupport Set:\n  " +
-        s"${rule.supportSet.map(_.tostring).mkString("\n")}\nRefinements:\n  ${rule.refinements.map(_.tostring).mkString("\n")}")
-    }*/
+    val revise = fnCounts > 0 || inference.orphanFPs.nonEmpty // fpCounts > 0
 
-    //val rulesCompressed = LogicUtils.compressTheory(rules)
-    //val rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
+    inference.updateWeightsAndScore(batchCount)
+
+    if (!withHandCrafted && revise) {
+      val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
+      /*val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).
+        map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet*/
+      val atomsFromFNMistakes = sampleSeeds(inference.FNs.toVector).
+        map(x => x.replaceAll("holdsAt", "initiatedAt")).toSet
+
+      val mistakes = atomsFromFPMistakes ++ atomsFromFNMistakes
+      logger.info(s"Generating bottom clauses from ${mistakes.size} seed atoms...")
+      val _topRules = generateNewRulesConservative(currentTheory, exmpl, inps, mistakes)
+      val (topRules, bottomClauseTime) = (_topRules._1, _topRules._2)
+      val bcs = topRules.flatMap(_.supportSet)
+
+      val _currentTheory = currentTheory.map(x => (x, 0))
+      val (inducedRules, refinedRules, unchangedRules) = TheoryRevision.revise(_currentTheory, bcs, exmpl, inps)
+      val keep = state.getTopTheory().filter(x => unchangedRules.exists(_.## == x.##))
+
+      state.updateRules(keep ++ refinedRules, "replace", inps)
+      mergeAndUpdate(inducedRules.toList)
+
+      //val newTheory = keep ++ inducedRules ++ refinedRules
+      //state.updateRules(newTheory, "replace", inps)
+    }
+
+    var totalGroundings = 0
+    var scoringTime = 0.0
+    var secondInferenceTime = 0.0
+    var inert = Set.empty[Literal]
+
+    currentTheory = state.getTopTheory() //.filter(_.body.nonEmpty)
+
+    val inferenceNew = new ASPWeightedInference(currentTheory, exmpl, inps)
+    val res2 = orl.utils.Utils.time{ inferenceNew.performInference() }
+
+    secondInferenceTime = res2._2
+    state.inferenceTime = state.inferenceTime :+ secondInferenceTime
+    val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
+    scoringTime = _scoringTime
+
+    this.inertiaAtoms = inert
+    updateStats(tpCounts, fpCounts, fnCounts, totalGroundings) // Per batch error is updated here.
+    logger.info(batchInfoMsg(initialTheory, Nil, tps, fps, fns, inferenceTime + secondInferenceTime, scoringTime))
+  }
+
+  /**
+    * Uses Hoeffding bounds for new rule generation.
+    *
+    */
+  def processDataHoeffding(_exmpl: Example) = {
+
+    var totalGroundings = 0
+    var scoringTime = 0.0
+    var secondInferenceTime = 0.0
+    var inert = Set.empty[Literal]
+
+    var exmpl = _exmpl
+
+    if (inps.withInertia) {
+      exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
+    }
+
+    val rulesCompressed = getRulesForPrediction()
 
     /** Get the inferred state. */
     val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
@@ -102,7 +181,6 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     val inferenceTime = res._2
 
     state.totalInferenceTime += inferenceTime
-
     state.inferenceTime = state.inferenceTime :+ inferenceTime
 
     var tpCounts = inference.TPs.size
@@ -114,13 +192,12 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     var newRules = List.empty[Clause]
 
     /**
-      * EXPERIMENTAL: Try to update the weights of existing rules first, to avoid generating
-      * redundant rules in response to mistakes generated from low-weight rules
+      * Update the weights of existing rules first, to avoid generating
+      * redundant rules in response to mistakes generated from low-weight rules.
       */
-    /*=====================================================================================*/
-    inference.updateWeightsAndScore(batchCount)
 
-    // Attempt to expand existing rules.
+    val (_totalGroundings, _inertiaAtoms) = inference.updateWeightsAndScore(batchCount)
+
     if (!withHandCrafted) {
       val init = state.initiationRules
       val term = state.terminationRules
@@ -128,56 +205,32 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       state.updateRules(expandedTheory._1, "replace", inps)
     }
 
-    // Perform inference once again to see if mistakes are corrected by the weight
-    // updates & the specializations. If not, then generate new rules.
-
-    /*rulesCompressed = getRulesForPrediction()
-
-    val inferenceNew = new ASPWeightedInference(rulesCompressed, exmpl, inps)
-    orl.utils.Utils.time{ inferenceNew.performInference() }
-
-    tpCounts = inferenceNew.TPs.size
-    fpCounts = inferenceNew.FPs.size
-    fnCounts = inferenceNew.FNs.size*/
-    /*=====================================================================================*/
+    val induceNewRules = fnCounts > 2 || inference.orphanFPs.nonEmpty // fpCounts > 0
 
     /** Generate new rules from mistakes */
     if (!withHandCrafted) {
-      if (fpCounts > 0 || fnCounts > 0) {
+      if (induceNewRules) {
 
-        val atomsFromFPMistakes = inference.FPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
-        val atomsFromFNMistakes = inference.FNs.map(x => x.replaceAll("holdsAt", "initiatedAt"))
+        //val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
+        val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet
+        val atomsFromFNMistakes = sampleSeeds(inference.FNs.toVector).map(x => x.replaceAll("holdsAt", "initiatedAt")).toSet
 
-        newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
+        //newRules = generateNewRules_1(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRulesXHAIL(rulesCompressed, exmpl, inps)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
-        //val newRulesFiltered = newRules.filter(newRule => !rulesCompressed.exists(otherRule => newRule.thetaSubsumes(otherRule)))
-        //newRules = newRulesFiltered
+        //mergeAndUpdate(newRules)
+        //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
+        newRules = OldStructureLearningFunctions.generateNewRules(rulesCompressed, exmpl, inps)
         mergeAndUpdate(newRules)
         //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
+
       }
     }
 
-    var totalGroundings = 0
-    var scoringTime = 0.0
-    var secondInferenceTime = 0.0
-
-    var inert = Set.empty[Literal]
-
-    /** Update weights and coverage counts for existing and new rules. */
-
-    if (newRules.isEmpty) {
-      // We do this earlier, right after the prediction.
-      // In this case the theory is the same, we only need to count groundings in the inferred state.
-      val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inference.updateWeightsAndScore(batchCount))
-      totalGroundings = _totalGroundings
-      inert = _inertiaAtoms.toSet
-      scoringTime = _scoringTime
-    } else {
-
+    if (newRules.nonEmpty) {
       // In this case we need to preform inference again, this time with the augmented theory.
       val newRulesSpecializationsOnly = newRules.flatMap(_.refinements)
       val allRules = rulesCompressed ++ newRules ++ newRulesSpecializationsOnly // newRules
@@ -188,12 +241,14 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
 
       state.inferenceTime = state.inferenceTime :+ secondInferenceTime
 
-      val ((_totalGroundings, _inertiaAtoms), _scoringTime) =
-        orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
+      val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
 
       totalGroundings = _totalGroundings
       inert = _inertiaAtoms.toSet
       scoringTime = _scoringTime
+    } else {
+      totalGroundings = _totalGroundings
+      inert = _inertiaAtoms.toSet
     }
 
     this.inertiaAtoms = inert
@@ -203,20 +258,70 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     logger.info(batchInfoMsg(rulesCompressed, newRules, tps, fps, fns, inferenceTime + secondInferenceTime, scoringTime))
 
     if (!withHandCrafted) {
-      /** Attempt to expand existing rules. */
-      /*val init = state.initiationRules
-      val term = state.terminationRules
-      val expandedTheory = RuleExpansion.expandRules(init ++ term, inps, logger)
-
-      state.updateRules(expandedTheory._1, "replace", inps)*/
-
       if (inps.onlinePruning) {
         val pruningSpecs = new PruningSpecs(0.3, 2, 10000)
         state.lowQualityBasedPruning(pruningSpecs, inps, logger)
-        //state.subsumptionBasedPruning() // This never worked...
       }
-
     }
+
+    /*val testData = testingDataFunction(testingDataOptions)
+    evalOnTestSet(testData, state.getTopTheory().filter(_.body.nonEmpty), inps)*/
+  }
+
+  def sampleSeeds(seedAtoms: Vector[String]) = {
+    if (maxNumberOfSeedAtoms.isInfinite || maxNumberOfSeedAtoms >= seedAtoms.length) seedAtoms
+    else orl.utils.Utils.sampleN(maxNumberOfSeedAtoms.toInt, seedAtoms).map(_.toString)
+  }
+
+  /**
+    * Uses a very naive strategy to create new rules, generating all k-subsets of a bottom rule
+    * for 1 <= k <= Learner.maxClauseLength
+    *
+    */
+  def processDataSubsets(_exmpl: Example) = {
+    var exmpl = _exmpl
+    var rulesCompressed = state.getTopTheory()
+    val inference = new ASPWeightedInference(rulesCompressed, exmpl, inps)
+    val res = orl.utils.Utils.time{ inference.performInference() }
+    val inferenceTime = res._2
+    state.totalInferenceTime += inferenceTime
+    state.inferenceTime = state.inferenceTime :+ inferenceTime
+    var tpCounts = inference.TPs.size
+    var fpCounts = inference.FPs.size
+    var fnCounts = inference.FNs.size
+    val (tps, fps, fns) = (tpCounts, fpCounts, fnCounts)
+    inference.updateWeightsAndScore(batchCount)
+    val induceNewRules = fnCounts > 0 || inference.orphanFPs.nonEmpty // fpCounts > 0
+    var newRules = Vector.empty[Clause]
+    if (!withHandCrafted) {
+      if (induceNewRules) {
+        val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
+        /*val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).
+          map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet*/
+        val atomsFromFNMistakes = sampleSeeds(inference.FNs.toVector).
+          map(x => x.replaceAll("holdsAt", "initiatedAt")).toSet
+        newRules = generateNewRulesBCSubsets(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
+      }
+    }
+    var totalGroundings = 0
+    var scoringTime = 0.0
+    var secondInferenceTime = 0.0
+    var inert = Set.empty[Literal]
+    if (newRules.nonEmpty) {
+      // In this case we need to preform inference again, this time with the augmented theory.
+      val allRules = state.getTopTheory()
+      val inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
+      val res = orl.utils.Utils.time{ inferenceNew.performInference() }
+      secondInferenceTime = res._2
+      state.inferenceTime = state.inferenceTime :+ secondInferenceTime
+      val ((_totalGroundings, _inertiaAtoms), _scoringTime) = orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
+      scoringTime = _scoringTime
+    }
+
+    this.inertiaAtoms = inert
+    updateStats(tpCounts, fpCounts, fnCounts, totalGroundings) // Per batch error is updated here.
+    logger.info(batchInfoMsg(rulesCompressed, newRules.toList, tps, fps, fns, inferenceTime + secondInferenceTime, scoringTime))
+
   }
 
   /**
@@ -232,11 +337,41 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
   }
 
   def generateNewRules_1(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
-    val topRules = generateNewRulesConservative(existingTheory, ex, inps, mistakes)
+    logger.info(s"Generating bottom clauses from ${mistakes.size} seed atoms...")
+    val _topRules = generateNewRulesConservative(existingTheory, ex, inps, mistakes)
+    val (topRules, bottomClauseTime) = (_topRules._1, _topRules._2)
     val bcs = topRules.flatMap(_.supportSet)
     val inference = new ASPWeightedInference(existingTheory, ex, in, bcs)
-    inference.performInference()
+    val inf = orl.utils.Utils.time{ inference.performInference() }
+    val (_, inferenceTime) = (inf._1, inf._2)
+    logger.info("\n" + underline(s"BC generation time: $bottomClauseTime, New rule induction time: $inferenceTime"))
     inference.newClausesFromBCs
+  }
+
+  def generateNewRulesBCSubsets(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
+    logger.info(s"Generating bottom clauses from ${mistakes.size} seed atoms...")
+    val _topRules = generateNewRulesConservative(existingTheory, ex, inps, mistakes)
+    val (topRules, bottomClauseTime) = (_topRules._1, _topRules._2)
+    val bcs = topRules.flatMap(_.supportSet)
+    var allRules = existingTheory.toVector
+    var newRules = Vector.empty[Clause]
+    val newRulesTimed = orl.utils.Utils.time {
+      bcs foreach { currentBottomClause =>
+        val upto = if (maxClauseLength <= currentBottomClause.body.length) maxClauseLength else currentBottomClause.body.length
+        for (k <- 1 to maxClauseLength) {
+          currentBottomClause.body.toSet.subsets(k).foreach { bodySubset =>
+            val newRule = Clause(head = currentBottomClause.head, body = bodySubset.toList)
+            if (!existingTheory.exists(existingRule => existingRule.thetaSubsumes(newRule) && newRule.thetaSubsumes(existingRule))) {
+              allRules = allRules :+ newRule
+              newRules = newRules :+ newRule
+            }
+          }
+        }
+      }
+    }
+    logger.info("\n" + underline(s"BC generation time: $bottomClauseTime, New rule induction time: ${newRulesTimed._2}"))
+    state.updateRules(allRules.toList, "replace", inps)
+    newRules
   }
 
   /**
@@ -247,9 +382,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     * there is no abduction and these atoms are used instead.
     */
   def generateNewRulesConservative(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
-    OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps, mistakes)
     //val abd = new ASPWeightedInference(existingTheory, ex, inps)
     //abd.abduction()
+    orl.utils.Utils.time{ OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps, mistakes) }
   }
 
   // This doesn't seem to work, it doesn't fine the proper rules.
@@ -308,7 +443,9 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
           val newBottomRules = newRule.supportSet.filter(topRule.thetaSubsumes)
           if (newBottomRules.nonEmpty) {
             topRule.supportSet = topRule.supportSet ++ newRule.supportSet
-            topRule.generateCandidateRefs(inps.specializationDepth, inps.globals.comparisonPredicates)
+            if (inps.ruleLearningStrategy == "hoeffding") {
+              topRule.generateCandidateRefs(inps.specializationDepth, inps.globals.comparisonPredicates)
+            }
           }
           logger.info(s"\nNew rule:\n  ${newRule.tostring}\n  with support:\n  " +
             s"${newRule.supportSet.map(_.tostring).mkString("\n")} merged with existing rule:\n  ${topRule.tostring}")
@@ -367,13 +504,14 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       }
     }
 
-    val newRulesMessage = if (newRules.nonEmpty) newRulesMsg(fpCounts, fnCounts, newRules) else ""
+    //val newRulesMessage = if (newRules.nonEmpty) newRulesMsg(fpCounts, fnCounts, newRules) else ""
 
     val message = {
       if (!showTheory) {
         s"\n$batchMsg\n$theoryMsg"
       } else {
-        if (newRulesMessage == "") inferenceMsg else s"$inferenceMsg\n$newRulesMessage"
+        //if (newRulesMessage == "") inferenceMsg else inferenceMsg //s"$inferenceMsg\n$newRulesMessage"
+        inferenceMsg
       }
     }
 
@@ -445,6 +583,7 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         logger.info(s"Total inference time: ${state.totalInferenceTime}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
+          reIterateForWeightsOnly(theory)
           val testData = testingDataFunction(testingDataOptions)
           evalOnTestSet(testData, theory, inps)
         }
@@ -459,6 +598,18 @@ class WoledASPLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     } else { // Just to be on the safe side...
       throw new RuntimeException("This should never have happened (repeatFor is negative).")
     }
+  }
+
+  def reIterateForWeightsOnly(theory: List[Clause]) = {
+    val trainData = trainingDataFunction(trainingDataOptions)
+    trainData foreach { exmpl =>
+      println(theory.map(x => x.weight))
+      val inference = new ASPWeightedInference(theory, exmpl, inps)
+      inference.performInference()
+      inference.updateWeightsAndScore(batchCount)
+      batchCount += 1
+    }
+    theory
   }
 
   def evalOnTestSet(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {

@@ -124,15 +124,17 @@ class State(inps: RunningOptions) {
     rules foreach { rule =>
       rule.seenExmplsNum += newCount
       if (rule.supportSet.nonEmpty) rule.supportSet.head.seenExmplsNum += newCount
-      rule.refinements foreach { ref =>
-        ref.seenExmplsNum += newCount
-      }
+      rule.refinements foreach { ref => ref.seenExmplsNum += newCount }
     }
   }
 
   /* The "action" variable here is either "add" or "replace" */
   def updateRules(newRules: List[Clause], action: String, inps: RunningOptions) = {
-    newRules foreach { rule => if (rule.refinements.isEmpty) rule.generateCandidateRefs(specializationDepth, comparisonPredicates) }
+    if (inps.ruleLearningStrategy == "hoeffding") {
+      newRules foreach { rule =>
+        if (rule.refinements.isEmpty) rule.generateCandidateRefs(specializationDepth, comparisonPredicates)
+      }
+    }
     val (init, term) = newRules.partition(x => x.head.predSymbol == "initiatedAt")
     action match {
       case "add" =>

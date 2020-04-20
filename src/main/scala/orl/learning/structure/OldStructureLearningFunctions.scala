@@ -119,10 +119,10 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val bottomTheory = topTheory flatMap (x => x.supportSet)
 
-    val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
+    //val goodKernelRules = varKernel.filter(newBottomRule => !bottomTheory.exists(supportRule => newBottomRule.thetaSubsumes(supportRule)))
+    //goodKernelRules
 
-    goodKernelRules
-    //varKernel
+    varKernel
   }
 
   def generateNewBottomClauses(topTheory: List[Clause], e: Example, initorterm: String, globals: Globals) = {
@@ -514,36 +514,27 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       }
       if (solution.nonEmpty) {
         val kernelClause = Clause(x, body.toList.distinct)
-        kernelSet += kernelClause
+        val varbedBottomClause = kernelClause.varbed
+        // Remove redundant comparison literals for the variabilized kernel to simplify things.
+        val simplifiedBottomClause = simplifyRule(varbedBottomClause, globals)
+        //println(System.currentTimeMillis() + " NEW BOTTOM CLAUSE CANDIDATE...")
+        if (!kernelSet.exists(existing => simplifiedBottomClause.thetaSubsumes(existing))) {
+          //println(s"    GENERATED NEW BOTTOM CLAUSE!")
+          kernelSet += simplifiedBottomClause
+        }
+        //kernelSet += kernelClause
       }
 
     }
-    val _varKernel = kernelSet.map(x => x.varbed)
-
-    // Remove redundant comparison literals for the variabilized kernel to simplify things...
+    /*val _varKernel = kernelSet.map(x => x.varbed)
     val varKernel = _varKernel.map(x => simplifyRule(x, globals))
-
-    //val varKernel = _varKernel
-
-    val vlength = varKernel.length
-    val compressed = if (Globals.glvalues("compressKernels").toBoolean) compressTheory(varKernel.toList) else varKernel.toList
+    val compressed = compressTheory(varKernel.toList) else varKernel.toList
     compressed foreach (x => x.isBottomRule = true)
-    val clength = compressed.length
     val nonEmptyVarKernel = compressed.filter(x => x.body.nonEmpty)
-    //val nonEmptyKernel = kernelSet.filter(x => x.body.nonEmpty)
+    if (nonEmptyVarKernel.nonEmpty) logger.info(s"Created Kernel set")*/
 
-    if (nonEmptyVarKernel.nonEmpty) {
-      //logger.info(s"Created Kernel set:\n${nonEmptyVarKernel.map(x => x.tostring).mkString("\n")}")
-
-      logger.info(s"Created Kernel set")
-
-      logger.debug("\n------------------------------------------------------------------------------------\n" +
-        s"Kernel Set (Ground---Variabilized($vlength clauses)---Compressed($clength clauses)):" +
-        "\n------------------------------------------------------------------------------------\n" +
-        showTheory(kernelSet.toList) + "\n\n" + showTheory(varKernel.toList) + "\n\n" + showTheory(compressed.toList))
-      //println(Theory(kernelSet.toList).tostring)
-    }
-
+    val compressed = kernelSet.toList
+    //println(s"FINISHED KERNEL SET!")
     (kernelSet.toList, compressed)
   }
 

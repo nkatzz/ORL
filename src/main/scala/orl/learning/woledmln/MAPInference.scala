@@ -48,6 +48,10 @@ object MAPInference {
 
   def solve(rules: List[Clause], e: Example, inertiaAtoms: Set[Literal], inps: RunningOptions, batchCount: Int = 0): MapInferenceResult = {
 
+    /**
+      * FOR THIS TO WORK ITS NECESSARY TO HAVE A fluent_all DEFINITION IN THE BK WITHOUT RESTRICTIONS (SUCH X!=Y)
+      */
+
     val queryAtoms = Set(
       AtomSignature("HoldsAt", 2),
       AtomSignature("InitiatedAt", 2),
@@ -114,12 +118,12 @@ object MAPInference {
     }
 
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "active", Vector("ref"))
-    evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "appear", Vector("ref"))
+    evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "enter", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "inactive", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "walking", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "abrupt", Vector("ref"))
     evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "running", Vector("ref"))
-    evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "disappear", Vector("ref"))
+    evidenceBuilder.functions += new FunctionMapping("ADSANdlj", "exit", Vector("ref"))
 
     for (atom <- mlnEvidenceAtoms) {
       val predicate = atom.predSymbol

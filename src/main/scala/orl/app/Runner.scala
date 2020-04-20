@@ -55,8 +55,12 @@ object Runner extends LazyLogging {
         /**
           * Single-pass run on the entire dataset
           */
-        val trainingDataOptions = new MongoDataOptions(dbNames       = train1,
-                                                       chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+        val trainingDataOptions = new MongoDataOptions(
+          dbNames       = train1,
+          chunkSize     = runningOptions.chunkSize,
+          targetConcept = runningOptions.targetHLE,
+          sortDbByField = "time", what = "training"
+        )
 
         val testingDataOptions = trainingDataOptions
 
@@ -99,13 +103,19 @@ object Runner extends LazyLogging {
 
         val testingData = dataset._2
 
-        val trainingDataOptions =
-          new MongoDataOptions(dbNames       = trainingData,
-                               chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
+        val trainingDataOptions = new MongoDataOptions(
+          dbNames       = trainingData,
+          chunkSize     = runningOptions.chunkSize,
+          targetConcept = runningOptions.targetHLE,
+          sortDbByField = "time", what = "training"
+        )
 
-        val testingDataOptions =
-          new MongoDataOptions(dbNames       = testingData,
-                               chunkSize     = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
+        val testingDataOptions = new MongoDataOptions(
+          dbNames       = testingData,
+          chunkSize     = runningOptions.chunkSize,
+          targetConcept = runningOptions.targetHLE,
+          sortDbByField = "time", what = "testing"
+        )
 
         val trainingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
         val testingDataFunction: MongoDataOptions => Iterator[Example] = InputHandling.getMongoData
@@ -118,38 +128,7 @@ object Runner extends LazyLogging {
                                testingDataOptions, trainingDataFunction, testingDataFunction)), name = "LocalCoordinator")
 
         coordinator ! startMsg
-
       }
-
-      /*----------------------------*/
-      /*Eval on test set in the end:*/
-      /*----------------------------*/
-      /*val caviarNum = args.find(x => x.startsWith("caviar-num")).get.split("=")(1)
-
-      val trainSet = Map(1 -> MeetingTrainTestSets.meeting1, 2 -> MeetingTrainTestSets.meeting2, 3 -> MeetingTrainTestSets.meeting3,
-        4 -> MeetingTrainTestSets.meeting4, 5 -> MeetingTrainTestSets.meeting5, 6 -> MeetingTrainTestSets.meeting6,
-        7 -> MeetingTrainTestSets.meeting7, 8 -> MeetingTrainTestSets.meeting8, 9 -> MeetingTrainTestSets.meeting9,
-        10 -> MeetingTrainTestSets.meeting10)
-
-      val dataset = trainSet(caviarNum.toInt)
-
-      val trainingDataOptions =
-        new MongoDataOptions(dbNames = dataset._1,//trainShuffled, //
-          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "training")
-
-      val testingDataOptions =
-        new MongoDataOptions(dbNames = dataset._2,
-          chunkSize = runningOptions.chunkSize, targetConcept = runningOptions.targetHLE, sortDbByField = "time", what = "testing")
-
-      val trainingDataFunction: MongoDataOptions => Iterator[Example] = FullDatasetHoldOut.getMongoData
-      val testingDataFunction: MongoDataOptions => Iterator[Example] = FullDatasetHoldOut.getMongoData
-
-      val system = ActorSystem("HoeffdingLearningSystem")
-      val startMsg = "start"
-
-      system.actorOf(Props(new Dispatcher(runningOptions, trainingDataOptions, testingDataOptions,
-        trainingDataFunction, testingDataFunction) ), name = "Learner") ! startMsg*/
-
     } else {
       logger.error(argsok._2)
       System.exit(-1)

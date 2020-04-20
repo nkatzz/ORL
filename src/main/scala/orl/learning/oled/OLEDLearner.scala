@@ -50,7 +50,9 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     var inferenceTime = 0.0
     var scoringTime = 0.0
 
-    rulesCompressed = state.getBestRules(inps.globals, "score") //.filter(x => x.score(inps.scoringFun) >= 0.9)
+    //rulesCompressed = state.getBestRules(inps.globals, "score") //.filter(_.precision >= 0.9)
+    //rulesCompressed = state.getAllRules(inps, "top")
+    rulesCompressed = state.getTopTheory().filter(x => x.body.nonEmpty && x.precision >= inps.pruneThreshold)
 
     if (rulesCompressed.nonEmpty) {
       val inferredState = ASPSolver.crispLogicInference(rulesCompressed, exmpl, inps.globals)
@@ -92,13 +94,15 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
         //This is the "correct one" so far.
         val theory = rulesCompressed
         val newRules = OldStructureLearningFunctions.generateNewRules(theory, exmpl, inps)
+        //val newRules = OldStructureLearningFunctions.generateNewRules(Nil, exmpl, inps)
         val (init, term) = newRules.partition(x => x.head.predSymbol == "initiatedAt")
 
-        newInit = init //.filter(p => !state.isBlackListed(p))
-        newTerm = term //.filter(p => !state.isBlackListed(p))
+        newInit = init
+        newTerm = term
 
         val allNew = newInit ++ newTerm
         if (allNew.nonEmpty) WoledMLNLearnerUtils.showNewRulesMsg(fpCounts, fnCounts, allNew, logger)
+        //mergeAndUpdate(allNew)
         state.updateRules(newInit ++ newTerm, "add", inps)
 
       }
@@ -152,6 +156,54 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
   }
 
   /**
+    * For each generated new rule r, either merge its support with an existing r', such that r' subsumes r,
+    * or add r' to the current top theory (update the state).
+    */
+  def mergeAndUpdate(newRules: List[Clause]) = {
+    val topRules = state.getTopTheory().filter(_.body.nonEmpty)
+
+    val actuallyNewRules = newRules.foldLeft(Vector.empty[Clause]) { (accum, newRule) =>
+      var merge = false
+      topRules foreach { topRule =>
+        /*if (topRule.thetaSubsumes(newRule)) {
+          // Just merge the support sets and generate refinements again.
+          topRule.supportSet = topRule.supportSet ++ newRule.supportSet
+          topRule.generateCandidateRefs(inps.specializationDepth, inps.globals.comparisonPredicates)
+          logger.info(s"\nNew rule:\n  ${newRule.tostring}\n  with support:\n  " +
+            s"${newRule.supportSet.map(_.tostring).mkString("\n")} merged with existing rule:\n  ${topRule.tostring}")
+          merge = true
+        }*/
+
+        /**
+          * Do this only for rules with a non-empty body, its too dangerous to merge ones
+          * with empty body cause many interesting stuff may be missed
+          */
+        if (newRule.body.nonEmpty && newRule.thetaSubsumes(topRule)) {
+          // Just merge the support sets and generate refinements again.
+          val newBottomRules = newRule.supportSet.filter(topRule.thetaSubsumes)
+          if (newBottomRules.nonEmpty) {
+            topRule.supportSet = topRule.supportSet ++ newRule.supportSet
+            if (inps.ruleLearningStrategy == "hoeffding") {
+              topRule.generateCandidateRefs(inps.specializationDepth, inps.globals.comparisonPredicates)
+            }
+          }
+          logger.info(s"\nNew rule:\n  ${newRule.tostring}\n  with support:\n  " +
+            s"${newRule.supportSet.map(_.tostring).mkString("\n")} merged with existing rule:\n  ${topRule.tostring}")
+          merge = true
+        }
+
+      }
+      if (merge) accum else accum :+ newRule
+    }
+
+    actuallyNewRules foreach { newRule =>
+      logger.info(s"\nCreated new rule:\n  ${newRule.tostring}\n  with support:\n  " +
+        s"${newRule.supportSet.map(_.tostring).mkString("\n")}")
+      state.updateRules(List(newRule), "add", inps)
+    }
+  }
+
+  /**
     * Prints statistics & evaluates on test set (if one provided)
     */
   def wrapUp() = {
@@ -164,7 +216,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
       showStats(theory)
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-        val finalRules = rescore()
+        val finalRules = rescore() //rescoreOld()
         logger.info(s"\nTheory after pruning:\n${LogicUtils.showTheoryWithStats(finalRules, inps.scoringFun, inps.weightLean)}")
         val testData = testingDataFunction(testingDataOptions)
         evalOnTestSet(testData, finalRules, inps)
@@ -235,12 +287,30 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
   def rescore() = {
     logger.info("Eval on test set")
     val data = trainingDataFunction(trainingDataOptions)
-    val rules = state.getTopTheory()
+    val rules = orl.logic.LogicUtils.compressTheory(state.getTopTheory().filter(_.body.nonEmpty))
+    rules foreach (_.clearStatistics)
     data foreach { batch =>
       val inferredState = ASPSolver.crispLogicInference(rules, batch, inps.globals)
-      WoledMLNLearnerUtils.scoreAndUpdateWeights(batch, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
+      //WoledMLNLearnerUtils.scoreAndUpdateWeights(batch, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
+      WoledMLNLearnerUtils.scoreAndUpdateWeights(batch, inferredState, rules.toVector, inps, logger)
     }
     rules.filter(x => x.precision >= inps.pruneThreshold)
+  }
+
+  /**
+    * Rule scoring in the old OLED way.
+    */
+  def rescoreOld() = {
+    logger.info("Eval on test set (old)")
+    var data = trainingDataFunction(trainingDataOptions)
+    val rules = orl.logic.LogicUtils.compressTheory(state.getTopTheory().filter(_.body.nonEmpty))
+    //val rules = orl.logic.LogicUtils.compressTheory(state.getAllRules(inps, "all"))
+    rules foreach (_.clearStatistics)
+    val (init, term) = rules.partition(x => x.head.predSymbol == "initiatedAt")
+    val _init = orl.learning.LearnUtils.reScoreAndPrune(init, inps, data)
+    data = trainingDataFunction(trainingDataOptions)
+    val _term = orl.learning.LearnUtils.reScoreAndPrune(term, inps, data)
+    _init ++ _term
   }
 
 }

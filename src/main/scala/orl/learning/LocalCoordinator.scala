@@ -30,8 +30,11 @@ import orl.learning.woledmln.WoledMLNLearner
   * Created by nkatz at 13/12/19
   */
 
-class LocalCoordinator[T <: InputSource](inps: RunningOptions, trainingDataOptions: T,
-    testingDataOptions: T, trainingDataFunction: T => Iterator[Example],
+class LocalCoordinator[T <: InputSource](
+    inps: RunningOptions,
+    trainingDataOptions: T,
+    testingDataOptions: T,
+    trainingDataFunction: T => Iterator[Example],
     testingDataFunction: T => Iterator[Example]) extends Actor {
 
   //val mode = "MLN"

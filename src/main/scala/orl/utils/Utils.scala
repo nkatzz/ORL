@@ -91,9 +91,12 @@ object Utils {
     f(x, 1)
   }
 
-  def sampleN(N: Int, sampleFrom: List[Any]) = {
+  /**
+    * Randomly draw N distinct elements from a vector
+    */
+  def sampleN(N: Int, sampleFrom: Vector[Any]) = {
       @tailrec
-      def sampleN(N: Int, sampleFrom: List[Any], sample: List[Any]): List[Any] = {
+      def sampleN(N: Int, sampleFrom: Vector[Any], sample: Vector[Any]): Vector[Any] = {
         sample.length match {
           case N => sample
           case _ =>
@@ -102,7 +105,13 @@ object Utils {
             sampleN(N, sampleFrom, newSample)
         }
       }
-    sampleN(N, sampleFrom, List())
+    sampleN(N, sampleFrom, Vector())
+  }
+
+  def main(args: Array[String]) = {
+    println(sampleN(10, Vector("a", "b", "c", "d", "e", "f", "g", "h", "i", "g", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t")))
+    val x = Double.PositiveInfinity
+    println(x.isInfinite)
   }
 
   def underline(x: String) = {

@@ -313,10 +313,15 @@ class Globals(val entryPath: String) extends LazyLogging {
     //private val PY_LESSTHAN =
     //  "#script (python)\nfrom gringo import Fun\nimport math\n\ndef less_than(x,y):\n    return float(x) < float(y)\n\n#end."
 
-    val EC_AXIOM_1 = "holdsAt(F,Te) :- fluent(F), not sdFluent(F), initiatedAt(F,Ts), next(Ts, Te)."
-    val EC_AXIOM_2 = "holdsAt(F,Te) :- fluent(F), not sdFluent(F), holdsAt(F,Ts), " +
-      "not terminatedAt(F,Ts), next(Ts, Te)."
-    //private val RIGHT_BEFORE_DEF = "right_before(X,Z) :- time(X), time(Z), Z = X+40."
+    val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te)."
+    val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
+
+    /*val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te).\n" +
+      "-holdsAt(F,Te) :- terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
+
+    val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), next(Ts, Te).\n" +
+      "-holdsAt(F,Te) :- -holdsAt(F,Ts), not initiatedAt(F,Ts), fluent(F), next(Ts, Te)."*/
+
     ///*
     /*val RIGHT_BEFORE_DEF ="\n#script (python)\ntimes = []\ndef collect_all(a):\n    times.append(a)\n    " +
       "return 1\ndef sorted():\n    times.sort()\n    return zip(range(len(times)), times)\n#end.\ncollect_all." +

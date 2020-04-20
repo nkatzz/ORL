@@ -54,8 +54,8 @@ object RuleExpansion {
               if (secondBest != parentRule) (best.score(scoreFun) > parentRule.score(scoreFun)) && (best.score(scoreFun) - parentRule.score(scoreFun) > epsilon)
               else best.score(scoreFun) > parentRule.score(scoreFun)
             } else {
-              // We want the refinement to have some gain. We do not expand for no gain
-              best.score(scoreFun) > 0 //true
+              // We want the refinement to have some gain, do not expand for no gain.
+              best.score(scoreFun) > inps.infoGainAtLeast
             }
 
           extraTest match { //&& (1.0/best.body.size+1 > 1.0/parentRule.body.size+1) match {

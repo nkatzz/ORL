@@ -20,6 +20,7 @@ package orl.logic
 import java.text.DecimalFormat
 import java.util.UUID
 
+import com.typesafe.scalalogging.LazyLogging
 import orl.logic.parsers.PB2LogicParser
 
 import scala.collection.mutable.ListBuffer
@@ -60,7 +61,7 @@ object Clause {
 case class Clause(
     head: Literal = Literal(),
     body: List[Literal] = Nil,
-    uuid: String = UUID.randomUUID.toString) extends LogicalExpression {
+    uuid: String = UUID.randomUUID.toString) extends LogicalExpression with LazyLogging {
 
   var parentClause: Clause = Clause.empty
   var isBottomRule = false
@@ -69,36 +70,63 @@ case class Clause(
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
 
+  /**
+    * Subgradient variables for AdaGrad and Adam.
+    *
+    */
   var adamGradient = 0.0
   var adamSquareSubgradient = 0.0
 
+  /**
+    * Counts of TP, FP, FN and TN groundings of this clause.
+    *
+    */
   var tps: Int = 0
   var fps: Int = 0
   var fns: Int = 0
   var tns: Int = 0
 
-  // The actual number of groundings of the clause (when learning weights the sum of tps+fps)
-  // is the number of groundings inferred as true (the inference process opts to satsify the clause)
-  // and this sum is only a fragment of the actual number of groundings.
+  /**
+    * The actual number of groundings of the clause (when learning weights the sum of tps+fps)
+    * is the number of groundings inferred as true (the inference process opts to satsify the clause)
+    * and this sum is only a fragment of the actual number of groundings.
+    *
+    */
   var actualGroundings: Int = 0
 
+  /**
+    * This variable holds the list of candidate specialization for this clause.
+    */
   var refinements = List.empty[Clause]
   var seenExmplsNum = 0 // The number of examples until the Hoeffding test succeeds
   var supportSet: List[Clause] = Nil
-
-  lazy val length: Int = this.body.length + 1
 
   def format(x: Double) = {
     val defaultNumFormat = new DecimalFormat("0.############")
     defaultNumFormat.format(x)
   }
 
+  /**
+    * Add a rule to the support set.
+    * @param c the rule to add.
+    */
   def addToSupport(c: Clause) = this.supportSet = this.supportSet :+ c
 
+  /**
+    * Add a list of rules to the support set.
+    * @param c the rules to add.
+    */
   def addToSupport(c: List[Clause]) = this.supportSet = this.supportSet ++ c
 
+  /**
+    * Remove a rule from the support set.
+    * @param c the rule to remove.
+    */
   def removeFromSupport(c: Clause) = this.supportSet = this.supportSet.filter(x => x != c)
 
+  /**
+    * Removes redundant rules from the support set.
+    */
   def compressSupport = {
     val redundants = this.supportSet filter {
       p =>
@@ -109,6 +137,34 @@ case class Clause(
     this.supportSet = this.supportSet filter (p => !redundants.contains(p))
   }
 
+  /**
+    * Retrieves a specific literal from the body of the support set.
+    * The numbering of the support rule and the support literal indexes starts from 1.
+    * @param supportRuleId the index (in the support set) of the support rule the literal belongs to.
+    * @param supportLiteralId the index of the requested literal in the body of the corresponding support rule.
+    */
+  def getSupportLiteral(supportRuleId: Int, supportLiteralId: Int) = {
+
+    val indexed = (1 to supportSet.length) zip supportSet toMap
+
+    val supportRule = {
+      if (indexed.keySet.contains(supportRuleId)) indexed(supportRuleId)
+      else throw new RuntimeException("Support rule not found.")
+    }
+
+    val indexed1 = (1 to supportRule.body.length) zip supportRule.body toMap
+
+    val supportLiteral = {
+      if (indexed1.keySet.contains(supportLiteralId)) indexed1(supportLiteralId)
+      else throw new RuntimeException("Support literal not found.")
+    }
+    supportLiteral
+  }
+
+  /**
+    * Print this clause with several statistics.
+    *
+    */
   def showWithStats(scoreFun: String, showWeights: Boolean = true) = {
     if (showWeights) {
       s"Precision:" + s" ${this.precision}, TPs: $tps, FPs: $fps, FNs: $fns | " +
@@ -118,6 +174,10 @@ case class Clause(
     }
   }
 
+  /**
+    * Print this clause with several statistics.
+    *
+    */
   def showWithStatsFormal(scoreFun: String, showWeights: Boolean = true) = {
     if (showWeights) {
       s"Precision:" + s" ${this.precision}, TPs: $tps, FPs: $fps, FNs: $fns | " +
@@ -127,6 +187,11 @@ case class Clause(
     }
   }
 
+  /**
+    * Theta subsumption check between this clause and another.
+    * @param that check is this clause subsumes that.
+    *
+    */
   def thetaSubsumes(that: Clause): Boolean = {
 
       def isSubset(x: Set[Any], y: Set[Any]): Boolean = x subsetOf y
@@ -151,15 +216,30 @@ case class Clause(
     }
   }
 
+  /**
+    * Theta subsumption check for a collection of clauses.
+    *
+    */
   def thetaSubsumes(t: Iterable[Clause]): Boolean = t.forall(x => this.thetaSubsumes(x))
 
+  /**
+    * Returns the list of variables for this clause.
+    */
   def getVars = {
     val vars = this.head.getVars
     for (x <- this.body) vars ++= x.getVars.filter { x => !vars.contains(x) }
     vars.toList
   }
 
+  /**
+    * this as a string list.
+    */
   def toStrList: List[String] = List(head.tostring) ++ (for (x <- body) yield x.tostring)
+
+  /**
+    * this as a literal list.
+    */
+  def toLiteralList = List(head) ++ (for (x <- body) yield x)
 
   /**
     * Replaces all variables with a new constant symbol 'skolem0', 'skolem1' etc. Same variables correspond to the
@@ -178,7 +258,6 @@ case class Clause(
     * Returns the skolemised clause and the 'vars -> skolems' map
     *
     */
-
   def skolemise: (Clause, Map[String, String]) = {
     val l = this.toLiteralList
     val skmap = this.getSkolemConsts
@@ -211,8 +290,6 @@ case class Clause(
     }
     skolems.toMap
   }
-
-  def toLiteralList = List(head) ++ (for (x <- body) yield x)
 
   def clearStatistics = {
     tps = 0
@@ -292,7 +369,20 @@ case class Clause(
 
   def meanDiff(scoringFunction: String) = {
 
-    val isEligibleForSpecialization = this.body.length < this.supportSet.head.body.length && this.refinements.nonEmpty
+    val isEligibleForSpecialization = {
+      if (this.supportSet.nonEmpty) {
+        this.body.length < this.supportSet.head.body.length && this.refinements.nonEmpty
+      } else {
+        false
+      }
+    }
+
+    /** DEBUG */
+    /*println(s"Top rule:\n${this.tostring}")
+    println(s"Support set:\n${this.supportSet.map(x => x.tostring).mkString("\n")}")
+    println(s"Refinements:\n${this.refinements.map(x => x.tostring).mkString("\n")}")
+    println(s"isEligibleForSpecialization: $isEligibleForSpecialization")*/
+    /** DEBUG */
 
     if (!isEligibleForSpecialization) {
       (0.0, this, this)
@@ -307,20 +397,24 @@ case class Clause(
           (List(this) ++ this.refinements).sortBy { x => (-x.score(scoringFunction), -x.precision, -x.weight, x.body.length) }
 
       val bestTwo = allSorted.take(2)
+      if (bestTwo.nonEmpty) {
 
-      //val (best,secondBest) = (bestTwo.head,bestTwo.tail.head)
-      // The correct way to do it is as the commented one above. But in some cases
-      // the refinements lists is empty (this has only occurred when I use basic and auxiliary predicates in fraud).
-      // This should be handled generically, a clause with no candidate refs should not be considered for specialization
-      val (best, secondBest) =
-        if (bestTwo.length > 1) (bestTwo.head, bestTwo.tail.head) else (bestTwo.head, bestTwo.head)
-      val newDiff = best.score(scoringFunction) - secondBest.score(scoringFunction)
-      val newMeanDiff = ((previousMeanDiff * previousMeanDiffCount) + newDiff) / (previousMeanDiffCount + 1)
+        //val (best,secondBest) = (bestTwo.head,bestTwo.tail.head)
+        // The correct way to do it is as the commented one above. But in some cases
+        // the refinements lists is empty (this has only occurred when I use basic and auxiliary predicates in fraud).
+        // This should be handled generically, a clause with no candidate refs should not be considered for specialization
+        val (best, secondBest) =
+          if (bestTwo.length > 1) (bestTwo.head, bestTwo.tail.head) else (bestTwo.head, bestTwo.head)
+        val newDiff = best.score(scoringFunction) - secondBest.score(scoringFunction)
+        val newMeanDiff = ((previousMeanDiff * previousMeanDiffCount) + newDiff) / (previousMeanDiffCount + 1)
 
-      previousMeanDiffCount += 1
-      previousMeanDiff = newMeanDiff
+        previousMeanDiffCount += 1
+        previousMeanDiff = newMeanDiff
 
-      (newMeanDiff, best, secondBest)
+        (newMeanDiff, best, secondBest)
+      } else {
+        (0.0, this, this)
+      }
     }
   }
 
