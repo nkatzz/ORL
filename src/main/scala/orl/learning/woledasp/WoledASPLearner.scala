@@ -205,11 +205,12 @@ class WoledASPLearner[T <: InputSource](
       state.updateRules(expandedTheory._1, "replace", inps)
     }
 
-    val induceNewRules = fnCounts > 2 || inference.orphanFPs.nonEmpty // fpCounts > 0
+    //val induceNewRules = fnCounts > 2 || inference.orphanFPs.nonEmpty // fpCounts > 0
+    val induceNewRules = fnCounts > 0 || fpCounts > 0
 
     /** Generate new rules from mistakes */
     if (!withHandCrafted) {
-      if (induceNewRules) {
+      if (induceNewRules) { //
 
         //val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
         val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet
@@ -224,8 +225,8 @@ class WoledASPLearner[T <: InputSource](
         //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
         newRules = OldStructureLearningFunctions.generateNewRules(rulesCompressed, exmpl, inps)
-        mergeAndUpdate(newRules)
-        //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
+        //mergeAndUpdate(newRules)
+        if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
       }
     }
@@ -233,7 +234,7 @@ class WoledASPLearner[T <: InputSource](
     if (newRules.nonEmpty) {
       // In this case we need to preform inference again, this time with the augmented theory.
       val newRulesSpecializationsOnly = newRules.flatMap(_.refinements)
-      val allRules = rulesCompressed ++ newRules ++ newRulesSpecializationsOnly // newRules
+      val allRules = rulesCompressed ++ newRules //++ newRulesSpecializationsOnly // newRules
 
       val inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
       val res = orl.utils.Utils.time{ inferenceNew.performInference() }
@@ -575,7 +576,7 @@ class WoledASPLearner[T <: InputSource](
       def iterationWrapUp() = {
         //val theory = getRulesForPrediction()
         //val theory = LogicUtils.compressTheoryKeepMoreSpecific(state.getTopTheory().filter(x => x.body.nonEmpty).filter(x => x.actualGroundings > 2000))
-        val theory = state.getTopTheory().filter(x => x.body.nonEmpty) //.filter(x => x.seenExmplsNum > 10000)
+        var theory = orl.logic.LogicUtils.compressTheory(state.getTopTheory().filter(x => x.body.nonEmpty)) //.filter(x => x.seenExmplsNum > 10000)
 
         showStats(theory)
 
@@ -583,7 +584,7 @@ class WoledASPLearner[T <: InputSource](
         logger.info(s"Total inference time: ${state.totalInferenceTime}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-          reIterateForWeightsOnly(theory)
+          theory = reIterateForWeightsOnly(theory)
           val testData = testingDataFunction(testingDataOptions)
           evalOnTestSet(testData, theory, inps)
         }
@@ -602,14 +603,15 @@ class WoledASPLearner[T <: InputSource](
 
   def reIterateForWeightsOnly(theory: List[Clause]) = {
     val trainData = trainingDataFunction(trainingDataOptions)
+    theory.foreach(_.clearStatistics)
+    theory.foreach(_.weight = 0.0)
     trainData foreach { exmpl =>
-      println(theory.map(x => x.weight))
       val inference = new ASPWeightedInference(theory, exmpl, inps)
       inference.performInference()
       inference.updateWeightsAndScore(batchCount)
       batchCount += 1
     }
-    theory
+    theory //.filter(x => x.precision >= inps.pruneThreshold)
   }
 
   def evalOnTestSet(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {

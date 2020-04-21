@@ -104,6 +104,9 @@ object BK {
       |    satisfied(terminatedAt(F,T),RuleId).
       |    %not predicted(holdsAt(F,Te)), next(T,Te).
       |
+      |%:- satisfied(initiatedAt(F,T),RuleId), ruleId(RuleId), not predicted(holdsAt(F,Te)), next(T,Te).
+      |%:- satisfied(terminatedAt(F,T),RuleId), ruleId(RuleId), predicted(holdsAt(F,Te)), next(T,Te).
+      |
       |% All true groundings.
       |trueGrounding(F,T,RuleId) :- trueGroundingInit(F,T,RuleId), fluent(F), time(T).
       |trueGrounding(F,T,RuleId) :- trueGroundingTerm(F,T,RuleId), fluent(F), time(T).

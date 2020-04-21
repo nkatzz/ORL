@@ -54,6 +54,8 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
 
   var avgNumberOfMistakesSoFar = 0.0
 
+  var trainingTime = 0.0
+
   /**
     * Maximum number of seed atoms (generated from mistakes) from which bottom clauses
     * will be generated. Set to Double.PositiveInfinity to lift the restriction on the
@@ -65,7 +67,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
     * This is used with the "subsets" specialization strategy, where all subsets of a bottom clause
     * up to maxClauseLength are generated.
     */
-  val maxClauseLength: Int = 5
+  val maxClauseLength: Int = 4
 
   //private var previousPredicateCompletion = Set[WeightedFormula]()
   //private var previousCNF = Vector[lomrf.logic.Clause]()
@@ -73,7 +75,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   // Use a hand-crafted theory for debugging
   /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
   val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test-moving")
-  val list = source.getLines.filter(line => !matches( """""".r, line) && !line.startsWith("%"))
+  val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%"))
   val rulesList = list.map(x => Clause.parse(x)).toList
   source.close
   state.updateRules(rulesList, "add", inps)
@@ -191,6 +193,8 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
 
     val endTime = System.nanoTime()
     val totalTime = (endTime - startTime) / 1000000000.0
+
+    trainingTime = totalTime
 
     logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun, inps.weightLean)}\nTraining time: $totalTime")
     logger.info(s"Mistakes per batch:\n${state.perBatchError}")

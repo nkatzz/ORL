@@ -542,18 +542,18 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
 
     val trueState = exmpl.queryAtoms.toSet
     val inferredState = inferredAtoms
-    /*val (inferredNeg, inferredState_) = inferredState.partition(x => x.startsWith("-"))
+    /*val (inferredNeg, inferredState_) = inferredState.partition(x => x.startsWith("-holdsAt"))
 
     println(inferredState+"\n")
     println(inferredState_)
 
     if (inferredNeg.nonEmpty) {
       val stop = "stop"
-    }*/
+    }
 
-    val inferredState_ = inferredState
+    //val inferredState_ = inferredState
 
-    /*val tps = trueState.intersect(inferredState_)
+    val tps = trueState.intersect(inferredState_)
     val fps = inferredState_.diff(trueState)
     val fns = trueState.diff(inferredState_)*/
 
@@ -574,8 +574,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   }
 
   def getTypePredicates(rule: Clause): List[Literal] = {
-    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-    List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
+    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
   }
 
   private def getTypePredicates(lit: Literal) = {

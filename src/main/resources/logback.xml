@@ -29,8 +29,8 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <!-- <root level="debug"> -->
-    <root level="info">
+    <!-- <root level="debug"> "info" -->
+    <root level="off">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>

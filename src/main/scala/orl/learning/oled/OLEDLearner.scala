@@ -216,7 +216,8 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
       showStats(theory)
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-        val finalRules = rescore() //rescoreOld()
+        val finalRules = rescore()
+        //val finalRules = theory
         logger.info(s"\nTheory after pruning:\n${LogicUtils.showTheoryWithStats(finalRules, inps.scoringFun, inps.weightLean)}")
         val testData = testingDataFunction(testingDataOptions)
         evalOnTestSet(testData, finalRules, inps)
@@ -234,14 +235,26 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
       def evaluateTheory(theory: List[Clause], e: Example, handCraftedTheoryFile: String = "") = {
         val globals = inps.globals
         val modes = globals.MODEHS ++ globals.MODEBS
-        val coverageConstr = s"${globals.TPS_RULES}\n${globals.FPS_RULES}\n${globals.FNS_RULES}"
+
+          def typePreds(lit: Literal) = {
+            lit.getVars.map(x => Literal.parse(s"${x._type}(${x.name})")).map(x => x.tostring).mkString(",")
+          }
+
+        val tnsRules = {
+          globals.EXAMPLE_PATTERNS.map { x =>
+            val types = typePreds(x)
+            s"\ntns(${x.tostring}):- not ${x.tostring}, not example(${x.tostring}), $types.\n"
+          }
+        }.mkString("\n")
+
+        val coverageConstr = s"${globals.TPS_RULES}\n${globals.FPS_RULES}\n${globals.FNS_RULES}\n$tnsRules"
         val t =
           if (theory.nonEmpty) {
             theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
           } else {
             globals.INCLUDE_BK(handCraftedTheoryFile)
           }
-        val show = globals.SHOW_TPS_ARITY_1 + globals.SHOW_FPS_ARITY_1 + globals.SHOW_FNS_ARITY_1
+        val show = globals.SHOW_TPS_ARITY_1 + globals.SHOW_FPS_ARITY_1 + globals.SHOW_FNS_ARITY_1 + s"\n#show tns/1.\n"
         val ex = e.toASP().mkString(" ")
         val program = ex + globals.INCLUDE_BK(globals.BK_WHOLE) + t + coverageConstr + show
         ASPSolver.solve(program)
@@ -252,20 +265,22 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     var totalTPs = 0
     var totalFPs = 0
     var totalFNs = 0
+    var totalTNs = 0
 
-    testData foreach { testBatch =>
+    val testTime = orl.utils.Utils.time{
+      testData foreach { testBatch =>
+        val result = evaluateTheory(rules, testBatch)
+        if (result.nonEmpty) {
 
-      val result = evaluateTheory(rules, testBatch)
-
-      if (result.nonEmpty) {
-
-        result.foreach { a =>
-          val lit = Literal.parse(a)
-          val inner = lit.terms.head
-          lit.predSymbol match {
-            case "tps" => totalTPs += 1
-            case "fps" => totalFPs += 1
-            case "fns" => totalFNs += 1
+          result.foreach { a =>
+            val lit = Literal.parse(a)
+            val inner = lit.terms.head
+            lit.predSymbol match {
+              case "tps" => totalTPs += 1
+              case "fps" => totalFPs += 1
+              case "fns" => totalFNs += 1
+              case "tns" => totalTNs += 1
+            }
           }
         }
       }
@@ -277,6 +292,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     val theory = rules.map(x => s"precision: ${x.precision} ${x.tostring}").mkString("\n")
     val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
     logger.info(msg)
+    println(s"TPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs, TNs: $totalTNs, training: $trainingTime sec, testing: ${testTime._2} sec")
     orl.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
   }
 
