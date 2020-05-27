@@ -52,7 +52,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
 
     //rulesCompressed = state.getBestRules(inps.globals, "score") //.filter(_.precision >= 0.9)
     //rulesCompressed = state.getAllRules(inps, "top")
-    rulesCompressed = state.getTopTheory().filter(x => x.body.nonEmpty && x.precision >= inps.pruneThreshold)
+    rulesCompressed = state.getTopTheory().filter(x => x.body.nonEmpty) // && x.precision >= inps.pruneThreshold)
 
     if (rulesCompressed.nonEmpty) {
       val inferredState = ASPSolver.crispLogicInference(rulesCompressed, exmpl, inps.globals)

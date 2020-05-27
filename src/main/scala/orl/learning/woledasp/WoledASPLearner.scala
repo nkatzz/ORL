@@ -225,8 +225,8 @@ class WoledASPLearner[T <: InputSource](
         //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
         newRules = OldStructureLearningFunctions.generateNewRules(rulesCompressed, exmpl, inps)
-        //mergeAndUpdate(newRules)
-        if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
+        mergeAndUpdate(newRules)
+        //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
       }
     }

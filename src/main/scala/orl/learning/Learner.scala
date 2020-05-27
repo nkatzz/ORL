@@ -28,6 +28,9 @@ import orl.learning.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
 import orl.logic.{Clause, Literal, LogicUtils}
 import orl.utils.Utils.{underline, underlineStars}
 
+import scala.io.Source
+import scala.util.matching.Regex
+
 /**
   * Created by nkatz at 13/12/19
   *
@@ -73,13 +76,13 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   //private var previousCNF = Vector[lomrf.logic.Clause]()
 
   // Use a hand-crafted theory for debugging
-  /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+  def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
   val source = Source.fromFile("/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test-moving")
   val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%"))
   val rulesList = list.map(x => Clause.parse(x)).toList
   source.close
   state.updateRules(rulesList, "add", inps)
-  withHandCrafted = true*/
+  withHandCrafted = true
 
   private def getTrainingData: Iterator[Example] = trainingDataFunction(trainingDataOptions)
   private def getNextBatch: Example = if (data.isEmpty) Example() else data.next()
