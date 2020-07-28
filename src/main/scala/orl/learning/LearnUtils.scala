@@ -31,7 +31,7 @@ import scala.io.Source
 object LearnUtils {
 
   def main(args: Array[String]) = {
-    val resultsPath = "/home/nkatz/dev/crossval"
+    val resultsPath = "/home/nkatz/dev/vagmcs/BK/move/crossval-results"
     getFinalF1Score(resultsPath)
   }
 
