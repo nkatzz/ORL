@@ -83,7 +83,7 @@ object BK {
       |% False groundings for initiation rules (the rule incorrectly fires).
       |falseGroundingInit(F,T,RuleId) :-
       |    fires(initiatedAt(F,T),RuleId),
-      |    not example(holdsAt(F,T)), % Maybe this is necessary for not dropping the weight too much(??)
+      |    %not example(holdsAt(F,T)), % Maybe this is necessary for not dropping the weight too much(??)
       |    fluent(F), not example(holdsAt(F,Te)), next(T,Te).
       |
       |% True groundings for termination rules (the rule correctly fires).

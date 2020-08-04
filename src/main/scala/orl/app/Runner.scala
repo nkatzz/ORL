@@ -82,7 +82,8 @@ object Runner extends LazyLogging {
 
       } else {
 
-        val caviarNum = args.find(x => x.startsWith("caviar-num")).get.split("=")(1)
+        val _caviarNum = args.find(x => x.startsWith("caviar-num")).getOrElse("-1000")
+        val caviarNum = if (_caviarNum != "-1000") _caviarNum.split("=")(1) else throw new RuntimeException("Specify a training/testing pair (caviar-num)")
 
         val trainSet = Map(1 -> MeetingTrainTestSets.meeting1, 2 -> MeetingTrainTestSets.meeting2, 3 -> MeetingTrainTestSets.meeting3,
           4 -> MeetingTrainTestSets.meeting4, 5 -> MeetingTrainTestSets.meeting5, 6 -> MeetingTrainTestSets.meeting6,

@@ -574,8 +574,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   }
 
   def getTypePredicates(rule: Clause): List[Literal] = {
-    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-    List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
+    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
   }
 
   private def getTypePredicates(lit: Literal) = {
