@@ -647,6 +647,8 @@ class WoledASPLearner[T <: InputSource](
     val theory = rules.map(x => s"${format(x.weight)} ${x.tostring}").mkString("\n")
     val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
     logger.info(msg)
+    println(s"TPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs, training: $trainingTime sec")
+    //println(s"TPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs, TNs: $totalTNs, training: $trainingTime sec, testing: ${testTime._2} sec")
     orl.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
   }
 

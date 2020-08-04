@@ -77,16 +77,21 @@ object BK {
       |% True groundings for initiation rules (the rule correctly fires).
       |trueGroundingInit(F,T,RuleId) :-
       |    fires(initiatedAt(F,T),RuleId),
+      |    %not example(holdsAt(F,T)),
       |    fluent(F), example(holdsAt(F,Te)), next(T,Te).
       |
       |% False groundings for initiation rules (the rule incorrectly fires).
       |falseGroundingInit(F,T,RuleId) :-
       |    fires(initiatedAt(F,T),RuleId),
+      |    not example(holdsAt(F,T)), % Maybe this is necessary for not dropping the weight too much(??)
       |    fluent(F), not example(holdsAt(F,Te)), next(T,Te).
       |
       |% True groundings for termination rules (the rule correctly fires).
+      |% UPDATE (2-8-2020): It seems that the requirement for the target CE holding
+      |% at the previous time point is necessary here.
       |trueGroundingTerm(F,T,RuleId) :-
       |    fires(terminatedAt(F,T),RuleId),
+      |    example(holdsAt(F,T)),
       |    fluent(F), not example(holdsAt(F,Te)), next(T,Te).
       |
       |% False groundings for termination rules (the rule incorrectly fires).
