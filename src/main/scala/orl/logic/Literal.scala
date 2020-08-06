@@ -528,9 +528,16 @@ case class Literal(
   def getTypePredicates(modes: List[ModeAtom]): List[String] = {
     val f = (x: LogicalExpression) => x.asInstanceOf[Variable]
     val vars = this.variables(modes)
+    this.variables = vars
     val tpreds = for (x <- vars) yield f(x)._type + "(" + f(x).name + ")"
     tpreds
   }
+
+  /**
+    * Stores the variables with typing annotation to use elsewhere during execution.
+    * This is set by the getTypePredicates method (see above).
+    * */
+  var variables: List[LogicalExpression] = List.empty[LogicalExpression]
 
   def getConstantsTypes(modes: List[ModeAtom]): List[String] = {
     val f = (x: LogicalExpression) => x.asInstanceOf[Constant]

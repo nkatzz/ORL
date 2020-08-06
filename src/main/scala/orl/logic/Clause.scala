@@ -231,6 +231,19 @@ case class Clause(
     vars.toList
   }
 
+  def getVariables = {
+    val vars = this.head.variables.to[ListBuffer]
+    for (x <- this.body) vars ++= x.variables.filter { x => !vars.contains(x) }
+    vars.toList
+  }
+
+  var typeAtoms = List.empty[String]
+
+  def setTypeAtoms(modes: List[ModeAtom]) = {
+    val types = this.toLiteralList.flatMap(lit => lit.getTypePredicates(modes)).distinct
+    typeAtoms = types
+  }
+
   /**
     * this as a string list.
     */

@@ -31,11 +31,11 @@ import orl.logic.{Clause, Constant, Literal}
 object TheoryRevision {
 
   def getTypePredicates(rule: Clause): List[Literal] = {
-    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    rule.getVariables.map(x => Literal.parse(s"${x._type}(${x.name})"))
   }
 
   def getTypePredicates(lit: Literal) = {
-    lit.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+    lit.variables.map(x => Literal.parse(s"${x._type}(${x.name})"))
   }
 
   def revise(existingTheory: List[(Clause, Int)], bottomClauses: List[Clause],
@@ -198,7 +198,7 @@ object TheoryRevision {
     *                       with the integer-valued representation of the rule's weight, which is used when theory
     *                       revision is combined with MAP inference.
     * @param mapInference   if true then the transformation allows to take into account the weights of the rules
-    *                       in the specialization process. In patricular, the tranformation the becomes:
+    *                       in the specialization process. In particular, the transformation then becomes:
     *
     *                       head(X) :- satisfied(head(X),i).
     *                       {satisfied(head(X),i)} :- body(X), not exception(vars(head), i).

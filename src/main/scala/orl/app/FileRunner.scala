@@ -22,8 +22,11 @@ import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.CMDArgs
 import orl.datahandling.InputHandling
 import orl.datahandling.InputHandling.FileDataOptions
-import orl.learning.LocalCoordinator
 import orl.learning.Types.RunSingleCore
+import orl.learning.{LocalCoordinator, TheoryRevision}
+import orl.logic.Clause
+
+import scala.util.control.Breaks
 
 object FileRunner extends App with LazyLogging {
 
@@ -32,6 +35,28 @@ object FileRunner extends App with LazyLogging {
   if (argsOK) {
 
     val runningOptions = CMDArgs.getOLEDInputArgs(args)
+
+    /** DEBUG! */
+    val BCs = runningOptions.globals.bottomClauses
+
+    val clause1 = Clause.parseWPB2("initiatedAt(move(X,Y),T) :- happensAt(active(X),T)")
+    val clause2 = Clause.parseWPB2("terminatedAt(move(X,Y),T) :- happensAt(active(X),T)")
+    val loop = new Breaks;
+    List(clause1,clause2) foreach { clause =>
+      clause.setTypeAtoms(runningOptions.globals.MODEHS++runningOptions.globals.MODEBS)
+      loop.breakable {
+        for (bottomClause <- BCs) {
+          if (clause.thetaSubsumes(bottomClause)) {
+            clause.supportSet = List(bottomClause)
+            loop.break()
+          }
+        }
+      }
+    }
+    val x = TheoryRevision.refinementMetaProgram(List( (clause1,1), (clause2,1) ))
+    val y = TheoryRevision.ruleInductionMetaProgram(BCs)
+    val stop = "stop"
+    /** DEBUG! */
 
     val trainingDataOptions = FileDataOptions(
       filepath       = runningOptions.train,

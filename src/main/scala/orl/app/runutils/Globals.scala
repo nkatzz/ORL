@@ -191,6 +191,21 @@ class Globals(val entryPath: String) extends LazyLogging {
     content
   }
 
+  /**
+    * Read the bottom clauses from the mode declarations file into clause objects.
+    * This is for the case where (dummy) BCs are given in the modes file using the declaration:
+    * <bottom>p(X,Y) :- q(X,Z),r(Z,Y),...<bottom>
+    * */
+  lazy val bottomClauses: List[Clause] = {
+    val BCLines = MODES.filter(x => x.startsWith("<bottom>"))
+    BCLines map { line =>
+      val rule = line.split("<bottom>")(1)
+      val parsed = Clause.parseWPB2(rule)
+      parsed.setTypeAtoms(MODEHS ++ MODEBS)
+      parsed
+    }
+  }
+
   val MODEHS: List[ModeAtom] = MODES.filter(m => m.contains("modeh") && !m.startsWith("%")).map(x => x).
     map(x => modesParser.getParseResult(modesParser.parseModes(modesParser.modeh, x)))
 
