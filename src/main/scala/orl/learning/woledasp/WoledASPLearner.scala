@@ -84,10 +84,6 @@ class WoledASPLearner[T <: InputSource](
     */
   def processTR(_exmpl: Example) = {
 
-    if (batchCount == 59) {
-      val stop = "stop"
-    }
-
     var exmpl = _exmpl
 
     if (inps.withInertia) {
