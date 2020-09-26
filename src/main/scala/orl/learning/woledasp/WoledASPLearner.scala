@@ -22,6 +22,7 @@ import java.text.DecimalFormat
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.datahandling.InputHandling.InputSource
+import orl.learning.LearnUtils.setTypePredicates
 import orl.learning.{Learner, PruningSpecs, TheoryRevision}
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
@@ -103,14 +104,16 @@ class WoledASPLearner[T <: InputSource](
     var fnCounts = inference.FNs.size
     val (tps, fps, fns) = (tpCounts, fpCounts, fnCounts)
 
-    val revise = fnCounts > 0 || inference.orphanFPs.nonEmpty // fpCounts > 0
+    val revise = fnCounts > 0 //|| inference.orphanFPs.nonEmpty
 
     inference.updateWeightsAndScore(batchCount)
 
     if (!withHandCrafted && revise) {
-      val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
+      /* The following code is for learning via generating BCs from mistakes */
+      //val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
       /*val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).
-        map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet*/
+        map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet
+
       val atomsFromFNMistakes = sampleSeeds(inference.FNs.toVector).
         map(x => x.replaceAll("holdsAt", "initiatedAt")).toSet
 
@@ -120,8 +123,26 @@ class WoledASPLearner[T <: InputSource](
       val (topRules, bottomClauseTime) = (_topRules._1, _topRules._2)
       val bcs = topRules.flatMap(_.supportSet)
 
+      val mh = inps.globals.MODEHS
+      val mb = inps.globals.MODEBS
+      bcs.foreach(_.setTypeAtoms(mh ++ mb))*/
+
+      /* Use hand-crafted BCs instead of those generated from mistakes. */
+      val mh = inps.globals.MODEHS
+      val mb = inps.globals.MODEBS
+      val handCraftedBCs = inps.globals.bottomClauses
+      val (topRules, bcs) = handCraftedBCs.foldLeft(List.empty[Clause], List.empty[Clause]) { (x, bc) =>
+        val topRule = Clause(head = bc.head)
+        topRule.setTypeAtoms(mh ++ mb)
+        topRule.supportSet = List(bc)
+        (x._1 :+ topRule, x._2 :+ bc)
+      }
+      /**/
+
       val _currentTheory = currentTheory.map(x => (x, 0))
       val (inducedRules, refinedRules, unchangedRules) = TheoryRevision.revise(_currentTheory, bcs, exmpl, inps)
+      inducedRules.foreach(_.setTypeAtoms(mh ++ mb))
+      refinedRules.foreach(_.setTypeAtoms(mh ++ mb))
       val keep = state.getTopTheory().filter(x => unchangedRules.exists(_.## == x.##))
 
       state.updateRules(keep ++ refinedRules, "replace", inps)
@@ -201,7 +222,6 @@ class WoledASPLearner[T <: InputSource](
       state.updateRules(expandedTheory._1, "replace", inps)
     }
 
-    //val induceNewRules = fnCounts > 2 || inference.orphanFPs.nonEmpty // fpCounts > 0
     val induceNewRules = fnCounts > 0 || fpCounts > 0
 
     /** Generate new rules from mistakes */
@@ -217,13 +237,17 @@ class WoledASPLearner[T <: InputSource](
         //newRules = generateNewRules(rulesCompressed, exmpl, inps, atomsFromFPMistakes ++ atomsFromFNMistakes)
         //newRules = generateNewRules(rulesCompressed, exmpl, inps)
 
+        //newRules = OldStructureLearningFunctions.generateNewRules(rulesCompressed, exmpl, inps)
         //mergeAndUpdate(newRules)
         //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
-        newRules = OldStructureLearningFunctions.generateNewRules(rulesCompressed, exmpl, inps)
-        mergeAndUpdate(newRules)
-        //if (newRules.nonEmpty) state.updateRules(newRules, "add", inps)
 
+        if (batchCount == 17) {
+          val stop = "stop"
+        }
+
+        newRules = newRuleInduction(rulesCompressed, exmpl, inps)
+        state.updateRules(newRules, "add", inps)
       }
     }
 
@@ -252,7 +276,7 @@ class WoledASPLearner[T <: InputSource](
 
     updateStats(tpCounts, fpCounts, fnCounts, totalGroundings) // Per batch error is updated here.
 
-    logger.info(batchInfoMsg(rulesCompressed, newRules, tps, fps, fns, inferenceTime + secondInferenceTime, scoringTime))
+    logger.info(batchInfoMsg(getRulesForPrediction(), newRules, tps, fps, fns, inferenceTime + secondInferenceTime, scoringTime))
 
     if (!withHandCrafted) {
       if (inps.onlinePruning) {
@@ -384,7 +408,7 @@ class WoledASPLearner[T <: InputSource](
     orl.utils.Utils.time{ OldStructureLearningFunctions.generateNewRules(existingTheory, ex, inps, mistakes) }
   }
 
-  // This doesn't seem to work, it doesn't fine the proper rules.
+  // This doesn't seem to work, it doesn't find the proper rules.
   def generateNewRulesXHAIL(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
     val abd = new ASPWeightedInference(existingTheory, ex, inps)
     val bottomClauses = abd.abduction().map(x => x.supportSet.head)
@@ -392,6 +416,17 @@ class WoledASPLearner[T <: InputSource](
     inference.performInference()
     inference.newClausesFromBCs
   }
+
+  def newRuleInduction(existingTheory: List[Clause], ex: Example, inps: RunningOptions) = {
+    val bottomClauses = inps.globals.bottomClauses
+    val inference = new ASPWeightedInference(existingTheory, ex, inps, bottomClauses)
+    inference.performInference()
+    val newRules = inference.newClausesFromBCs
+    setTypePredicates(newRules, inps)
+    newRules
+  }
+
+
 
   /**
     * Generates new rules directly from the committed mistakes.

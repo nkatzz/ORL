@@ -61,7 +61,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
     * will be generated. Set to Double.PositiveInfinity to lift the restriction on the
     * max seeds and used all atoms corresponding to mistakes.
     */
-  val maxNumberOfSeedAtoms: Double = Double.PositiveInfinity // 20.0
+  val maxNumberOfSeedAtoms: Double = 100.0 //Double.PositiveInfinity // 20.0
 
   /**
     * This is used with the "subsets" specialization strategy, where all subsets of a bottom clause

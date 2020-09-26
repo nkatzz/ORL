@@ -18,6 +18,7 @@
 package orl.learning
 
 import orl.app.runutils.{Globals, RunningOptions}
+import orl.learning.LearnUtils.setTypePredicates
 import orl.logic.{Clause, LogicUtils}
 import orl.utils.Utils.underline
 
@@ -132,7 +133,10 @@ class State(inps: RunningOptions) {
   def updateRules(newRules: List[Clause], action: String, inps: RunningOptions) = {
     if (inps.ruleLearningStrategy == "hoeffding") {
       newRules foreach { rule =>
-        if (rule.refinements.isEmpty) rule.generateCandidateRefs(specializationDepth, comparisonPredicates)
+        if (rule.refinements.isEmpty) {
+          rule.generateCandidateRefs(specializationDepth, comparisonPredicates)
+          setTypePredicates(rule.refinements, inps)
+        }
       }
     }
     val (init, term) = newRules.partition(x => x.head.predSymbol == "initiatedAt")

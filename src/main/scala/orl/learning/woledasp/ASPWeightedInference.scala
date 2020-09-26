@@ -204,7 +204,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       val satAtom = Literal.parse(s"satisfied(${rule.head.tostring},${rule.##})")
       val ruleDefinition = s"${rule.head.predSymbol}(F,T) :- " +
         s"satisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T)."
-      val choiceRule = s"{${satAtom.tostring}} :- ${(rule.body ++ typePreds).map(x => x.tostring).mkString(",")}, X0 != X1."
+      val choiceRule = s"{${satAtom.tostring}} :- ${(rule.body ++ typePreds).map(x => x.tostring).mkString(",")}."
       val weakCosntr = s":~ satisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T). [${-intWeight},${rule.##},F,T]"
       s"$ruleDefinition\n$choiceRule\n$weakCosntr\n$ruleIdPred\n$initOrTermPred\n\n"
     }
@@ -574,7 +574,14 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
   }
 
   def getTypePredicates(rule: Clause): List[Literal] = {
-    rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+
+    // What should work for everything and replace everything else (TODO)
+    rule.typeAtoms.map(Literal.parseWPB2(_))
+
+    // What I had sofar
+    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
+
+    // For hand-crafted
     //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
   }
 

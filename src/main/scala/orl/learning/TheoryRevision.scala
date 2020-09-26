@@ -123,7 +123,7 @@ object TheoryRevision {
         s"$use\n$notUse\n"
       }
 
-      val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J)."
+      val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J).:- use(I,J), I!=0, not use(0,J)."
       val minimizeStatement = "#minimize{1,I,J:use(J,I)}."
 
       val idPredicates = {
