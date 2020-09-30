@@ -15,28 +15,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package orl.learning
+package orl.inference
 
+import orl.app.runutils.RunningOptions
+import orl.datahandling.Example
 import orl.logic.Clause
 
 /**
-  * Created by nkatz at 13/12/19
+  * Created by nkatz at 27/9/20
   */
 
-object Types {
+class CrispInference(val data: Example, val theory: List[Clause],
+    val inps: RunningOptions, val bk: String = "") {
 
-  /**
-    * Message types
-    */
-  class FinishedBatch
-  class RunSingleCore
-  class Run
-  class StartOver
-  class LocalLearnerFinished
+  val input = data.toASP()
+  val target = inps.globals.eps1.map(x => x.varbed)
+  val program =
+    s"""
+      |${input.mkString(" ")}
+      |
+      |""".stripMargin
 
-  /**
-    * Helper types
-    */
-  type InferredState = Map[String, Boolean]
-  type Theory = List[Clause]
 }

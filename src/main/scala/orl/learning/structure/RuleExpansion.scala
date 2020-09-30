@@ -20,6 +20,7 @@ package orl.learning.structure
 import java.text.DecimalFormat
 
 import orl.app.runutils.RunningOptions
+import orl.learning.LearnUtils
 import orl.learning.Types.Theory
 import orl.logic.Clause
 
@@ -32,8 +33,6 @@ import scala.math.sqrt
 object RuleExpansion {
 
   def expandRules(topTheory: Theory, inps: RunningOptions, logger: org.slf4j.Logger): (Theory, Boolean) = {
-    //val t0 = System.nanoTime()
-
     var expanded = false
 
     val scoreFun = inps.scoringFun
@@ -41,7 +40,6 @@ object RuleExpansion {
     val spDepth = inps.specializationDepth
 
     val out = topTheory flatMap { parentRule =>
-
       val (couldExpand, epsilon, observedDiff, best, secondBest) = rightWay(parentRule, inps)
 
       //println(best.score,best.tps, best.fps, best.fns, "  ", secondBest.score, secondBest.tps, secondBest.fps, secondBest.fns)
@@ -64,13 +62,10 @@ object RuleExpansion {
               logger.info(showInfo(parentRule, best, secondBest, epsilon, observedDiff, parentRule.seenExmplsNum, inps))
               refinedRule.seenExmplsNum = 0 // zero the counter
               refinedRule.isTopRule = true
-
-              /*if (refinedRule.supportSet.isEmpty) {
-                throw new RuntimeException("AAAAAAAAAAAAAAAAAAAAAAA")
-              }*/
-
               refinedRule.supportSet = parentRule.supportSet.filter(bottomRule => refinedRule.thetaSubsumes(bottomRule))
               refinedRule.generateCandidateRefs(spDepth, comparisonPredicates)
+              LearnUtils.setTypePredicates(refinedRule, inps)
+              LearnUtils.setTypePredicates(refinedRule.refinements, inps)
               expanded = true
               List(refinedRule)
             case _ => List(parentRule)
@@ -78,8 +73,6 @@ object RuleExpansion {
         case _ => List(parentRule)
       }
     }
-    //val t1 = System.nanoTime()
-    //println(s"expandRules time: ${(t1-t0)/1000000000.0}")
     (out, expanded)
   }
 

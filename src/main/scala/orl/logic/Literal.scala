@@ -536,7 +536,7 @@ case class Literal(
   /**
     * Stores the variables with typing annotation to use elsewhere during execution.
     * This is set by the getTypePredicates method (see above).
-    * */
+    */
   var variables: List[LogicalExpression] = List.empty[LogicalExpression]
 
   def getConstantsTypes(modes: List[ModeAtom]): List[String] = {

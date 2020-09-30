@@ -21,6 +21,7 @@ import java.text.DecimalFormat
 import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
+import orl.logic.Clause.leastWeight
 import orl.logic.parsers.PB2LogicParser
 
 import scala.collection.mutable.ListBuffer
@@ -31,6 +32,8 @@ import scala.collection.mutable.ListBuffer
 
 object Clause {
   val empty: Clause = Clause()
+
+  val leastWeight: Double = 0.00001
 
   def apply(lits: List[Literal]) = {
     new Clause(head = lits.head, body = lits.drop(1))
@@ -66,7 +69,7 @@ case class Clause(
   var parentClause: Clause = Clause.empty
   var isBottomRule = false
   var isTopRule = false
-  var weight: Double = 0.00001
+  var weight: Double = leastWeight
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
 

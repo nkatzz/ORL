@@ -61,7 +61,7 @@ object InputHandling extends LazyLogging {
 
   case class FileDataOptions(
       filepath: String,
-      chunkSize: Int = 100,
+      var chunkSize: Int = 100,
       targetConcept: String = "None",
       sortOrder: String = "ascending",
       setting: String = "training",
@@ -89,9 +89,10 @@ object InputHandling extends LazyLogging {
       sys.exit(1)
     }
 
-    val sorted =
+    val sorted = {
       if (opts.sortOrder == "ascending") map.toList.sortWith(_._1 < _._1)
       else map.toList.sortWith(_._1 > _._1)
+    }
 
     if (opts.setting == "training")
       sorted.map(_._2).grouped(opts.chunkSize).map { list =>

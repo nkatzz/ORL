@@ -48,7 +48,7 @@ object Runner extends LazyLogging {
         "caviar-video-25", "caviar-video-24-meeting-moving", "caviar-video-26", "caviar-video-27", "caviar-video-28-meeting",
         "caviar-video-29", "caviar-video-30")
 
-      val evalOnTestSet = false//true
+      val evalOnTestSet = false //true
 
       if (!evalOnTestSet) {
 

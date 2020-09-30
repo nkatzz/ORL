@@ -27,6 +27,12 @@ import orl.logic.Clause
 object UpdateWeights {
 
   def adaGradUpdate(rule: Clause, mistakes: Int, inps: RunningOptions) = {
+
+    // Recall that for newly-generated rules the weight update is different,
+    // since their weight is zero and all past gradients as zero as well, so the
+    // value term is zero.
+    val isNewRule = rule.weight == Clause.leastWeight && rule.subGradient == 0.0
+
     val lambda = inps.adaRegularization //0.001 // 0.01 default
     val eta = inps.adaLearnRate //1.0 // default
     val delta = inps.adaGradDelta //1.0
@@ -35,9 +41,16 @@ object UpdateWeights {
     val coefficient = eta / (delta + math.sqrt(rule.subGradient))
     val value = rule.weight - coefficient * currentSubgradient
     val difference = math.abs(value) - (lambda * coefficient)
+
     val result = {
-      if (difference > 0) if (value >= 0) difference else -difference
-      else 0.0
+      if (isNewRule) {
+        val x = eta/(delta + mistakes) // the coefficient here is the sqrt of the gradient (= current mistakes)
+        val y = x * (mistakes - lambda)
+        if (y > 0) y else Clause.leastWeight
+      } else {
+        if (difference > 0) if (value >= 0) difference else -difference
+        else Clause.leastWeight
+      }
     }
     result
   }

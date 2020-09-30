@@ -75,6 +75,7 @@ object Globals {
   val SCORE_RULES = "score_rules"
   val GROW_NEW_RULE_TEST = "grow_new_rule_test"
 
+
   // These values may be set during the construction of the Globals instance
   var glvalues =
     scala.collection.mutable.Map[String, String](
@@ -195,7 +196,7 @@ class Globals(val entryPath: String) extends LazyLogging {
     * Read the bottom clauses from the mode declarations file into clause objects.
     * This is for the case where (dummy) BCs are given in the modes file using the declaration:
     * <bottom>p(X,Y) :- q(X,Z),r(Z,Y),...<bottom>
-    * */
+    */
   lazy val bottomClauses: List[Clause] = {
     val BCLines = MODES.filter(x => x.startsWith("<bottom>"))
     BCLines map { line =>
@@ -325,23 +326,14 @@ class Globals(val entryPath: String) extends LazyLogging {
 
   def generateBKFiles_Event_Calculus() = {
 
-    //private val PY_LESSTHAN =
-    //  "#script (python)\nfrom gringo import Fun\nimport math\n\ndef less_than(x,y):\n    return float(x) < float(y)\n\n#end."
-
     val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te)."
     val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
 
     /*val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te).\n" +
-      "-holdsAt(F,Te) :- terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
+      "not holdsAt(F,Te) :- terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
 
     val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), next(Ts, Te).\n" +
-      "-holdsAt(F,Te) :- -holdsAt(F,Ts), not initiatedAt(F,Ts), fluent(F), next(Ts, Te)."*/
-
-    ///*
-    /*val RIGHT_BEFORE_DEF ="\n#script (python)\ntimes = []\ndef collect_all(a):\n    times.append(a)\n    " +
-      "return 1\ndef sorted():\n    times.sort()\n    return zip(range(len(times)), times)\n#end.\ncollect_all." +
-      "\ncollect_all :- time(X), @collect_all(X) == 0.\nsorted_pair(X,N) :- collect_all, " +
-      "(X,N) = @sorted().\nnext(X, Y) :- sorted_pair(A,X), sorted_pair(A+1,Y).\n"*/
+      "not holdsAt(F,Te) :- not holdsAt(F,Ts), not initiatedAt(F,Ts), fluent(F), next(Ts, Te)."*/
 
     val RIGHT_BEFORE_DEF =
       """

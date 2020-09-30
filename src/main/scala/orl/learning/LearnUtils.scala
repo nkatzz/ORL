@@ -41,6 +41,12 @@ object LearnUtils {
     newRules.map(_.setTypeAtoms(mh ++ mb))
   }
 
+  def setTypePredicates(rule: Clause, inps: RunningOptions) = {
+    val mh = inps.globals.MODEHS
+    val mb = inps.globals.MODEBS
+    rule.setTypeAtoms(mh ++ mb)
+  }
+
   def getFinalF1Score(resultsFile: String) = {
     val source = Source.fromFile(resultsFile)
     val list = source.getLines.filter(x => x.startsWith("TPs")).toList

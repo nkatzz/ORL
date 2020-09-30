@@ -112,7 +112,7 @@ object TheoryRevision {
         * for the j-th literal p(X) in the i-th clause, construct two clauses of the form:
         *
         * try(vars(X),j,i) :- use(j,i),p(X),typeOfVariable(X).
-        * try(vars(X),j,i) :- not use(j,i).
+        * try(vars(X),j,i) :- not use(j,i),typeOfVariable(X).
         *
         * (X represents the variables that appear in the literal)
         *
@@ -123,7 +123,7 @@ object TheoryRevision {
         s"$use\n$notUse\n"
       }
 
-      val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J).:- use(I,J), I!=0, not use(0,J)."
+      val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J).\n:- use(I,J), I!=0, not use(0,J)."
       val minimizeStatement = "#minimize{1,I,J:use(J,I)}."
 
       val idPredicates = {

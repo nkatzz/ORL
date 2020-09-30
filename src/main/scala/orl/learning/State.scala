@@ -60,8 +60,6 @@ class State(inps: RunningOptions) {
 
   private var iterationInfo: Seq[String] = Vector.empty[String]
 
-  def isBlackListed(rule: Clause) = blackList.exists(badBC => rule.supportSet.head.thetaSubsumes(badBC))
-
   def finishedIterationInfo(logger: org.slf4j.Logger) = {
     val msg = s"\n${underline(s"Training performance: TPs: ${totalTPs}, FPs: ${totalFPs}, FNs: ${totalFNs}, total mistakes: ${totalFPs + totalFNs}")}."
     logger.info(msg)

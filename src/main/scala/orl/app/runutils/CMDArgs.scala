@@ -86,6 +86,7 @@ object CMDArgs extends LazyLogging {
     val test = getMatchingArgumentValue("--test")
     val ruleLearningStrategy = getMatchingArgumentValue("--rule-learning-strategy")
     val infoGainAtLeast = getMatchingArgumentValue("--infogain")
+    val inputTheory = getMatchingArgumentValue("--input-theory")
 
     //-------------
     // Global sets:
@@ -106,19 +107,20 @@ object CMDArgs extends LazyLogging {
     // show the params:
     logger.info(s"\nRunning with options:\n${map.map { case (k, v) => s"$k=$v" }.mkString(" ")}\n")
 
-    val inps = new RunningOptions(entryPath.toString, delta.toString.toDouble, pruningThreshold.toString.toDouble,
-                                  minSeenExmpls.toString.toInt, specializationDepth.toString.toInt, breakTiesThreshold.toString.toDouble,
-                                  repeatFor.toString.toInt, chunkSize.toString.toInt,
-                                  onlinePruning.toString.toBoolean, withPostPruning.toString.toBoolean,
-                                  targetConcept.toString, mintps.toString.toInt, tryMoreRules.toString.toBoolean,
-                                  trainSetNum.toString.toInt, randomOrder.toString.toBoolean, scoringFun.toString, with_jep.toString.toBoolean,
-                                  evaluate_existing.toString, train.toString, globals, minEvaluatedOn.toString.toInt,
-                                  shuffleData.toString.toBoolean, showRefs.toString.toBoolean, pruneAfter.toString.toInt, mongoCol.toString,
-                                  tpWeight.toString.toInt, fpWeight.toString.toInt, fnWeight.toString.toInt,
-                                  withInertia.toString.toBoolean, weightLearn.toString.toBoolean,
-                                  parallelClauseEval.toString.toBoolean, adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble,
-                                  adaRegularization.toString.toDouble, adaLossFunction.toString, withEventCalculus.toString.toBoolean,
-                                  saveTheoryTo.toString, test.toString, ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble)
+    val inps = new RunningOptions(
+      entryPath.toString, delta.toString.toDouble, pruningThreshold.toString.toDouble,
+      minSeenExmpls.toString.toInt, specializationDepth.toString.toInt, breakTiesThreshold.toString.toDouble,
+      repeatFor.toString.toInt, chunkSize.toString.toInt, onlinePruning.toString.toBoolean,
+      withPostPruning.toString.toBoolean, targetConcept.toString, mintps.toString.toInt,
+      tryMoreRules.toString.toBoolean, trainSetNum.toString.toInt, randomOrder.toString.toBoolean,
+      scoringFun.toString, with_jep.toString.toBoolean, evaluate_existing.toString,
+      train.toString, globals, minEvaluatedOn.toString.toInt, shuffleData.toString.toBoolean,
+      showRefs.toString.toBoolean, pruneAfter.toString.toInt, mongoCol.toString,
+      tpWeight.toString.toInt, fpWeight.toString.toInt, fnWeight.toString.toInt,
+      withInertia.toString.toBoolean, weightLearn.toString.toBoolean, parallelClauseEval.toString.toBoolean,
+      adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble, adaRegularization.toString.toDouble,
+      adaLossFunction.toString, withEventCalculus.toString.toBoolean, saveTheoryTo.toString, test.toString,
+      ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble, inputTheory.toString)
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
@@ -200,6 +202,7 @@ object CMDArgs extends LazyLogging {
       "hard-coded in the maxClauseLength variable of the orl.learning.Learner class).\n'tr': Use non-monotonic theory " +
       "revision techniques to specialize rules in response to mistakes.", default = "hoeffding"),
     Arg(name      = "--infogain", valueType = "Double", text = "Specialize if information gain exceeds this threshold.", default = "0.0000001"),
+    Arg(name      = "--input-theory", valueType = "String", text = "Path to as file containing an input theory in ASP syntax", default = "")
   )
 
   def checkData(dataInput: String, collection: String, trainOrTest: String) = {
@@ -310,5 +313,6 @@ class RunningOptions(
     val saveTheoryTo: String,
     val test: String,
     val ruleLearningStrategy: String,
-    val infoGainAtLeast: Double)
+    val infoGainAtLeast: Double,
+    val inputTheory: String)
 

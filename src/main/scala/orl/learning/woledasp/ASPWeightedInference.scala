@@ -395,6 +395,10 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       val rule = rulesIdMap(ruleId.toInt)
       val mistakes = allInferredTrue - actualTrueGroundings
 
+      if (rule.tostring.equals("terminatedAt(move(X,Y),T) :- happensAt(inactive(X),T),far(Y,X,34,T).")) {
+        val stop = "stop"
+      }
+
       rule.weight = UpdateWeights.adaGradUpdate(rule, mistakes, inps)
       //rule.weight = UpdateWeights.adamUpdate(rule, mistakes, inps, batchCount)
 
@@ -493,11 +497,10 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     val idsMap = rules.flatMap(x => List(x) ++ x.refinements).map(x => x.## -> x).toMap
 
     val program = {
-      // The only reason we add the examples here (instead of having the observations only)
-      // is to get the last time point in the batch (see the time(T) :- example(holdsAt(_,T)). in the bk)
-      // This is necessary in order to not miss positives in the last time point.
+      // The examples here help to
+      // get the last time point in the batch (see the time(T) :- example(holdsAt(_,T)). in the bk)
+      // in order to not miss positives in the last time point.
       val data = exmpl.toASP().mkString(" ")
-      //val rs = if (metaProgram == "UNSAT") inferenceProgramUNSAT else inferenceProgramSAT
       val rs = inferenceProgramSAT
       val include = s"""#include "${inps.globals.BK_WHOLE}"."""
 

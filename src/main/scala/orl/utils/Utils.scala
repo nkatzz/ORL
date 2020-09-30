@@ -91,6 +91,18 @@ object Utils {
     f(x, 1)
   }
 
+  def f1Score(_tps: Int, _fps: Int, _fns: Int) = {
+    val tps = _tps.toDouble
+    val fps = _fps.toDouble
+    val fns = _fns.toDouble
+    val f = (x: Double) => if (x == 0.0) 0.0001 else x
+
+    val precision = f(tps) / (f(tps) + f(fps))
+    val recall = f(tps) / (f(tps) + f(fns))
+    val f1score = 2 * precision * recall / (precision + recall)
+    (precision, recall, f1score)
+  }
+
   /**
     * Randomly draw N distinct elements from a vector
     */

@@ -20,6 +20,7 @@ package orl.learning.hillclimbing
 /**
   * Created by nkatz at 17/4/20
   */
-class Test {
+
+object Test {
 
 }

@@ -39,7 +39,7 @@ object LogicUtils {
     } else {
       // here childCoverage is in (0,1)
       if (parentCoverage == 1.0) { // parentCoverage == 1.0 || parentCoverage == 0.0
-        // If parentCoverage == 1.0 then the parent rule is perfect, no way to beat that, so set this rule's gain to 0
+        // If parentCoverage == 1.0 then the parent rule is perfect, no way to beat that, so set child's gain to 0.
         // Note that otherwise we'll have the parent's log evaluated to 0 and the gain formula
         // returning a negative value (parentTPs * log(thisCoverage), which is < 0 since thisCoverage < 1).
         // Eitherway, we only care for positive gain.
@@ -50,9 +50,6 @@ object LogicUtils {
         // here parentCoverage is in (0,1)
 
         val _gain = child.tps * (Math.log(childCoverage) - Math.log(parentCoverage))
-
-        // This is the correct formula, since we need the number of parent rule's tps, which are this rule's tps also.
-        //val _gain = (this.parentClause.tps - tps) * (Math.log(thisCoverage) - Math.log(parentCoverage))
 
         // We are interested only in positive gain, therefore we consider 0 as the minimum of the gain function:
         val gain = if (_gain <= 0.0) 0.0 else _gain

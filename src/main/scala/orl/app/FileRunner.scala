@@ -42,8 +42,8 @@ object FileRunner extends App with LazyLogging {
     val clause1 = Clause.parseWPB2("initiatedAt(move(X,Y),T) :- happensAt(active(X),T)")
     val clause2 = Clause.parseWPB2("terminatedAt(move(X,Y),T) :- happensAt(active(X),T)")
     val loop = new Breaks;
-    List(clause1,clause2) foreach { clause =>
-      clause.setTypeAtoms(runningOptions.globals.MODEHS++runningOptions.globals.MODEBS)
+    List(clause1, clause2) foreach { clause =>
+      clause.setTypeAtoms(runningOptions.globals.MODEHS ++ runningOptions.globals.MODEBS)
       loop.breakable {
         for (bottomClause <- BCs) {
           if (clause.thetaSubsumes(bottomClause)) {
@@ -53,7 +53,7 @@ object FileRunner extends App with LazyLogging {
         }
       }
     }
-    val x = TheoryRevision.refinementMetaProgram(List( (clause1,1), (clause2,1) ))
+    val x = TheoryRevision.refinementMetaProgram(List((clause1, 1), (clause2, 1)))
     val y = TheoryRevision.ruleInductionMetaProgram(BCs)
     val stop = "stop"
     /** DEBUG! */
