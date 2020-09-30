@@ -59,7 +59,7 @@ class WoledASPLearner[T <: InputSource](
     */
   def getRulesForPrediction() = {
     val topRules = state.getTopTheory()
-    topRules//.filter(x => x.body.nonEmpty)
+    topRules //.filter(x => x.body.nonEmpty)
   }
 
   def process(_exmpl: Example) = {
@@ -188,6 +188,10 @@ class WoledASPLearner[T <: InputSource](
       exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
     }
 
+    if (batchCount == 5) {
+      val stop = "stop"
+    }
+
     val initialTheory = getRulesForPrediction()
 
     /** Get the inferred state. */
@@ -203,13 +207,16 @@ class WoledASPLearner[T <: InputSource](
       */
     val (_totalGroundings, _inertiaAtoms) = inference.updateWeightsAndScore(batchCount)
 
-    if (!withHandCrafted) {
+    /**
+      * Specialize the rules...
+      */
+    /*if (!withHandCrafted) {
       val init = state.initiationRules
       val term = state.terminationRules
       val expandedTheory = RuleExpansion.expandRules(init ++ term, inps, logger)
       state.updateRules(expandedTheory._1, "replace", inps)
       specializedRulesIds = getRulesForPrediction().filter(p => !initialTheory.exists(_.## == p.##)).map(x => x.##)
-    }
+    }*/
 
     val induceNewRules = fps + fns > 0
 
@@ -219,6 +226,7 @@ class WoledASPLearner[T <: InputSource](
         val induced = time { newRuleInduction(getRulesForPrediction(), exmpl, (tps, fps, fns), inps) }
         val newRules = induced._1
         newRulesTime = induced._2
+        newRules.foreach(_.isNew = true) // this is reversed after the first weight update.
         state.updateRules(newRules, "add", inps)
         newRulesIds = newRules.map(_.##)
 
@@ -249,7 +257,7 @@ class WoledASPLearner[T <: InputSource](
       val ((_totalGroundings, _inertiaAtoms), _scoringTime) =
         orl.utils.Utils.time(inferenceNew.updateWeightsAndScore(batchCount))
 
-
+      // just for printing out the post-revision F1-score
       val _inferenceNew = new ASPWeightedInference(allRules, exmpl, inps)
       val _res1 = orl.utils.Utils.time{ _inferenceNew.performInference() }
       MAPinferenceTime += _res1._2
@@ -653,7 +661,7 @@ class WoledASPLearner[T <: InputSource](
         logger.info(s"Total inference time: ${state.totalInferenceTime}")
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-          theory = reIterateForWeightsOnly(theory)
+          //theory = reIterateForWeightsOnly(theory)
           val testData = testingDataFunction(testingDataOptions)
           evalOnTestSet(testData, theory, inps)
         }

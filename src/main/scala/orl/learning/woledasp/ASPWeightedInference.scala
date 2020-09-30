@@ -395,7 +395,10 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       val rule = rulesIdMap(ruleId.toInt)
       val mistakes = allInferredTrue - actualTrueGroundings
 
-      if (rule.tostring.equals("terminatedAt(move(X,Y),T) :- happensAt(inactive(X),T),far(Y,X,34,T).")) {
+      if (rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(active(X),T),close(X,Y,34,T).") ||
+        rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(walking(Y),T),happensAt(active(X),T).") ||
+        rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(walking(X),T),happensAt(active(Y),T).") ||
+        rule.tostring.equals("initiatedAt(move(X,Y),T) :- close(X,Y,34,T),happensAt(active(X),T).")) {
         val stop = "stop"
       }
 

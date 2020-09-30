@@ -31,7 +31,7 @@ object UpdateWeights {
     // Recall that for newly-generated rules the weight update is different,
     // since their weight is zero and all past gradients as zero as well, so the
     // value term is zero.
-    val isNewRule = rule.weight == Clause.leastWeight && rule.subGradient == 0.0
+    //val isNewRule = rule.weight == Clause.leastWeight && rule.subGradient == 0.0
 
     val lambda = inps.adaRegularization //0.001 // 0.01 default
     val eta = inps.adaLearnRate //1.0 // default
@@ -43,9 +43,10 @@ object UpdateWeights {
     val difference = math.abs(value) - (lambda * coefficient)
 
     val result = {
-      if (isNewRule) {
-        val x = eta/(delta + mistakes) // the coefficient here is the sqrt of the gradient (= current mistakes)
+      if (rule.isNew) {
+        val x = eta / (delta + mistakes) // the coefficient here is the sqrt of the gradient (= current mistakes)
         val y = x * (mistakes - lambda)
+        rule.isNew = false // a rule is new only once.
         if (y > 0) y else Clause.leastWeight
       } else {
         if (difference > 0) if (value >= 0) difference else -difference

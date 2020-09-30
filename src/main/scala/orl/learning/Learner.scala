@@ -197,7 +197,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
         in.foldLeft(0, 0, Vector.empty[Double]) { (x, y) =>
           val (count, prevSum, avgVector) = (x._1, x._2, x._3)
           val (newCount, newSum) = (count + 1, prevSum + y)
-          (newCount, newSum, avgVector :+ newSum.toDouble / newCount)
+          (newCount, newSum, avgVector :+ newSum.toDouble / (newCount * inps.chunkSize))
         }
       }
 

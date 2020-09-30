@@ -75,7 +75,6 @@ object Globals {
   val SCORE_RULES = "score_rules"
   val GROW_NEW_RULE_TEST = "grow_new_rule_test"
 
-
   // These values may be set during the construction of the Globals instance
   var glvalues =
     scala.collection.mutable.Map[String, String](

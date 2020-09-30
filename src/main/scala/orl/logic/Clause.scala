@@ -72,6 +72,7 @@ case class Clause(
   var weight: Double = leastWeight
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
+  var isNew = false
 
   /**
     * Subgradient variables for AdaGrad and Adam.
