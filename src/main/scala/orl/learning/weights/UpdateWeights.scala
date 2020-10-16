@@ -43,7 +43,7 @@ object UpdateWeights {
     val difference = math.abs(value) - (lambda * coefficient)
 
     val result = {
-      if (rule.isNew) {
+      if (rule.isNew) { // false rule.isNew
         val x = eta / (delta + mistakes) // the coefficient here is the sqrt of the gradient (= current mistakes)
         val y = x * (mistakes - lambda)
         rule.isNew = false // a rule is new only once.

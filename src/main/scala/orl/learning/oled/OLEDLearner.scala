@@ -57,7 +57,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     if (rulesCompressed.nonEmpty) {
       val inferredState = ASPSolver.crispLogicInference(rulesCompressed, exmpl, inps.globals)
       val (_tpCounts, _fpCounts, _fnCounts, _totalGroundings, _inertiaAtoms) =
-        WoledMLNLearnerUtils.scoreAndUpdateWeights(exmpl, inferredState, state.getAllRules(inps, "all").toVector, inps, logger)
+        WoledMLNLearnerUtils.scoreAndUpdateWeights(exmpl, inferredState, state.getAllRules("all").toVector, inps, logger)
       tpCounts = _tpCounts
       fpCounts = _fpCounts
       fnCounts = _fnCounts
@@ -103,7 +103,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
         val allNew = newInit ++ newTerm
         if (allNew.nonEmpty) WoledMLNLearnerUtils.showNewRulesMsg(fpCounts, fnCounts, allNew, logger)
         //mergeAndUpdate(allNew)
-        state.updateRules(newInit ++ newTerm, "add", inps)
+        state.updateRules(newInit ++ newTerm, "add")
 
       }
 
@@ -119,7 +119,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
       val term = state.terminationRules
       val expandedTheory = RuleExpansion.expandRules(init ++ term, inps, logger)
 
-      state.updateRules(expandedTheory._1, "replace", inps)
+      state.updateRules(expandedTheory._1, "replace")
 
       //val pruningSpecs = new PruningSpecs(0.8, 2, 100)
       //val pruned = state.pruneRules(pruningSpecs, inps, logger)
@@ -199,7 +199,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     actuallyNewRules foreach { newRule =>
       logger.info(s"\nCreated new rule:\n  ${newRule.tostring}\n  with support:\n  " +
         s"${newRule.supportSet.map(_.tostring).mkString("\n")}")
-      state.updateRules(List(newRule), "add", inps)
+      state.updateRules(List(newRule), "add")
     }
   }
 
@@ -211,7 +211,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     if (repeatFor > 0) {
       self ! new StartOver
     } else if (repeatFor == 0) {
-      val theory = state.getAllRules(inps, "top")
+      val theory = state.getAllRules("top")
 
       showStats(theory)
 

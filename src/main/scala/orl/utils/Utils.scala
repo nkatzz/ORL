@@ -103,6 +103,8 @@ object Utils {
     (precision, recall, f1score)
   }
 
+  def f11Score(x: (Int, Int, Int)) = f1Score(x._1, x._2, x._3)
+
   /**
     * Randomly draw N distinct elements from a vector
     */

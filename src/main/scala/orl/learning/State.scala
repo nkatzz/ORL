@@ -19,7 +19,7 @@ package orl.learning
 
 import orl.app.runutils.{Globals, RunningOptions}
 import orl.learning.LearnUtils.setTypePredicates
-import orl.logic.{Clause, LogicUtils}
+import orl.logic.Clause
 import orl.utils.Utils.underline
 
 /**
@@ -76,11 +76,18 @@ class State(inps: RunningOptions) {
 
   def getTopTheory() = initiationRules ++ terminationRules
 
-  /* The "what" variable here is either "all" or "top".
-  *  "all" returns all non-empty bodied rules along with their
-  *  specializations, while "top" returns the top non-empty bodied rules.
-  *  */
-  def getAllRules(inps: RunningOptions, what: String) = {
+  def removeRule(rule: Clause) = {
+    getTopTheory().foldLeft(List.empty[Clause]) ((x, y) => if (y.## == rule.##) x else x :+ y)
+  }
+
+  def addRule(rule: Clause) = updateRules(List(rule), "add")
+
+  /**
+    * The "what" variable here is either "all" or "top".
+    * "all" returns all non-empty bodied rules along with their
+    * specializations, while "top" returns the top non-empty bodied rules.
+    */
+  def getAllRules(what: String) = {
     val topRules = getTopTheory()
     topRules foreach { topRule => if (topRule.refinements.isEmpty) topRule.generateCandidateRefs(specializationDepth, comparisonPredicates) }
     what match {
@@ -89,7 +96,9 @@ class State(inps: RunningOptions) {
     }
   }
 
-  // Returns the best refinement currently available from each subsumption lattice
+  /**
+    * Returns the best refinement currently available from each subsumption lattice
+    */
   def getBestRules(gl: Globals, quality: String = "weight") = {
     val comparisonPredicates = gl.comparisonPredicates
     val spDepth = Globals.glvalues("specializationDepth")
@@ -128,7 +137,7 @@ class State(inps: RunningOptions) {
   }
 
   /* The "action" variable here is either "add" or "replace" */
-  def updateRules(newRules: List[Clause], action: String, inps: RunningOptions) = {
+  def updateRules(newRules: List[Clause], action: String) = {
     if (inps.ruleLearningStrategy == "hoeffding") {
       newRules foreach { rule =>
         if (rule.refinements.isEmpty) {
@@ -146,110 +155,6 @@ class State(inps: RunningOptions) {
         initiationRules = init
         terminationRules = term
     }
-  }
-
-  def lowQualityBasedPruning(specs: PruningSpecs, inps: RunningOptions, logger: org.slf4j.Logger) = {
-
-      def showPruned(c: Clause) = {
-        // Note that the number of examples a rule has been evaluated on is the number of examples
-        // it fires on, NOT the number of examples seen so far in the stream. Therefore, we're pruning
-        // if the rule is of low quality after TPs+FPs examples.
-        val msg =
-          s"\n===========================================================\n" +
-            s"\nPruned clause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns} | Weight: ${c.weight})\n\n${c.tostring}\n\n" +
-            s"After ${c.seenExmplsNum} examples.\nThe corresponding bottom rule is:\n${c.supportSet.head.tostring}" +
-            s"\n===========================================================\n"
-        logger.info(msg)
-      }
-
-    val weightLearning = inps.weightLean
-    val acceptablePrecision = specs.minPrecision
-    val maxBodyLength = specs.bodyLength
-    val oldness = specs.oldness
-
-    var pruned = false
-
-      def removeBadRules(rules: List[Clause]) = {
-
-          def remove(rule: Clause): Unit = {
-            showPruned(rule)
-            blackList = blackList :+ rule.supportSet.head
-            pruned = true
-          }
-
-        rules.foldLeft(List.empty[Clause]) { (accum, rule) =>
-          if (rule.body.length >= maxBodyLength) {
-            //if (rule.precision <= acceptablePrecision && !rule.refinements.exists(x => x.precision > acceptablePrecision)) {
-            if (rule.tps <= 20) {
-              remove(rule)
-              accum
-            } else {
-              accum :+ rule
-            }
-          } else {
-            /*if (rule.seenExmplsNum >= oldness) {
-              if (rule.precision <= acceptablePrecision) {
-                remove(rule)
-                accum
-              } else {
-                accum :+ rule
-              }
-            } else {
-              accum :+ rule
-            }*/
-            accum :+ rule
-          }
-
-        }
-      }
-
-    initiationRules = removeBadRules(initiationRules)
-    terminationRules = removeBadRules(terminationRules)
-
-    pruned
-  }
-
-  /**
-    * Removes a rule r1 that theta-subsumes a rule r2, if infoGain(r1,r2) > 0.
-    * Only applied to rules with body >= 1, to avoid pruning very young rules.
-    */
-  def subsumptionBasedPruning() = {
-
-      def showSubsumptionBasedPruned(c: Clause): Unit = {
-        val msg =
-          s"\n===========================================================\n" +
-            s"\nPruned clause (Precision: ${c.precision} | TPs: ${c.tps} FPs: ${c.fps} FNs: ${c.fns} | Weight: ${c.weight})\n\n${c.tostring}\n\n" +
-            s"because it submsumed another, of higher quality." +
-            s"\nAfter ${c.seenExmplsNum} examples.\nThe corresponding bottom rule is:\n${c.supportSet.head.tostring}" +
-            s"\n===========================================================\n"
-      }
-
-      def prune(rule: Clause): Unit = {
-
-        val pool = getTopTheory().filter(r => r.head.predSymbol == rule.head.predSymbol)
-
-        val (others, thiss) = pool.partition(_ != rule)
-
-        if (others.nonEmpty && thiss.isEmpty) {
-          val msg = s"Subsumption-based prunning: " +
-            s"Cannot find rule\n${rule.tostring} in pool of\n${others.map(_.tostring).mkString("\n")}."
-          throw new RuntimeException(msg)
-        }
-
-        val subsumees = others.foldLeft(List.empty[Clause]) { (x, otherRule) =>
-          if (rule.thetaSubsumes(otherRule)) x :+ otherRule else x
-        }
-
-        val shouldPrune = subsumees.exists(rulesChild => LogicUtils.informationGain(rulesChild, rule) > 0)
-
-        if (shouldPrune) {
-          showSubsumptionBasedPruned(rule)
-          if (rule.head.predSymbol == "initiatedAt") initiationRules = others else terminationRules = others
-        }
-      }
-
-    getTopTheory().filter(_.body.nonEmpty).foreach(prune)
-
   }
 
 }

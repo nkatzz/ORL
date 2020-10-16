@@ -149,6 +149,9 @@ object BK {
       |%inferredTrue(F,T,RuleId) :-
       |%    emptyBodied(RuleId), fluent(F), time(T),
       |%    trueGrounding(F,T,RuleId).
+      |%inferredTrue(F,T,RuleId) :-
+      |%    emptyBodied(RuleId), fluent(F), time(T),
+      |%    falseGrounding(F,T,RuleId).
       |
       |ruleId(RuleId) :- topRule(RuleId).
       |ruleId(RuleId) :- specialization(RuleId).
@@ -161,6 +164,8 @@ object BK {
       |    ActualFalseGroundings = #count {F,T: falseGrounding(F,T,RuleId), fluent(F), time(T)},
       |    TrueInferredAsTrue = #count {F,T: trueGrounding(F,T,RuleId), inferredTrue(F,T,RuleId), fluent(F), time(T)},
       |    FalseInferredAsTrue = #count {F,T: falseGrounding(F,T,RuleId), inferredTrue(F,T,RuleId), fluent(F), time(T)}.
+      |
+      |%:- satisfied(terminatedAt(F,T),RuleId), predicted(holdsAt(F,T1)), next(T,T1), not satisfied(initiatedAt(F,T),RuleId_1), ruleId(RuleId_1).
       |
       |orphanFalsePositive(holdsAt(F,T)) :-
       |    predicted(holdsAt(F,T)), not example(holdsAt(F,T)), not causedByRuleGrounding(holdsAt(F,T)).

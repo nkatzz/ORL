@@ -62,7 +62,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     e = WoledMLNLearnerUtils.dataToMLNFormat(exmpl, inps)
 
     //rules = state.getAllRules(inps, "all").filter(x => x.body.nonEmpty)
-    rules = state.getAllRules(inps, "top")
+    rules = state.getAllRules("top")
 
     rulesCompressed = LogicUtils.compressTheory(rules)
     //rulesCompressed = LogicUtils.compressTheoryKeepMoreSpecific(rules)
@@ -86,8 +86,9 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     //println("      Scoring...")
 
     val scoring = orl.utils.Utils.time {
-      WoledMLNLearnerUtils.scoreAndUpdateWeights(e, inferredState,
-                                                 state.getAllRules(inps, "all").toVector, inps, logger, batchCount = batchCount)
+      WoledMLNLearnerUtils.
+        scoreAndUpdateWeights(e, inferredState,
+                              state.getAllRules("all").toVector, inps, logger, batchCount = batchCount)
     }
 
     val (tpCounts, fpCounts, fnCounts, totalGroundings, _inertiaAtoms) = scoring._1
@@ -111,7 +112,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
         //newRules = generateNewRulesEager(rulesCompressed, e, inps)//.filter(p => !state.isBlackListed(p))
         if (newRules.nonEmpty) {
           WoledMLNLearnerUtils.showNewRulesMsg(fpCounts, fnCounts, newRules, logger)
-          state.updateRules(newRules, "add", inps)
+          state.updateRules(newRules, "add")
         }
       }
 
@@ -125,7 +126,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
       val term = state.terminationRules
       val expandedTheory = RuleExpansion.expandRules(init ++ term, inps, logger)
 
-      state.updateRules(expandedTheory._1, "replace", inps)
+      state.updateRules(expandedTheory._1, "replace")
 
       //val pruningSpecs = new PruningSpecs(0.8, 2, 100)
       //val pruned = state.pruneRules(pruningSpecs, inps, logger)
@@ -169,7 +170,7 @@ class WoledMLNLearner[T <: InputSource](inps: RunningOptions, trainingDataOption
     if (repeatFor > 0) {
       self ! new StartOver
     } else if (repeatFor == 0) {
-      val theory = state.getAllRules(inps, "top")
+      val theory = state.getAllRules("top")
 
       showStats(theory)
 

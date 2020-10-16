@@ -64,7 +64,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
     * will be generated. Set to Double.PositiveInfinity to lift the restriction on the
     * max seeds and used all atoms corresponding to mistakes.
     */
-  val maxNumberOfSeedAtoms: Double = 100.0 //Double.PositiveInfinity // 20.0
+  val maxNumberOfSeedAtoms: Double = 20.0 //Double.PositiveInfinity // 20.0
 
   /**
     * This is used with the "subsets" specialization strategy, where all subsets of a bottom clause
@@ -87,7 +87,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
     source.close
     val modes = inps.globals.MODEHS ++ inps.globals.MODEBS
     rulesList.foreach(x => x.setTypeAtoms(modes))
-    state.updateRules(rulesList, "add", inps)
+    state.updateRules(rulesList, "add")
     withHandCrafted = true
   }
 

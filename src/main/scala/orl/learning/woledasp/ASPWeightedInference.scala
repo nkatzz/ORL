@@ -75,7 +75,8 @@ object ASPWeightedInference extends LazyLogging {
   *           new rules are generated from the bottom clauses, XHAIL-style
   */
 
-class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps: RunningOptions, val newBCs: Seq[Clause] = Nil) {
+class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
+    val inps: RunningOptions, val newBCs: Seq[Clause] = Nil) {
 
   var TPs = Set.empty[String]
   var FPs = Set.empty[String]
@@ -156,36 +157,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     *
     */
 
-  private def inferenceProgramUNSAT = transformRulesUNSAT
   private def inferenceProgramSAT = transformRulesSAT
-
-  /**
-    *  The i-th rule: head(X) :- body(X).
-    *
-    *  Transformed:
-    *  unsat(head(X),i) :- head(X), not body(X).
-    *  head(X) :- body(X), not unsat(X).
-    *
-    */
-  private def transformRulesUNSAT = {
-    val litsToString = (x: Seq[Literal]) => x.map(_.tostring).mkString(",")
-    val all = rulesWithintWeights map { case (rule, intWeight) =>
-      val unsatAtom = Literal.parse(s"unsatisfied(${rule.head.tostring},${rule.##})")
-      val typePreds = getTypePredicates(rule)
-      val unsatDefinition = Clause(head = unsatAtom, body = rule.body ++ typePreds :+ rule.head.negated).tostring
-      val ruleDefinition = Clause(head = rule.head, body = rule.body ++ typePreds :+ unsatAtom.negated).tostring
-      val weakCosntr = s":~ unsatisfied(${rule.head.predSymbol}(F,T),${rule.##}), fluent(F), time(T). [$intWeight,${rule.##},F,T]"
-      val ruleIdPred = s"ruleId(${rule.##})."
-
-      // Be very careful with cases like this one.
-      // Here, a definition of the form:
-      // satisfied(p(X), Id) :- not satisfied(p(X), Id), entity(X), ruleId(Id).
-      // can cause groundings of satisfied/2 with irrelevant ruleid's.
-      val satDefinition = s"satisfied(${rule.head.predSymbol}(F,T),${rule.##}) :- not unsatisfied(${rule.head.predSymbol}(F,T),${rule.##}),fluent(F),time(T)."
-      s"$unsatDefinition\n$ruleDefinition\n$weakCosntr\n$ruleIdPred\n$satDefinition"
-    }
-    all.mkString("\n")
-  }
 
   /**
     * The i-th rule: head(X) :- body(X).
@@ -395,10 +367,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
       val rule = rulesIdMap(ruleId.toInt)
       val mistakes = allInferredTrue - actualTrueGroundings
 
-      if (rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(active(X),T),close(X,Y,34,T).") ||
-        rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(walking(Y),T),happensAt(active(X),T).") ||
-        rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(walking(X),T),happensAt(active(Y),T).") ||
-        rule.tostring.equals("initiatedAt(move(X,Y),T) :- close(X,Y,34,T),happensAt(active(X),T).")) {
+      if (rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(walking(X),T),happensAt(walking(Y),T).")) {
         val stop = "stop"
       }
 
@@ -411,7 +380,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
         rule.tps += actualTrueGroundings
         rule.fps += actualFalseGroundings
       } else {
-        rule.tps += trueInferredAsTrueGroundings
+        rule.tps += trueInferredAsTrueGroundings //actualTrueGroundings
         rule.fps += falseInferredAsTrueGroundings
 
         // Just an experiment
@@ -495,7 +464,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example, val inps:
     * performance of the current theory.
     *
     */
-  def performInference() = {
+  def performInference(): (Set[String], Set[String]) = {
 
     val idsMap = rules.flatMap(x => List(x) ++ x.refinements).map(x => x.## -> x).toMap
 

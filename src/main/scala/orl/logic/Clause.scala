@@ -73,6 +73,9 @@ case class Clause(
   var subGradient: Double = 0.0
   var mistakes: Double = 0.0
   var isNew = false
+  var eligibleForSpecialization = true
+
+  val isEmpty: Boolean = this.head.tostring == ""
 
   /**
     * Subgradient variables for AdaGrad and Adam.
