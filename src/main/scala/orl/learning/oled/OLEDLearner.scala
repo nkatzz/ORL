@@ -50,9 +50,9 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     var inferenceTime = 0.0
     var scoringTime = 0.0
 
-    //rulesCompressed = state.getBestRules(inps.globals, "score") //.filter(_.precision >= 0.9)
+    //rulesCompressed = state.getBestRules(inps.globals, "score") .filter(_.precision >= 0.8)
     //rulesCompressed = state.getAllRules(inps, "top")
-    rulesCompressed = state.getTopTheory().filter(x => x.body.nonEmpty) // && x.precision >= inps.pruneThreshold)
+    rulesCompressed = state.getTopTheory().filter(x => x.body.nonEmpty && x.precision >= inps.pruneThreshold)
 
     if (rulesCompressed.nonEmpty) {
       val inferredState = ASPSolver.crispLogicInference(rulesCompressed, exmpl, inps.globals)
@@ -256,7 +256,7 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
           }
         val show = globals.SHOW_TPS_ARITY_1 + globals.SHOW_FPS_ARITY_1 + globals.SHOW_FNS_ARITY_1 + s"\n#show tns/1.\n"
         val ex = e.toASP().mkString(" ")
-        val program = ex + globals.INCLUDE_BK(globals.BK_WHOLE) + t + coverageConstr + show
+        val program = ex + "\n" + globals.BK + t + coverageConstr + show
         ASPSolver.solve(program)
       }
 

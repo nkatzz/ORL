@@ -64,7 +64,7 @@ class State(inps: RunningOptions) {
     val msg = s"\n${underline(s"Training performance: TPs: ${totalTPs}, FPs: ${totalFPs}, FNs: ${totalFNs}, total mistakes: ${totalFPs + totalFNs}")}."
     logger.info(msg)
     iterationInfo = iterationInfo :+ msg
-    clearStats()
+    //clearStats()
   }
 
   def finalInfo(logger: org.slf4j.Logger) = {
@@ -77,10 +77,18 @@ class State(inps: RunningOptions) {
   def getTopTheory() = initiationRules ++ terminationRules
 
   def removeRule(rule: Clause) = {
-    getTopTheory().foldLeft(List.empty[Clause]) ((x, y) => if (y.## == rule.##) x else x :+ y)
+    val withoutRule = getTopTheory().foldLeft(List.empty[Clause]) ((x, y) => if (y.## == rule.##) x else x :+ y)
+    updateRules(withoutRule, "replace")
   }
 
   def addRule(rule: Clause) = updateRules(List(rule), "add")
+
+  def clearEmptyBodied() = {
+    val (emptyBodied, others) = getTopTheory().partition(_.body.isEmpty)
+    emptyBodied.foreach { emptyBodiedRule =>
+      if (others.exists(r => r.head.tostring == emptyBodiedRule.head.tostring)) removeRule(emptyBodiedRule)
+    }
+  }
 
   /**
     * The "what" variable here is either "all" or "top".

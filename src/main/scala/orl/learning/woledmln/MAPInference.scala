@@ -80,7 +80,9 @@ object MAPInference {
     val obs = e.observations ++ inertiaAtoms.map(x => x.tostring)
     val ee = Example(e.queryAtoms, obs, e.time)
 
-    val (functionMappings, mlnEvidenceAtoms, mlmConstsToAspAtomsMap) = getFunctionMappings(ee, inps.globals.BK_WHOLE_EC)
+    val bkfile = orl.utils.Utils.dumpToFile(inps.globals.BK)
+
+    val (functionMappings, mlnEvidenceAtoms, mlmConstsToAspAtomsMap) = getFunctionMappings(ee, bkfile.getCanonicalPath)
 
     // Adding constants
     val const = ConstantsDomainBuilder.from(constants)

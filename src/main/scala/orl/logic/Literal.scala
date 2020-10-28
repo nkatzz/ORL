@@ -17,6 +17,7 @@
 
 package orl.logic
 
+import org.slf4j.{Logger, LoggerFactory}
 import orl.logic.parsers.{ClausalLogicParser, ModesParser, PB2LogicParser}
 
 import scala.collection.mutable.ListBuffer
@@ -185,6 +186,8 @@ case class Literal(
     modeAtom: ModeAtom = ModeAtom("", Nil),
     typePreds: List[String] = Nil) extends LogicalExpression {
 
+  val logger: Logger = LoggerFactory.getLogger("")
+
   var mlnTruthValue: Boolean = false
 
   lazy val arity: Int = terms.length
@@ -307,6 +310,10 @@ case class Literal(
           }
         }
       case _ => this.modeAtom
+    }
+    if (out == ModeAtom("", List())) {
+      logger.error(s"Cannot find mode declaration for atom: ${this.tostring}. Cannot retrieve variable types.")
+      System.exit(-1)
     }
     out
   }

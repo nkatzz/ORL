@@ -25,16 +25,6 @@ import scala.util.{Failure, Success, Try}
 
 object PB2LogicParser extends LazyLogging {
 
-  /*
-  *
-  * TODO
-  *
-  * Fix whitespace!!
-  * Currently parsing fails even with the slightest
-  * whitespace in the logical expressions.
-  *
-  * */
-
   def parseClause(c: String, debug: Boolean = false): LogicalExpression = {
     val parser = new PB2LogicParser(c)
     val result = parser.Clause.run()
@@ -71,7 +61,7 @@ final class PB2LogicParser(val input: ParserInput) extends Parser {
   case class ExpressionList(elems: List[LogicalExpression])
 
   def Clause = rule {
-    Atom ~ " :- " ~ BodyLiterals ~ optional(".") ~ EOI ~> ((x, y) =>
+    Atom ~ iff ~ BodyLiterals ~ optional(".") ~ EOI ~> ((x, y) =>
       orl.logic.Clause(head = x, body = y.elems.map(_.asInstanceOf[Literal])))
   }
 
@@ -87,9 +77,14 @@ final class PB2LogicParser(val input: ParserInput) extends Parser {
 
   private def Term: Rule1[LogicalExpression] = rule { Atom | Const | Var }
 
-  private def BodyLiterals = rule { oneOrMore(Atom).separatedBy(",") ~> (x => ExpressionList(x.toList)) }
+  private def BodyLiterals = rule {
+    oneOrMore(Atom).separatedBy(InnerSeparator) ~> (x => ExpressionList(x.toList))
+  }
 
-  private def InnerTerms = rule { "(" ~ oneOrMore(Term).separatedBy(",") ~ ")" ~> (x => ExpressionList(x.toList)) }
+  private def InnerTerms = rule {
+    whiteSpace ~ "(" ~ whiteSpace ~ oneOrMore(Term).
+      separatedBy(InnerSeparator) ~ whiteSpace ~ ")" ~ whiteSpace ~> (x => ExpressionList(x.toList))
+  }
 
   private def Funct = rule {
     (capture(LowerCaseString) ~> ((x: String) => x)) | (capture(ClassicalNegation) ~> ((x: String) => x))
@@ -115,6 +110,14 @@ final class PB2LogicParser(val input: ParserInput) extends Parser {
       (capture('"' ~ UpperCaseString ~ '"') ~> ((x: String) => Constant(x)))
   }
   */
+
+  def InnerSeparator = rule { whiteSpace ~ "," ~ whiteSpace }
+
+  def WhiteSpaceChar = CharPredicate(" ")
+
+  private def whiteSpace = rule(zeroOrMore(WhiteSpaceChar))
+
+  private def iff = rule { whiteSpace ~ ":-" ~ whiteSpace }
 
   private def LowerCaseString = rule { CharPredicate.LowerAlpha ~ zeroOrMore(CharPredicate.AlphaNum | "_") }
 

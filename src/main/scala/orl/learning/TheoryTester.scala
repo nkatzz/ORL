@@ -85,7 +85,7 @@ class TheoryTester(
           }
         val show = globals.SHOW_TPS_ARITY_1 + globals.SHOW_FPS_ARITY_1 + globals.SHOW_FNS_ARITY_1
         val ex = e.toASP().mkString(" ")
-        val program = ex + globals.INCLUDE_BK(globals.BK_WHOLE) + t + coverageConstr + show
+        val program = ex + "\n" + globals.BK + "\n" + t + coverageConstr + show
         ASPSolver.solve(program)
       }
 

@@ -21,6 +21,7 @@ import java.text.DecimalFormat
 import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.{Logger, LoggerFactory}
 import orl.logic.Clause.leastWeight
 import orl.logic.parsers.PB2LogicParser
 
@@ -53,7 +54,20 @@ object Clause {
 
   /* Use this which is faster that combinators parsing. If any problems occur just fall back to the previous parser
   * (uncomment the method above.) See also the related comment at the parse method of the Literal companion object.*/
-  def parse(cl: String) = parseWPB2(cl)
+  def parse(cl: String, modeDeclarations: List[ModeAtom] = Nil) = {
+    val clause = {
+      if (Character.isDigit(cl.charAt(0))) {
+        val weight = cl.split(" ")(0)
+        val rule = cl.split(weight)(1).trim
+        val parsed = parseWPB2(rule)
+        parsed.weight = weight.toDouble
+        parsed
+      } else parseWPB2(cl.trim)
+    }
+
+    if (modeDeclarations.nonEmpty) clause.setTypeAtoms(modeDeclarations)
+    clause
+  }
 
   def parseWPB2(cl: String) = PB2LogicParser.parseClause(cl).asInstanceOf[Clause]
 
@@ -370,10 +384,6 @@ case class Clause(
         // This is the maximum gain for a given rule:
         val max = parentClause.tps.toDouble * (-Math.log(parentCoverage))
         val normalizedGain = gain / max
-
-        if (normalizedGain > 1.0) {
-          val stop = "stop"
-        }
 
         normalizedGain
       }

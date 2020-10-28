@@ -37,7 +37,7 @@ object FileRunner extends App with LazyLogging {
     val runningOptions = CMDArgs.getOLEDInputArgs(args)
 
     /** DEBUG! */
-    val BCs = runningOptions.globals.bottomClauses
+    /*val BCs = runningOptions.globals.bottomClauses
 
     val clause1 = Clause.parseWPB2("initiatedAt(move(X,Y),T) :- happensAt(active(X),T)")
     val clause2 = Clause.parseWPB2("terminatedAt(move(X,Y),T) :- happensAt(active(X),T)")
@@ -55,7 +55,7 @@ object FileRunner extends App with LazyLogging {
     }
     val x = TheoryRevision.refinementMetaProgram(List((clause1, 1), (clause2, 1)))
     val y = TheoryRevision.ruleInductionMetaProgram(BCs)
-    val stop = "stop"
+    val stop = "stop"*/
     /** DEBUG! */
 
     val trainingDataOptions = FileDataOptions(

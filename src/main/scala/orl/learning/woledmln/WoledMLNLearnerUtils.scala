@@ -42,9 +42,9 @@ object WoledMLNLearnerUtils {
     testData foreach { batch =>
       val program = {
         val nar = batch.observations.map(_ + ".").mkString("\n")
-        val include = s"""#include "${inps.globals.BK_WHOLE_EC}"."""
+        val BK = s"\n${inps.globals.BK}\n"
         val show = inps.globals.bodyAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
-        Vector(nar, include, show)
+        Vector(nar, BK, show)
       }
       // This transforms the actual data into an MLN-compatible form.
       val answer = ASPSolver.solve(program.mkString("\n"))
@@ -105,9 +105,9 @@ object WoledMLNLearnerUtils {
     // and getting the atoms expected by the mode declarations
     val program = {
       val nar = batch.observations.map(_ + ".").mkString("\n")
-      val include = s"""#include "${inps.globals.BK_WHOLE_EC}"."""
+      val BK = s"\n${inps.globals.BK}\n"
       val show = inps.globals.bodyAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
-      Vector(nar, include, show)
+      Vector(nar, BK, show)
     }
     val answer = ASPSolver.solve(program.mkString("\n"))
     val e = Example(batch.queryAtoms, answer, batch.time)
@@ -350,7 +350,7 @@ object WoledMLNLearnerUtils {
     val observationAtoms = (data.observations :+ s"endTime($endTime)").map(_ + ".")
     val annotationAtoms = data.queryAtoms.map(x => s"annotation($x).")
     val inferredAtoms = inferredState.map { case (k, v) => s"inferred($k,$v)." }
-    val include = s"""#include "${inps.globals.BK_WHOLE_EC}"."""
+    val include = s"\n${inps.globals.BK}\n"
 
     val metaProgram = {
       Vector("% Annotation Atoms:\n", annotationAtoms.mkString(" "),
@@ -458,14 +458,14 @@ object WoledMLNLearnerUtils {
          |
          |${examples.toASP().mkString("\n")}
          |
-         |#include "${globals.BK_WHOLE_EC}".
+         |${inps.globals.BK}
          |
          |% rules should go here.
          |
          |
-         |fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T).
-         |fps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T).
-         |tps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T).
+         |fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T), target(holdsAt(F,T)).
+         |fps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T)).
+         |tps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T)).
          |
          |initiatedAt(F,T) :- initiatedAt_proxy(F,T), fluent(F), time(T).
          |terminatedAt(F,T) :- terminatedAt_proxy(F,T), fluent(F), time(T).

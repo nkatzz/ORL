@@ -78,15 +78,9 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
   // Use a hand-crafted theory and do weight learning only.
   // TODO: Extend this to treat the input theory as starting point that can be revised.
   // Give a path with a theory to the input as follows:
-  //--input-theory=/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/meeting/ASP/asp-rules-test-moving
+  //--input-theory=/home/nkatz/dev/BKExamples/BK-various-taks/WeightLearning/Caviar/fragment/moving/ASP/asp-rules-test-moving
   if (inps.inputTheory != "") {
-      def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
-    val source = Source.fromFile(inps.inputTheory)
-    val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%"))
-    val rulesList = list.map(x => Clause.parse(x)).toList
-    source.close
-    val modes = inps.globals.MODEHS ++ inps.globals.MODEBS
-    rulesList.foreach(x => x.setTypeAtoms(modes))
+    val rulesList = LearnUtils.parseTheoryFromFile(inps, inps.inputTheory)
     state.updateRules(rulesList, "add")
     withHandCrafted = true
   }
@@ -198,6 +192,7 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
           val (count, prevSum, avgVector) = (x._1, x._2, x._3)
           val (newCount, newSum) = (count + 1, prevSum + y)
           (newCount, newSum, avgVector :+ newSum.toDouble / (newCount * inps.chunkSize))
+          //(newCount, newSum, avgVector :+ newSum.toDouble / newCount)
         }
       }
 
@@ -206,13 +201,12 @@ abstract class Learner[T <: InputSource](inps: RunningOptions, trainingDataOptio
 
     trainingTime = totalTime
 
-    logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun, inps.weightLean)}\nTraining time: $totalTime")
+    //logger.info(s"\nTheory:\n${LogicUtils.showTheoryWithStats(theory, inps.scoringFun, inps.weightLean)}\nTraining time: $totalTime")
+    logger.info(s"Training time: $totalTime")
     logger.info(s"Mistakes per batch:\n${state.perBatchError}")
     logger.info(s"Accumulated mistakes per batch:\n${state.perBatchError.scanLeft(0.0)(_ + _).tail}")
     logger.info(s"Average loss vector:\n${avgLoss(state.perBatchError)}")
-    //logger.info(s"Sending the theory to the parent actor")
     state.finalInfo(logger)
-
   }
 
   def format(x: Double) = {

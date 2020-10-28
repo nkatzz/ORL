@@ -24,6 +24,7 @@ import com.mongodb.casbah.{MongoClient, MongoCollection}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.io.Source
+import scala.util.Random
 
 /**
   * Created by nkatz at 13/12/19
@@ -94,13 +95,16 @@ object InputHandling extends LazyLogging {
       else map.toList.sortWith(_._1 > _._1)
     }
 
-    if (opts.setting == "training")
-      sorted.map(_._2).grouped(opts.chunkSize).map { list =>
+    if (opts.setting == "training") {
+      val t = sorted.map(_._2).grouped(opts.chunkSize).map { list =>
         val time = opts.sortByFunction(list.head.head)
         val (queryAtoms, evidenceAtoms) = list.flatten.partition(x => x.contains(opts.targetConcept))
         Example(queryAtoms, evidenceAtoms, time.toString)
       }
-    else if (opts.setting == "testing") {
+      //util.Random.setSeed(10)
+      //Random.shuffle(t)
+      t
+    } else if (opts.setting == "testing") {
       val data = sorted.flatMap(_._2)
       val time = opts.sortByFunction(data.head)
       val (queryAtoms, evidenceAtoms) = data.partition(x => x.contains(opts.targetConcept))

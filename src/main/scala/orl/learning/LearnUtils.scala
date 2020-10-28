@@ -23,6 +23,7 @@ import orl.inference.ASPSolver
 import orl.logic.{Clause, Constant, Literal}
 
 import scala.io.Source
+import scala.util.matching.Regex
 
 /**
   * Created by nkatz at 17/4/20
@@ -32,7 +33,21 @@ object LearnUtils {
 
   def main(args: Array[String]) = {
     val resultsPath = "/home/nkatz/dev/vagmcs/BK/move/crossval-results"
+    //val resultsPath = "/home/nkatz/dev/vagmcs/BK/rendezVous/crossval-results"
     getFinalF1Score(resultsPath)
+  }
+
+  def parseTheoryFromFile(inps: RunningOptions, filePath: String) = {
+      def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+    if (filePath == "") Nil
+    else {
+      val source = Source.fromFile(filePath)
+      val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%"))
+      val modes = inps.globals.MODEHS ++ inps.globals.MODEBS
+      val rulesList = list.map(x => Clause.parse(x, modes)).toList
+      source.close
+      rulesList
+    }
   }
 
   def setTypePredicates(newRules: List[Clause], inps: RunningOptions) = {

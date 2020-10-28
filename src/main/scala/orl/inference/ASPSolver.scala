@@ -96,7 +96,9 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
   def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {
     val modes = globals.MODEHS ++ globals.MODEBS
     val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
-    val program = e.toASP().mkString("\n") + t + "\n" + s"""#include "${globals.BK_WHOLE_EC}".""" + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
+    //val program = e.toASP().mkString("\n") + t + "\n" + s"""#include "${globals.BK_WHOLE_EC}".""" + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
+    val program = e.toASP().mkString("\n") + t + "\n" + globals.BK + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
+
     val results = solve(program)
     results.map(x => x -> true).toMap
   }

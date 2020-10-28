@@ -87,6 +87,8 @@ object CMDArgs extends LazyLogging {
     val ruleLearningStrategy = getMatchingArgumentValue("--rule-learning-strategy")
     val infoGainAtLeast = getMatchingArgumentValue("--infogain")
     val inputTheory = getMatchingArgumentValue("--input-theory")
+    val removeRules = getMatchingArgumentValue("--remove-rules")
+    val debug = getMatchingArgumentValue("--debug")
 
     //-------------
     // Global sets:
@@ -105,7 +107,7 @@ object CMDArgs extends LazyLogging {
     val globals = new Globals(entryPath.toString)
 
     // show the params:
-    logger.info(s"\nRunning with options:\n${map.map { case (k, v) => s"$k=$v" }.mkString(" ")}\n")
+    //logger.info(s"\nRunning with options:\n${map.map { case (k, v) => s"$k=$v" }.mkString(" ")}\n")
 
     val inps = new RunningOptions(
       entryPath.toString, delta.toString.toDouble, pruningThreshold.toString.toDouble,
@@ -120,7 +122,8 @@ object CMDArgs extends LazyLogging {
       withInertia.toString.toBoolean, weightLearn.toString.toBoolean, parallelClauseEval.toString.toBoolean,
       adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble, adaRegularization.toString.toDouble,
       adaLossFunction.toString, withEventCalculus.toString.toBoolean, saveTheoryTo.toString, test.toString,
-      ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble, inputTheory.toString)
+      ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble, inputTheory.toString,
+      removeRules.toString.toBoolean, debug.toString.toBoolean)
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
@@ -202,7 +205,9 @@ object CMDArgs extends LazyLogging {
       "hard-coded in the maxClauseLength variable of the orl.learning.Learner class).\n'tr': Use non-monotonic theory " +
       "revision techniques to specialize rules in response to mistakes.", default = "hoeffding"),
     Arg(name      = "--infogain", valueType = "Double", text = "Specialize if information gain exceeds this threshold.", default = "0.0000001"),
-    Arg(name      = "--input-theory", valueType = "String", text = "Path to as file containing an input theory in ASP syntax", default = "")
+    Arg(name      = "--input-theory", valueType = "String", text = "Path to as file containing an input theory in ASP syntax", default = ""),
+    Arg(name      = "--remove-rules", valueType = "Boolean", text = "If true unnecessary or low-quality rules are removed during theory revision.", default = "false"),
+    Arg(name      = "--debug", valueType = "Boolean", text = "If true more print-out statements are more detailed on some occasions", default = "false")
   )
 
   def checkData(dataInput: String, collection: String, trainOrTest: String) = {
@@ -314,5 +319,7 @@ class RunningOptions(
     val test: String,
     val ruleLearningStrategy: String,
     val infoGainAtLeast: Double,
-    val inputTheory: String)
+    val inputTheory: String,
+    val removeRules: Boolean,
+    val debug: Boolean)
 

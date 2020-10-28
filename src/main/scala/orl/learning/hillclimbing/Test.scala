@@ -17,10 +17,57 @@
 
 package orl.learning.hillclimbing
 
+import lomrf.logic.Clause
+
 /**
   * Created by nkatz at 17/4/20
   */
 
-object Test {
+object Test extends App {
 
+  type Triplet = (Int, Int, Int)
+
+  def tps(x: Triplet) = x._1
+  def fps(x: Triplet) = x._2
+  def fns(x: Triplet) = x._3
+
+  def foilGain(parentCounts: Triplet, childCounts: Triplet) = {
+
+    val precision = (x: Triplet) => tps(x).toDouble / (tps(x).toDouble + fps(x).toDouble)
+
+    val parentCoverage = precision(parentCounts)
+    val childCoverage = precision(childCounts)
+
+    val gain = {
+      val x = tps(childCounts) * (Math.log(childCoverage) - Math.log(parentCoverage))
+      if (x <= 0.0) 0.0 else x
+    }
+
+    val max = tps(parentCounts).toDouble * (-Math.log(parentCoverage))
+    println(s"max: $max")
+    val normalizedGain = gain / max
+
+    println(gain)
+    println(normalizedGain)
+  }
+
+  def entropyReduction(theory: Vector[Clause], rule: Clause) = {
+
+    /*rule.weight match {
+
+    }*/
+
+  }
+
+  val parentCounts = (946, 2, 0)
+  val childCounts = (755, 0, 0)
+  foilGain(parentCounts, childCounts)
+}
+
+object Test2 extends App {
+
+  util.Random.setSeed(100)
+  val x = util.Random.shuffle(Seq(1, 2, 3, 4))
+
+  println(x)
 }

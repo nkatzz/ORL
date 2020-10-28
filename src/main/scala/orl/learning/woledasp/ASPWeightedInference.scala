@@ -67,7 +67,7 @@ object ASPWeightedInference extends LazyLogging {
 /**
   * Created by nkatz at 11/2/20
   *
-  * Performs Marko Logic-style MAP inference with a set of weighted rules.
+  * Performs Markov Logic-style MAP inference with a set of weighted rules.
   * @param rules: the current weighted theory.
   * @param exmpl: the current data batch.
   * @param inps: Object carrying values for various parameters.
@@ -114,7 +114,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
     }
   }
 
-  private lazy val scaleFactor = 2000.0 / minDiff
+  private lazy val scaleFactor = 200.0 / minDiff
   private lazy val rulesWithintWeights = rules.map(x => (x, x.weight)).map(x => (x._1, math.round(x._2 * scaleFactor)))
 
   var satisfiedAtoms = Set.empty[String]
@@ -312,7 +312,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
       val data = exmpl.toASP().mkString(" ")
       val satAtoms = satisfiedAtoms.map(_ + ".").mkString(" ")
       val inferredAtoms = this.inferredAtoms.map(x => s"predicted($x).").mkString(" ")
-      val include = s"""#include "${inps.globals.BK_WHOLE}"."""
+      val include = s"${inps.globals.BK}"
       val scoringRules = BK.ScoreAndUpdateWeightsMetaProgram
 
       // We need the inferred atoms to find those that should be carried over to the next batch due to inertia.
@@ -367,7 +367,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
       val rule = rulesIdMap(ruleId.toInt)
       val mistakes = allInferredTrue - actualTrueGroundings
 
-      if (rule.tostring.equals("initiatedAt(move(X,Y),T) :- happensAt(walking(X),T),happensAt(walking(Y),T).")) {
+      if (rule.tostring.equals("initiatedAt(move(X,Y),T) :- close(X,Y,34,T).")) {
         val stop = "stop"
       }
 
@@ -376,17 +376,12 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
 
       rule.actualGroundings += actualTrueGroundings + actualFalseGroundings
 
-      if (rule.body.isEmpty) { // the empty-bodied rules do not participate in the inference process
-        rule.tps += actualTrueGroundings
-        rule.fps += actualFalseGroundings
-      } else {
-        rule.tps += trueInferredAsTrueGroundings //actualTrueGroundings
-        rule.fps += falseInferredAsTrueGroundings
+      rule.tps += trueInferredAsTrueGroundings
+      rule.fps += falseInferredAsTrueGroundings
 
-        // Just an experiment
-        //rule.tps += actualTrueGroundings
-        //rule.fps += actualFalseGroundings
-      }
+      // Just an experiment
+      //rule.tps += actualTrueGroundings
+      ///rule.fps += actualFalseGroundings
 
     }
     (totalGroundings, inertiaAtoms)
@@ -402,7 +397,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
       val data = exmpl.toASP().mkString(" ")
       val rs = inferenceProgramSAT
       val abductionBK = BK.abductionMetaProgram
-      val include = s"""#include "${inps.globals.BK_WHOLE}"."""
+      val include = s"${inps.globals.BK}"
       s"$data\n$rs\n$abductionBK\n$include\n"
     }
 
@@ -442,7 +437,9 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
 
       def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
 
-    val (_, varKernel) = OldStructureLearningFunctions.generateKernel(abduced, examples = toMapASP(exmpl), aspInputFile = aspFile, bkFile = inps.globals.BK_WHOLE_EC, globals = inps.globals)
+    val file = orl.utils.Utils.dumpToFile(inps.globals.BK)
+
+    val (_, varKernel) = OldStructureLearningFunctions.generateKernel(abduced, examples = toMapASP(exmpl), aspInputFile = aspFile, bkFile = file.getCanonicalPath, globals = inps.globals)
 
     val bottomTheory = rules flatMap (x => x.supportSet)
 
@@ -474,25 +471,25 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
       // in order to not miss positives in the last time point.
       val data = exmpl.toASP().mkString(" ")
       val rs = inferenceProgramSAT
-      val include = s"""#include "${inps.globals.BK_WHOLE}"."""
+      val include = s"${inps.globals.BK}"
 
       val bcsMetaProgram = if (newBCs.nonEmpty) TheoryRevision.ruleInductionMetaProgram(newBCs) else ""
 
       val fnsFpsMinimizeStatement = {
         if (newBCs.nonEmpty) {
-          s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T)." +
-            s"\nfps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T)." +
-            s"\ntps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T)." +
+          s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T), target(holdsAt(F,T))." +
+            s"\nfps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T))." +
+            s"\ntps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T))." +
             s"\n#minimize{1,F,T : fns(holdsAt(F,T)) ; 1,F,T : fps(holdsAt(F,T))}."
         } else ""
       }
 
       val shows = {
-        /*if (newBCs.isEmpty) s"#show holdsAt/2.\n#show -holdsAt/2.\n#show satisfied/2."
-        else s"#show holdsAt/2.\n#show -holdsAt/2.\n#show satisfied/2.\n#show use/2."*/
+        /*if (newBCs.isEmpty) s"#show holdsAt/2.\n#show satisfied/2."
+        else s"#show holdsAt/2.\n#show satisfied/2.\n#show use/2."*/
 
-        if (newBCs.isEmpty) s"#show holdsAt/2.\n#show satisfied/2."
-        else s"#show holdsAt/2.\n#show satisfied/2.\n#show use/2."
+        if (newBCs.isEmpty) s"\n\ntarget(F,T) :- holdsAt(F,T), fluent(F).\n\n#show holdsAt(F,T):target(F,T).\n#show satisfied/2."
+        else s"\n\ntarget(F,T) :- holdsAt(F,T), fluent(F).\n\n#show holdsAt(F,T):target(F,T).\n#show satisfied/2.\n#show use/2."
       }
 
       s"$data\n$rs\n$bcsMetaProgram\n$fnsFpsMinimizeStatement\n$include\n$shows"
@@ -503,8 +500,8 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
     //var optCost = 1000
     //var options = s"--opt-mode=enum,$optCost"
     // --opt-strategy=usc helps to boost performance if a large number of heads may be inferred.
-    var options = s"--opt-mode=opt --opt-strategy=usc" //--opt-strategy=usc
-    var result = ASPSolver.solve(program, options)
+    val options = s"--opt-mode=opt --opt-strategy=usc" //--opt-strategy=usc
+    val result = ASPSolver.solve(program, options)
 
     val (satAtoms, useAtoms, inferredAtoms) = result.foldLeft(Set.empty[String], Set.empty[String], Set.empty[String]) { (x, y) =>
       if (y.startsWith("satisfied")) (x._1 + y, x._2, x._3)
@@ -517,20 +514,6 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
 
     val trueState = exmpl.queryAtoms.toSet
     val inferredState = inferredAtoms
-    /*val (inferredNeg, inferredState_) = inferredState.partition(x => x.startsWith("-holdsAt"))
-
-    println(inferredState+"\n")
-    println(inferredState_)
-
-    if (inferredNeg.nonEmpty) {
-      val stop = "stop"
-    }
-
-    //val inferredState_ = inferredState
-
-    val tps = trueState.intersect(inferredState_)
-    val fps = inferredState_.diff(trueState)
-    val fns = trueState.diff(inferredState_)*/
 
     val tps = trueState.intersect(inferredState)
     val fps = inferredState.diff(trueState)
@@ -548,20 +531,6 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
     (satAtoms, inferredAtoms) // This is returned for debugging purposes
   }
 
-  def getTypePredicates(rule: Clause): List[Literal] = {
-
-    // What should work for everything and replace everything else (TODO)
-    rule.typeAtoms.map(Literal.parseWPB2(_))
-
-    // What I had sofar
-    //rule.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-
-    // For hand-crafted
-    //List(Literal.parse("person(X0)"), Literal.parse("person(X1)"), Literal.parse("time(X2)"))
-  }
-
-  private def getTypePredicates(lit: Literal) = {
-    lit.getVars.map(x => Literal.parse(s"${x._type}(${x.name})"))
-  }
+  def getTypePredicates(rule: Clause): List[Literal] = rule.typeAtoms.map(Literal.parseWPB2(_))
 
 }

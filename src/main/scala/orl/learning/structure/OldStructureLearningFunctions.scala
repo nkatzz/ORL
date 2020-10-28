@@ -115,7 +115,9 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
       def toMapASP(e: Example) = Map("annotation" -> e.queryAtoms.map(x => s"example($x)."), "narrative" -> e.observations.map(x => x + "."))
 
-    val (_, varKernel) = generateKernel(abduced, examples = toMapASP(examples), aspInputFile = aspFile, bkFile = inps.globals.BK_WHOLE_EC, globals = inps.globals)
+    val file = orl.utils.Utils.dumpToFile(inps.globals.BK)
+
+    val (_, varKernel) = generateKernel(abduced, examples = toMapASP(examples), aspInputFile = aspFile, bkFile = file.getCanonicalPath, globals = inps.globals)
 
     val bottomTheory = topTheory flatMap (x => x.supportSet)
 

@@ -320,13 +320,65 @@ class Globals(val entryPath: String) extends LazyLogging {
     MODEBS.map(x => new AtomSignature(x.predSymbol, x.arity))
   }
 
+  var BK = ""
+
+  def generateBK() = {
+    val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
+    val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
+
+    //val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te)."
+    //val EC_AXIOM_2 = "not holdsAt(F,Te) :- terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
+
+    val NEXT_PY =
+      """
+        |#script (python)
+        |times = []
+        |def collect_all(a):
+        |    times.append(a)
+        |    return 1
+        |def sorted():
+        |    times.sort()
+        |    return zip(range(len(times)), times)
+        |#def end_time():
+        |#    times.sort()
+        |#    return times[-1]
+        |#def start_time():
+        |#    times.sort()
+        |#    return times[0]
+        |#end.
+        |collect_all.
+        |collect_all :- time(X), @collect_all(X) == 0.
+        |sorted_pair(X,N) :- collect_all, (X,N) = @sorted().
+        |next(X, Y) :- sorted_pair(A,X), sorted_pair(A+1,Y).
+        |%start_end :- collect_all.
+        |%start_end(X,Y) :- start_end, X = @start_time(), Y = @end_time().
+        |%endTime(X) :- X = @end_time().
+        |%startTime(X) :- X = @start_time().
+        |""".stripMargin
+
+    //val INIT_TIME_DEF = "initialTime(X) :- time(X), #false : X > Y, time(Y)."
+    //val CORE_EVENT_CALCULUS_BK = List(EC_AXIOM_1, EC_AXIOM_2, NEXT_PY, INIT_TIME_DEF).mkString("\n")
+
+    val target = eps1.map { _pattern =>
+      val pattern = _pattern.varbed
+      s"target(${pattern.tostring}) :- ${pattern.typePreds.mkString(",")}."
+    }.mkString("\n")
+
+    val CORE_EVENT_CALCULUS_BK = List(EC_AXIOM_1, EC_AXIOM_2, NEXT_PY, target).mkString("\n")
+    val userBK = Source.fromFile(USER_BK).getLines.toList.mkString("\n")
+    // Type axioms:
+    val tas = this.typeAxioms.mkString("\n")
+    val bk = s"\n$userBK\n\n$CORE_EVENT_CALCULUS_BK\n\n$tas"
+    BK = bk
+  }
+
   /* Reads the background knowledge from  $inputPath/bk.lp and produces helper files (e.g. for rule evaluation,
      bottom clause generation etc.) */
 
   def generateBKFiles_Event_Calculus() = {
 
-    val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te)."
-    val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
+    val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
+    val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
 
     /*val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te).\n" +
       "not holdsAt(F,Te) :- terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
@@ -477,7 +529,8 @@ class Globals(val entryPath: String) extends LazyLogging {
   }
 
   if (Globals.glvalues("with-ec").toBoolean) {
-    generateBKFiles_Event_Calculus()
+    //generateBKFiles_Event_Calculus()
+    generateBK()
   } else {
     generateBKFiles_No_Event_Calculus()
   }

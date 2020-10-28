@@ -26,9 +26,9 @@ object BK {
   val abductionMetaProgram =
     s"""
        |
-       |fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T).
-       |fps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T).
-       |tps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T).
+       |fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T), target(holdsAt(F,T)).
+       |fps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T)).
+       |tps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T)).
        |
        |initiatedAt(F,T) :- initiatedAt_proxy(F,T), fluent(F), time(T).
        |terminatedAt(F,T) :- terminatedAt_proxy(F,T), fluent(F), time(T).
@@ -63,7 +63,7 @@ object BK {
        |
        |""".stripMargin
 
-  val ScoreAndUpdateWeightsMetaProgram: String =
+  /*val ScoreAndUpdateWeightsMetaProgram: String =
     """
       |
       |% satisfied/2 atoms that appear in the rules are generated during the weighted inference task.
@@ -91,6 +91,7 @@ object BK {
       |% False groundings for termination rules (the rule incorrectly fires).
       |falseGroundingTerm(F,T,RuleId) :-
       |    fires(terminatedAt(F,T),RuleId),
+      |    %example(holdsAt(F,T)),
       |    fluent(F), example(holdsAt(F,Te)), next(T,Te).
       |
       |% For top rules, groundings inferred-as-true are instances of satisfied/2.
@@ -127,7 +128,7 @@ object BK {
       |% we may assume that its inferred-as-true instances, had it taken part in the inference, would
       |% have been exactly the inferred-as-true instances of the parent rule, at points where the specialization fires.
       |% For instance, if p(X) :- q(X) and p(X) :- q(X),r(X) are the parent rule and the specialization respectively,
-      |% then if p(1) is inferred-as-true for the parent, then we we assume that it would have also been inferred as true
+      |% then if p(1) is inferred-as-true for the parent, then we assume that it would have also been inferred as true
       |% for the specialization, provided that r(1) is true in the data (so p(1) :- q(1),r(1) is a grounding of the rule).
       |% Note that even if the specialization does take part in inference, there cannot exist more inferred instances for
       |% the specialization than the ones described above.
@@ -141,17 +142,6 @@ object BK {
       |% Helper definitions abstracting initiation/termination.
       |fires(F,T,RuleId) :- fluent(F), time(T), fires(initiatedAt(F,T),RuleId).
       |fires(F,T,RuleId) :- fluent(F), time(T), fires(terminatedAt(F,T),RuleId).
-      |
-      |% Empty-bodied top rules do not participate in the inference process. To score them we simply add their
-      |% actual tp/fp groundings to their counters, just to be able to calculate the information gain of a specialization
-      |% over the parent so as to kick-start the specialization process.
-      |
-      |%inferredTrue(F,T,RuleId) :-
-      |%    emptyBodied(RuleId), fluent(F), time(T),
-      |%    trueGrounding(F,T,RuleId).
-      |%inferredTrue(F,T,RuleId) :-
-      |%    emptyBodied(RuleId), fluent(F), time(T),
-      |%    falseGrounding(F,T,RuleId).
       |
       |ruleId(RuleId) :- topRule(RuleId).
       |ruleId(RuleId) :- specialization(RuleId).
@@ -165,13 +155,6 @@ object BK {
       |    TrueInferredAsTrue = #count {F,T: trueGrounding(F,T,RuleId), inferredTrue(F,T,RuleId), fluent(F), time(T)},
       |    FalseInferredAsTrue = #count {F,T: falseGrounding(F,T,RuleId), inferredTrue(F,T,RuleId), fluent(F), time(T)}.
       |
-      |%:- satisfied(terminatedAt(F,T),RuleId), predicted(holdsAt(F,T1)), next(T,T1), not satisfied(initiatedAt(F,T),RuleId_1), ruleId(RuleId_1).
-      |
-      |orphanFalsePositive(holdsAt(F,T)) :-
-      |    predicted(holdsAt(F,T)), not example(holdsAt(F,T)), not causedByRuleGrounding(holdsAt(F,T)).
-      |causedByRuleGrounding(holdsAt(F,T)) :-
-      |    satisfied(initiatedAt(F,Ts),RuleId), next(Ts,T), initiatedAt(RuleId).
-      |
       |% No fluent/1 predicate here, we need the inferred ones, not all groundings
       |inertia(holdsAt(F,T)) :- holdsAt(F,T), endTime(T).
       |
@@ -180,68 +163,83 @@ object BK {
       |#show.
       |#show resultTopRule/5.
       |#show resultSpecialization/5.
-      |%#show orphanFalsePositive/1.
       |#show total_groundings/1.
       |#show inertia/1.
       |
-      |
-      |""".stripMargin
+      |""".stripMargin*/
 
-  /*val ScoreAndUpdateWeightsMetaProgram: String =
+  val ScoreAndUpdateWeightsMetaProgram: String =
     """
-      |
-      |% satisfied/2 atoms that appear in the rules are generated during the weighted inference task.
-      |% An instance of the form e.g. satisfied(initiatedAt(F,T),RuleId) means that the rule with id RuleId
-      |% is an initiation rule and it is satisfied in the inferred state.
-      |
-      |% Initiation.
-      |actuallyTrue(F,T,RuleId) :-
-      |    fires(initiatedAt(F,T),RuleId),
-      |    fluent(F), example(holdsAt(F,Te)), next(T,Te).
-
-      |% Initiation.
-      |actuallyFalse(F,T,RuleId) :-
-      |    fires(initiatedAt(F,T),RuleId),
-      |    fluent(F), not example(holdsAt(F,Te)), next(T,Te).
-      |
-      |% Termination.
-      |actuallyTrue(F,T,RuleId) :-
-      |    fires(terminatedAt(F,T),RuleId),
-      |    fluent(F), not example(holdsAt(F,Te)), next(T,Te).
-      |
-      |% Termination
-      |actuallyFalse(F,T,RuleId) :-
-      |    fires(terminatedAt(F,T),RuleId),
-      |    fluent(F), example(holdsAt(F,Te)), next(T,Te).
-      |
-      |% For top rules, groundings inferred-as-true are instances of satisfied/2.
-      |% Initiation.
-      |inferredTrue(F,T,RuleId) :-
-      |    topRule(RuleId), fluent(F), time(T),
+      |truePositiveGrounding(F,T,RuleId) :-
       |    satisfied(initiatedAt(F,T),RuleId),
-      |    predicted(holdsAt(F,Te)), next(T,Te),
-      |    example(holdsAt(F,Te)).
+      |    %not predicted(holdsAt(F,T)),
+      |    example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
       |
-      |% Initiation.
-      |inferredFalse(F,T,RuleId) :-
-      |    topRule(RuleId), fluent(F), time(T),
+      |truePositiveGrounding(F,T,RuleId) :-
+      |    satisfied(terminatedAt(F,T),RuleId),
+      |    %predicted(holdsAt(F,T)),
+      |    not example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
+      |
+      |falsePositiveGrounding(F,T,RuleId) :-
       |    satisfied(initiatedAt(F,T),RuleId),
-      |    predicted(holdsAt(F,Te)), next(T,Te),
-      |    not example(holdsAt(F,Te)).
+      |    %predicted(holdsAt(F,T)),
+      |    not example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
       |
-      |% Termination.
-      |inferredTrue(F,T,RuleId) :-
-      |    topRule(RuleId), fluent(F), time(T),
+      |falsePositiveGrounding(F,T,RuleId) :-
       |    satisfied(terminatedAt(F,T),RuleId),
-      |    not predicted(holdsAt(F,Te)), next(T,Te),
-      |    not example(holdsAt(F,Te)).
+      |    %not predicted(holdsAt(F,Te)),
+      |    example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
       |
-      |% Termination.
-      |inferredFalse(F,T,RuleId) :-
-      |    topRule(RuleId), fluent(F), time(T),
-      |    satisfied(terminatedAt(F,T),RuleId),
-      |    not predicted(holdsAt(F,Te)), next(T,Te),
-      |    example(holdsAt(F,Te)).
+      |falseNegativeGrounding(F,T,RuleId) :-
+      |    fires(initiatedAt(F,T),RuleId),
+      |    not satisfied(initiatedAt(F,T),RuleId),
+      |    example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
+      |
+      |falseNegativeGrounding(F,T,RuleId) :-
+      |    fires(terminatedAt(F,T),RuleId),
+      |    not satisfied(terminatedAt(F,T),RuleId),
+      |    %example(holdsAt(F,T)),
+      |    not example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
+      |
+      |actuallyFalseGrounding(F,T,RuleId) :-
+      |    fires(initiatedAt(F,T),RuleId),
+      |    not example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
+      |
+      |actuallyFalseGrounding(F,T,RuleId) :-
+      |    fires(terminatedAt(F,T),RuleId),
+      |    example(holdsAt(F,Te)),
+      |    next(T,Te), fluent(F).
+      |
+      |% Helper definitions abstracting initiation/termination.
+      |fires(F,T,RuleId) :- fluent(F), time(T), fires(initiatedAt(F,T),RuleId).
+      |fires(F,T,RuleId) :- fluent(F), time(T), fires(terminatedAt(F,T),RuleId).
+      |
+      |ruleId(RuleId) :- topRule(RuleId).
+      |ruleId(RuleId) :- specialization(RuleId).
+      |ruleId(RuleId) :- emptyBodied(RuleId).
+      |
+      |resultTopRule(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrue, InferredFalse) :-
+      |    topRule(RuleId), not emptyBodied(RuleId),
+      |    InferredTrue = #count {F,T: truePositiveGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    NotInferredTrue = #count {F,T: falseNegativeGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    ActualTrueGroundings = InferredTrue + NotInferredTrue,
+      |    ActualFalseGroundings = #count {F,T: actuallyFalseGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    InferredFalse = #count {F,T: falsePositiveGrounding(F,T,RuleId), fluent(F), time(T)}.
+      |
+      |resultTopRule(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrue, InferredFalse) :-
+      |    emptyBodied(RuleId),
+      |    InferredTrue = #count {F,T: truePositiveGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    NotInferredTrue = #count {F,T: falseNegativeGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    ActualTrueGroundings = InferredTrue + NotInferredTrue,
+      |    ActualFalseGroundings = #count {F,T: actuallyFalseGrounding(F,T,RuleId), fluent(F), time(T)},
+      |    InferredFalse = #count {F,T: falsePositiveGrounding(F,T,RuleId), fluent(F), time(T)}.
       |
       |% A specialization does not participate in the inference process, so it doesn't have satisfied/2 instances. However,
       |% we may assume that its inferred-as-true instances, had it taken part in the inference, would
@@ -252,45 +250,13 @@ object BK {
       |% Note that even if the specialization does take part in inference, there cannot exist more inferred instances for
       |% the specialization than the ones described above.
       |
-      |inferredTrue(F,T,RuleId_1) :-
-      |    specialization(RuleId_1), fluent(F), time(T),
-      |    parent(RuleId_1,RuleId_2), topRule(RuleId_2),
-      |    inferredTrue(F,T,RuleId_2),
-      |    fires(F,T,RuleId_1).
-      |
-      |inferredFalse(F,T,RuleId_1) :-
-      |    specialization(RuleId_1), fluent(F), time(T),
-      |    parent(RuleId_1,RuleId_2), topRule(RuleId_2),
-      |    inferredFalse(F,T,RuleId_2),
-      |    fires(F,T,RuleId_1).
-      |
-      |% Helper definitions abstracting initiation/termination.
-      |fires(F,T,RuleId) :- fluent(F), time(T), fires(initiatedAt(F,T),RuleId).
-      |fires(F,T,RuleId) :- fluent(F), time(T), fires(terminatedAt(F,T),RuleId).
-      |
-      |% Empty-bodied top rules do not participate in the inference process. To score them we simply add their
-      |% actual tp/fp groundings to their counters, just to be able to calculate the information gain of a specialization
-      |% over the parent so as to kick-start the specialization process.
-      |
-      |inferredTrue(F,T,RuleId) :-
-      |    emptyBodied(RuleId), fluent(F), time(T),
-      |    actuallyTrue(F,T,RuleId).
-      |
-      |inferredFalse(F,T,RuleId) :-
-      |    emptyBodied(RuleId), fluent(F), time(T),
-      |    actuallyFalse(F,T,RuleId).
-      |
-      |ruleId(RuleId) :- topRule(RuleId).
-      |ruleId(RuleId) :- specialization(RuleId).
-      |ruleId(RuleId) :- emptyBodied(RuleId).
-      |
-      |% Example coverage counts.
-      |resultTopRule(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrue, InferredFalse) :-
-      |    ruleId(RuleId),
-      |    ActualTrueGroundings = #count {F,T: actuallyTrue(F,T,RuleId), fluent(F), time(T)},
-      |    ActualFalseGroundings = #count {F,T: actuallyFalse(F,T,RuleId), fluent(F), time(T)},
-      |    InferredTrue = #count {F,T: inferredTrue(F,T,RuleId), fluent(F), time(T)},
-      |    InferredFalse = #count {F,T: inferredFalse(F,T,RuleId), fluent(F), time(T)}.
+      |resultSpecialization(RuleId, ActualTrueGroundings, ActualFalseGroundings, InferredTrue, InferredFalse) :-
+      |    specialization(RuleId), parent(RuleId,ParentId), topRule(ParentId),
+      |    InferredTrue = #count {F,T: truePositiveGrounding(F,T,ParentId), fires(F,T,RuleId), fluent(F), time(T)},
+      |    NotInferredTrue = #count {F,T: falseNegativeGrounding(F,T,ParentId), fires(F,T,RuleId), fluent(F), time(T)},
+      |    ActualTrueGroundings = InferredTrue + NotInferredTrue,
+      |    ActualFalseGroundings = #count {F,T: actuallyFalseGrounding(F,T,ParentId), fires(F,T,RuleId), fluent(F), time(T)},
+      |    InferredFalse = #count {F,T: falsePositiveGrounding(F,T,ParentId), fires(F,T,RuleId), fluent(F), time(T)}.
       |
       |% No fluent/1 predicate here, we need the inferred ones, not all groundings
       |inertia(holdsAt(F,T)) :- holdsAt(F,T), endTime(T).
@@ -300,11 +266,9 @@ object BK {
       |#show.
       |#show resultTopRule/5.
       |#show resultSpecialization/5.
-      |%#show orphanFalsePositive/1.
       |#show total_groundings/1.
       |#show inertia/1.
       |
-      |
-      |""".stripMargin*/
+      |""".stripMargin
 
 }
