@@ -55,7 +55,6 @@ fi
 version=`/bin/grep "^version[ ][ ]*in[ ][ ]*ThisBuild[ ][ ]*:=[ ][ ]*" "../version.sbt" | sed 's/version[ ][ ]*in[ ][ ]*ThisBuild[ ][ ]*:=[ ][ ]*\"\(.*\)\"/\1/g'`
 
 log_info "Building ORL ${version} ..."
-cd ..
 sbt assembly
 #mv target/scala-2.11/oled-${version}.jar .
 log_info "Done building ORL. The jar is located at: `pwd`/target/scala-2.12/orl-${version}-SNAPSHOT.jar"
