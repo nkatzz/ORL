@@ -4,37 +4,36 @@
 source logger.sh
 
 # Installing useful packages
-log_info "Installing various packages."
+log_info "Installing various packages necessary for Clingo 5.4.0."
 sudo apt-get install bison re2c scons gcc libtbb-dev python2.7-dev lua5.2-dev wget
 
-# Check if external dependencies directory exists
-if [ ! -d ../external_dependencies ]; then
+log_info "Installing Visual Studio (also necessary for Clingo 5.4.0.)"
+sudo apt update
+sudo apt install software-properties-common apt-transport-https wget
+wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
+sudo apt update
+sudo apt install code
 
-    # Create install directory
-    log_info "External dependencies directory not found. Creating ..."
-    mkdir ../external_dependencies
-    cd ../external_dependencies # Move into the directory
+# Check if external dependencies directory exists
+if [ ! -d ../dependencies ]; then
+    log_info "Dependencies directory not found. Creating ..."
+    mkdir ../dependencies
+    cd ../dependencies
 
     # Installing clingo
-    log_info "Installing clingo 4.5.4"
+    log_info "Installing clingo 5.4.0"
     mkdir clingo
     cd clingo
-    wget https://sourceforge.net/projects/potassco/files/clingo/4.5.4/clingo-4.5.4-source.tar.gz
-    tar -zxf clingo-4.5.4-source.tar.gz
-    rm clingo-4.5.4-source.tar.gz
-    cd clingo-4.5.4-source
-    cp ../../../install-scripts/solve-multi.patch.0 .
-    cp ../../../install-scripts/include-math.patch.0 .
-    patch -p0 < include-math.patch.0
-    patch -p0 < solve-multi.patch.0
-    scons configure --build-dir=release
-    scons --build-dir=release
-    sed -i 's/CPPPATH.*/CPPPATH = ['\''\/usr\/include\/python2.7'\'','\''\/usr\/include\/lua5.1'\'']/' build/release.py
-    sed -i 's/WITH_PYTHON.*/WITH_PYTHON = ['\''python2.7'\'']/' build/release.py
-    sed -i 's/WITH_LUA.*/WITH_LUA = ['\''lua5.2'\'']/' build/release.py
-    scons --build-dir=release pyclingo
-    scons --build-dir=release luaclingo
-    cd ../..
+    mkdir build
+    b="$PWD/build"
+    wget https://github.com/potassco/clingo/archive/v5.4.0.tar.gz
+    tar -zxf v5.4.0.tar.gz
+    rm v5.4.0.tar.gz
+    cd clingo-5.4.0
+    cmake -H$PWD -B$b -DCMAKE_BUILD_TYPE=Release
+    cmake --build $b
+    cd ../../..
 
     # Installing LoMRF
     log_info "Installing LoMRF."
@@ -49,22 +48,16 @@ if [ ! -d ../external_dependencies ]; then
     rm lpsolve55.tar.xz
     cd ..
 
-    # Installing Interval Tree
-    log_info "Installing Interval Tree."
-    mkdir lib
-    cd lib
-    wget http://users.iit.demokritos.gr/~nkatz/oled/IntervalTree.jar
-
     cd ../install-scripts # Done, go back into install-scripts directory
 else
-    log_warn "External dependencies directory exists! Moving on."
+    log_warn "tools directory exists! Moving on."
 fi
 
 # Get version from 'version.sbt'
 version=`/bin/grep "^version[ ][ ]*in[ ][ ]*ThisBuild[ ][ ]*:=[ ][ ]*" "../version.sbt" | sed 's/version[ ][ ]*in[ ][ ]*ThisBuild[ ][ ]*:=[ ][ ]*\"\(.*\)\"/\1/g'`
 
-log_info "Building OLED ${version} ..."
+log_info "Building ORL ${version} ..."
 cd ..
 sbt assembly
-mv target/scala-2.11/oled-${version}.jar .
-log_info "Done building OLED. The jar is located at: `pwd`"
+#mv target/scala-2.11/oled-${version}.jar .
+log_info "Done building ORL. The jar is located at: `pwd`/target/scala-2.12/orl-${version}-SNAPSHOT.jar"

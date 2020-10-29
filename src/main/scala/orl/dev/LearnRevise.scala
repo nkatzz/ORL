@@ -32,6 +32,9 @@ import orl.utils.Utils.underline
 object LearnRevise extends LazyLogging {
 
   def main(args: Array[String]) = {
+    val x = new java.io.File(".").getCanonicalPath
+    val y = new java.io.File("../").getCanonicalPath
+    val z = new java.io.File("../../").getCanonicalPath
     val inps = CMDArgs.getOLEDInputArgs(args)
     if (inps.test != "None") {
       // Testing an existing theory
