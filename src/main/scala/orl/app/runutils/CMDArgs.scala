@@ -89,7 +89,32 @@ object CMDArgs extends LazyLogging {
     val inputTheory = getMatchingArgumentValue("--input-theory")
     val removeRules = getMatchingArgumentValue("--remove-rules")
     val debug = getMatchingArgumentValue("--debug")
-    val clingo = getMatchingArgumentValue("--clingo")
+    var clingo = getMatchingArgumentValue("--clingo").toString
+
+    // Check if Clingo is OK
+    import scala.sys.process._
+    try {
+      // Default path for clingo is <ORL-HOME>/dependencies/clingo/build/bin/clingo
+      s"${clingo.toString} --version".lineStream_!
+      Globals.clingo = clingo.toString
+    } catch {
+      case _ : java.io.IOException =>
+        try {
+          // If the above doesn't work try to see if clingo is in the path
+          val t = s"clingo --version".lineStream_!
+          val split = t.head.split(" ")
+          val clingoVersion = split(2).split("\\.")(0)
+          if (clingoVersion.toInt < 5) {
+            logger.info(s"Clingo version >= 5 is required found version ${split(2)} from ${"which clingo".lineStream_!.head}")
+          }
+          clingo = s"which clingo".lineStream_!.head
+          Globals.clingo = clingo
+        } catch {
+          case _ : java.io.IOException =>
+            logger.error(s"No clingo not found in PATH")
+            System.exit(-1)
+        }
+    }
 
     //-------------
     // Global sets:
@@ -103,16 +128,6 @@ object CMDArgs extends LazyLogging {
     Globals.glvalues("with-inertia") = withInertia.toString
     Globals.glvalues("weight-learning") = weightLearn.toString
     Globals.glvalues("with-ec") = withEventCalculus.toString
-    Globals.clingo = if (clingo.toString == "system") "clingo" else clingo.toString
-
-    import scala.sys.process._
-    try {
-      val t = s"${Globals.clingo} --version".lineStream_!
-    } catch {
-      case _ : java.io.IOException =>
-        logger.error(s"Clingo not found at ${Globals.clingo}")
-        System.exit(-1)
-    }
 
     // Define this here so that all values in Globals.glvalues be already set.
     val globals = new Globals(entryPath.toString)
