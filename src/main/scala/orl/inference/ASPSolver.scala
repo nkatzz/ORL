@@ -51,11 +51,9 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     val filePath = file.getCanonicalPath
     val aspCores = s"-t${Runtime.getRuntime.availableProcessors}"
 
-    //val clingo = "/home/nkatz/software/clingo-5.4.0/build/bin/clingo"
-    //val command = Seq(clingo, filePath, "0", "-Wno-atom-undefined", aspCores)
-    val clingo = "/home/nkatz/tmp/test/external_dependencies/clingo/build/bin/clingo"
+    val clingo = if (Globals.clingo == "system") "clingo" else Globals.clingo
     val command = {
-      if (options == "") Seq("clingo", filePath, "0", "-Wno-atom-undefined", aspCores, "--time-limit=20")
+      if (options == "") Seq(clingo, filePath, "0", "-Wno-atom-undefined", aspCores, "--time-limit=20")
       else Seq(clingo, filePath, options, "-Wno-atom-undefined", aspCores) //, "--time-limit=10"
     }
 

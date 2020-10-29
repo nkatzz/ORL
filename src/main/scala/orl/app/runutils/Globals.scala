@@ -38,26 +38,10 @@ object Globals {
     new Globals("")
   }
 
-  //var hedgePredictionThreshold = 0.0 // Quick & dirty, for experiments
-
-  var sleepingExpertsLearningRate = 0.0 // Quick & dirty, for experiments
-  var sleepingExpertsFeedBackBias = 0.0
-  var hedgeInertia = false
-
-  var timeDebug = List[Double]()
+  var clingo = ""
 
   var scoringFunction = "default" // precision for initiation, recall for termination
-
-  var totalPos = 0
-  var totalNegs = 0
-
-  // This may be set to a different value (e.g. passed from cmd) during the construction of the Globals instance
-  var MAX_CLAUSE_LENGTH = 15
-
-  var LEARNING_WHOLE_THEORIES = false // not really used anywhere
-
   val cwd: String = System.getProperty("user.dir") // Current working dir
-
   val ASPHandler = s"$cwd/asp/ASPHandler.py"
 
   /* Global names */
@@ -155,9 +139,6 @@ class Globals(val entryPath: String) extends LazyLogging {
   /*
    * Global values and utils.
    */
-
-  //val state = new State
-
   val cwd: String = System.getProperty("user.dir") // Current working dir
   val inputPath: String = entryPath // Path to bk and modes files
   val modesFile: String = s"$inputPath/modes" // Mode Declarations file

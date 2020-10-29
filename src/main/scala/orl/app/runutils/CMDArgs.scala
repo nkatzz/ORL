@@ -89,6 +89,7 @@ object CMDArgs extends LazyLogging {
     val inputTheory = getMatchingArgumentValue("--input-theory")
     val removeRules = getMatchingArgumentValue("--remove-rules")
     val debug = getMatchingArgumentValue("--debug")
+    val clingo = getMatchingArgumentValue("--clingo")
 
     //-------------
     // Global sets:
@@ -102,12 +103,13 @@ object CMDArgs extends LazyLogging {
     Globals.glvalues("with-inertia") = withInertia.toString
     Globals.glvalues("weight-learning") = weightLearn.toString
     Globals.glvalues("with-ec") = withEventCalculus.toString
+    Globals.clingo = clingo.toString
 
     // Define this here so that all values in Globals.glvalues be already set.
     val globals = new Globals(entryPath.toString)
 
     // show the params:
-    //logger.info(s"\nRunning with options:\n${map.map { case (k, v) => s"$k=$v" }.mkString(" ")}\n")
+    logger.info(s"\nRunning with options:\n${map.map { case (k, v) => s"$k=$v" }.mkString(" ")}\n")
 
     val inps = new RunningOptions(
       entryPath.toString, delta.toString.toDouble, pruningThreshold.toString.toDouble,
@@ -123,7 +125,7 @@ object CMDArgs extends LazyLogging {
       adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble, adaRegularization.toString.toDouble,
       adaLossFunction.toString, withEventCalculus.toString.toBoolean, saveTheoryTo.toString, test.toString,
       ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble, inputTheory.toString,
-      removeRules.toString.toBoolean, debug.toString.toBoolean)
+      removeRules.toString.toBoolean, debug.toString.toBoolean, clingo.toString)
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
@@ -138,11 +140,6 @@ object CMDArgs extends LazyLogging {
       checkData(inps.train, inps.mongoCollection, "train")
 
     }
-
-    //if (inps.test != "None") {
-    //  checkData(inps.test, inps.mongoCollection, "test")
-    //}
-
     if (inps.entryPath == "None") {
       logger.error("No background knowledge provided. At least a mode declarations file is necessary. Re-run with --inpath=<path to background knowledge.>")
       System.exit(-1)
@@ -207,7 +204,8 @@ object CMDArgs extends LazyLogging {
     Arg(name      = "--infogain", valueType = "Double", text = "Specialize if information gain exceeds this threshold.", default = "0.0000001"),
     Arg(name      = "--input-theory", valueType = "String", text = "Path to as file containing an input theory in ASP syntax", default = ""),
     Arg(name      = "--remove-rules", valueType = "Boolean", text = "If true unnecessary or low-quality rules are removed during theory revision.", default = "false"),
-    Arg(name      = "--debug", valueType = "Boolean", text = "If true more print-out statements are more detailed on some occasions", default = "false")
+    Arg(name      = "--debug", valueType = "Boolean", text = "If true more print-out statements are more detailed on some occasions", default = "false"),
+    Arg(name      = "--clingo", valueType = "String", text = "The path to the Clingo solver. If Clingo is set in the PATH just run with --clingo=system", default = s"${System.getProperty("user.dir")}/dependencies/clingo/build/bin/clingo")
   )
 
   def checkData(dataInput: String, collection: String, trainOrTest: String) = {
@@ -321,5 +319,6 @@ class RunningOptions(
     val infoGainAtLeast: Double,
     val inputTheory: String,
     val removeRules: Boolean,
-    val debug: Boolean)
+    val debug: Boolean,
+    val clingo: String)
 
