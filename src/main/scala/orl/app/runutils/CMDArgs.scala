@@ -103,7 +103,16 @@ object CMDArgs extends LazyLogging {
     Globals.glvalues("with-inertia") = withInertia.toString
     Globals.glvalues("weight-learning") = weightLearn.toString
     Globals.glvalues("with-ec") = withEventCalculus.toString
-    Globals.clingo = clingo.toString
+    Globals.clingo = if (clingo.toString == "system") "clingo" else clingo.toString
+
+    import scala.sys.process._
+    try {
+      val t = s"${Globals.clingo} --version".lineStream_!
+    } catch {
+      case _ : java.io.IOException =>
+        logger.error(s"Clingo not found at ${Globals.clingo}")
+        System.exit(-1)
+    }
 
     // Define this here so that all values in Globals.glvalues be already set.
     val globals = new Globals(entryPath.toString)
