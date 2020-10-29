@@ -47,8 +47,6 @@ if [ ! -d ../dependencies ]; then
     rm develop.zip
     rm lpsolve55.tar.xz
     cd ..
-
-    cd ../install-scripts # Done, go back into install-scripts directory
 else
     log_warn "tools directory exists! Moving on."
 fi
