@@ -8,11 +8,11 @@ log_info "Installing various packages necessary for Clingo 5.4.0."
 sudo apt-get install bison re2c scons gcc libtbb-dev python2.7-dev lua5.2-dev wget
 
 log_info "Installing Visual Studio (also necessary for Clingo 5.4.0.)"
-sudo apt update
+#sudo apt update
 sudo apt install software-properties-common apt-transport-https wget
 wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
-sudo apt update
+#sudo apt update
 sudo apt install code
 
 # Check if external dependencies directory exists
@@ -33,7 +33,7 @@ if [ ! -d ../dependencies ]; then
     cd clingo-5.4.0
     cmake -H$PWD -B$b -DCMAKE_BUILD_TYPE=Release
     cmake --build $b
-    cd ../../..
+    cd ../..
 
     # Installing LoMRF
     log_info "Installing LoMRF."
