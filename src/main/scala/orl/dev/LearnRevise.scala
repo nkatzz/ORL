@@ -32,9 +32,6 @@ import orl.utils.Utils.underline
 object LearnRevise extends LazyLogging {
 
   def main(args: Array[String]) = {
-    val x = new java.io.File(".").getCanonicalPath
-    val y = new java.io.File("../").getCanonicalPath
-    val z = new java.io.File("../../").getCanonicalPath
     val inps = CMDArgs.getOLEDInputArgs(args)
     if (inps.test != "None") {
       // Testing an existing theory
@@ -51,6 +48,13 @@ object LearnRevise extends LazyLogging {
 }
 
 class LearnRevise(inps: RunningOptions) extends LazyLogging {
+
+  type Theory = Vector[Clause]
+  type RevisedTheory = (List[Clause], List[Clause], List[Clause], List[Clause])
+
+  def subsumes(x: Theory, y: Theory) = x.forall(p => y.exists(q => p.thetaSubsumes(q)))
+
+  def subsumptionEquivalent(x: Theory, y: Theory) = subsumes(x, y) && subsumes(y, x)
 
   private val bk: String = inps.globals.BK
   private val trainingDataPath: String = inps.train
@@ -70,6 +74,7 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
   def learnRevise() = {
 
+    var allTheories = Vector.empty[Theory]
     var ind = List.empty[Clause]
     var ref = List.empty[Clause]
     var ret = List.empty[Clause]
@@ -77,8 +82,10 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
     var iteration = 1
 
     while (!iterativeDeepeningStop) {
-      val (inducedRules, refinedRules, retainedRules, removedRules) =
-        TheoryRevision.revise(existingTheory.map(x => (x, 0)), bottomClauses, exmpl, inps)
+
+      val solutions = TheoryRevision.revise(existingTheory.map(x => (x, 0)), bottomClauses, exmpl, inps)
+
+      val (inducedRules, refinedRules, retainedRules, removedRules) = solutions.head
 
       if (inps.saveTheoryTo != "")
         orl.utils.Utils.dumpToFile((inducedRules ++ refinedRules ++ retainedRules).map(_.tostring).mkString("\n"), inps.saveTheoryTo)
@@ -105,7 +112,20 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
       if (currentMistakes == mistakes) iterativeDeepeningStop = true
       mistakes = currentMistakes
 
-      val msg = List(inducedRulesMsg, refinedRulesMsg, retainedRulesMsg, removedRulesMsg).filter(_ != "").mkString("\n")
+      val msg = {
+        if (!inps.findAllOpt) {
+          List(inducedRulesMsg, refinedRulesMsg, retainedRulesMsg, removedRulesMsg).filter(_ != "").mkString("\n")
+        } else {
+          val ts = getAllSolutionTheories(solutions)
+          val x = (ts zip (1 to ts.length)).map(t => s"Theory ${t._2}:\n${t._1.map(_.tostring).mkString("\n")}").mkString("\n")
+          val m = s"${underline("All optimal solutions:")}\n$x"
+          /*val m = s"${underline("All optimal solutions:")}\n${ts zip (1 to ts.length).map
+            (t => s"Theory ${t._2}:\n${t._1.map(_.tostring).mkString("\n")}")}*/
+          List(inducedRulesMsg, refinedRulesMsg, retainedRulesMsg, removedRulesMsg, m).filter(_ != "").mkString("\n")
+        }
+
+      }
+
       logger.info(s"\n${underline(s"Try $iteration (bottom theory size = ${bottomClauses.size})")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
 
       ind = inducedRules.toList
@@ -117,6 +137,16 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
     }
 
     (ind, ref, ret, rem)
+  }
+
+  def getAllSolutionTheories(solutions: Vector[RevisedTheory]) = {
+    solutions.foldLeft(Vector.empty[Theory]) { (accum, solution) =>
+      val (inducedRules, refinedRules, retainedRules, removedRules) = (solution._1, solution._2, solution._3, solution._4)
+      val theory = inducedRules ++ refinedRules ++ retainedRules
+      if (accum.forall(t => !subsumptionEquivalent(t, theory.toVector))) {
+        accum :+ theory.toVector
+      } else accum
+    }
   }
 
   def evaluateTheory(theory: List[Clause], exmpl: Example) = {
@@ -166,7 +196,7 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
       }
       val shows = List("#show.") ++ bodyAtoms.map(
         bodyAtom => s"#show ${bodyAtom.tostring}: ${bodyAtom.typePreds.mkString(",")}.")
-      val out = (headVars ++ shows).mkString("\n")
+      val out = s"$bk\n\n${(headVars ++ shows).mkString("\n")}" // we need the BK here to gete the constants.
       val t = ASPSolver.solve(out).map{ x =>
         val deQuote = x.replaceAll(""""""", "")
         if (!deQuote.startsWith("not_")) deQuote else s"not ${deQuote.split("not_")(1)}"

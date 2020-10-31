@@ -41,6 +41,17 @@ object TheoryRevision {
   def revise(existingTheory: List[(Clause, Int)], bottomClauses: List[Clause],
       data: Example, inps: RunningOptions) = {
 
+    val formSolution = (solution: Array[String]) => {
+      val (useAtoms, exceptionAtoms) = solution.partition(_.startsWith("use"))
+      val inducedRules = formInducedRules(bottomClauses, useAtoms.toSet)
+      val (refinedRules, retainedRules, removedRules) = formSpecializedRules(existingTheory.map(_._1), exceptionAtoms.toSet)
+      if (inps.removeRules) {
+        (inducedRules.toList, refinedRules, retainedRules, removedRules)
+      } else {
+        (inducedRules.toList, refinedRules, retainedRules ++ removedRules, Nil)
+      }
+    }
+
     val inductionProgram = if (bottomClauses.nonEmpty) ruleInductionMetaProgram(bottomClauses) else ""
     val refinementProgram = if (existingTheory.nonEmpty) refinementMetaProgram(existingTheory, inps) else ""
     val include = s"${inps.globals.BK}"
@@ -72,19 +83,23 @@ object TheoryRevision {
     }
 
     val trMetaProgram = s"${data.toASP().mkString(" ")}\n\n$inductionProgram\n\n$refinementProgram\n\n$include\n\n$fnsFpsMinimizeStatement\n\n$show"
+    val options = if (inps.findAllOpt) "--opt-mode=optN --opt-strategy=usc" else "--opt-mode=opt --opt-strategy=usc"
 
     if (inps.debug) {
-      val msg = s"% Run as:\n% clingo --opt-mode=opt --opt-strategy=usc ${inps.entryPath}/debug"
+      val msg = s"% Run as:\n% clingo $options ${inps.entryPath}/debug"
       orl.utils.Utils.dumpToFile(s"\n$msg\n\n$trMetaProgram", s"${inps.entryPath}/debug")
     }
 
-    val result = ASPSolver.solve(trMetaProgram, "--opt-mode=opt --opt-strategy=usc")
-    val (useAtoms, exceptionAtoms) = result.partition(_.startsWith("use"))
+    val result = ASPSolver.solve(trMetaProgram, options)
 
-    val inducedRules = formInducedRules(bottomClauses, useAtoms.toSet)
-    val (refinedRules, retainedRules, removedRules) = formSpecializedRules(existingTheory.map(_._1), exceptionAtoms.toSet)
-
-    (inducedRules, refinedRules, retainedRules, removedRules)
+    if (inps.findAllOpt) {
+      // Then the result from clingo will be a Vector[String] whose each element is an optimal solution (answer set).
+      // The atoms in each solution are separated by "<@>".
+      result.map { x =>
+        val solution = x.split("<@>")
+        formSolution(solution)
+      }
+    } else Vector(formSolution(result.toArray))
   }
 
   /**
@@ -118,7 +133,7 @@ object TheoryRevision {
         *
         */
       val useClause = s"${bc.head.tostring} :- " +
-        s"use(0,${bc.##}),${useTryAtoms.map(x => x._1).mkString(",")},${getTypePredicates(bc).map(_.tostring).mkString(",")}.\n"
+        s"use(0,${bc.##}),${useTryAtoms.map(x => x._1).mkString(",")},${bc.typeAtoms.mkString(",")}.\n"
 
       /**
         * for the j-th literal p(X) in the i-th clause, construct two clauses of the form:
@@ -233,7 +248,7 @@ object TheoryRevision {
         * @param supportRuleId the index of the support rule in the support set.
         * @param supportLiteral a support literal that may be used for specialization.
         * @param supportLiteralId the index of the supportLiteral in the body of the corresponding support rule.
-        * @param exceptionAtom the exception atom tha will be used at the head of the generated exception definition.
+        * @param exceptionAtom the exception atom that will be used at the head of the generated exception definition.
         */
       def generateExceptionDefs(rule: Clause, ruleId: Int, supportRuleId: Int,
           supportLiteral: Literal, supportLiteralId: Int, exceptionAtom: String) = {
@@ -243,7 +258,7 @@ object TheoryRevision {
       }
 
     val removeRules = inps.removeRules
-    val typeAtoms = (r: Clause) => getTypePredicates(r).map(_.tostring).mkString(",")
+    val typeAtoms = (r: Clause) => r.typeAtoms.mkString(",")
     val bodyStr = (r: Clause) => r.body.map(_.tostring).mkString(",")
     //val satAtom = (r: Clause) => Literal.parse(s"satisfied(${rule.head.tostring},${rule.##})")
 

@@ -242,6 +242,10 @@ class WoledASPLearner[T <: InputSource](
       exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
     }
 
+    if (batchCount == 11) {
+      val stop = "stop"
+    }
+
     var currentTheory = state.getTopTheory()
     val initialTheory = currentTheory
 
@@ -255,14 +259,14 @@ class WoledASPLearner[T <: InputSource](
     var fnCounts = inference.FNs.size
     val (tps, fps, fns) = (tpCounts, fpCounts, fnCounts)
 
-    val revise = fnCounts > 0
+    val revise = fps + fns > 2
 
     inference.updateWeightsAndScore(batchCount)
 
     if (!withHandCrafted && revise) {
       /* The following code is for learning via generating BCs from mistakes */
       //val atomsFromFPMistakes = inference.orphanFPs.map(x => x.replaceAll("holdsAt", "terminatedAt"))
-      val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).
+      /*val atomsFromFPMistakes = sampleSeeds(inference.FPs.toVector).
         map(x => x.replaceAll("holdsAt", "terminatedAt")).toSet
 
       val atomsFromFNMistakes = sampleSeeds(inference.FNs.toVector).
@@ -276,10 +280,10 @@ class WoledASPLearner[T <: InputSource](
       val bcs = topRules.flatMap(_.supportSet)
       val mh = inps.globals.MODEHS
       val mb = inps.globals.MODEBS
-      bcs.foreach(_.setTypeAtoms(mh ++ mb))
+      bcs.foreach(_.setTypeAtoms(mh ++ mb))*/
 
       /* Use hand-crafted BCs instead of those generated from mistakes. */
-      /*val mh = inps.globals.MODEHS
+      val mh = inps.globals.MODEHS
       val mb = inps.globals.MODEBS
       val handCraftedBCs = inps.globals.bottomClauses
       val (topRules, bcs) = handCraftedBCs.foldLeft(List.empty[Clause], List.empty[Clause]) { (x, bc) =>
@@ -287,10 +291,10 @@ class WoledASPLearner[T <: InputSource](
         topRule.setTypeAtoms(mh ++ mb)
         topRule.supportSet = List(bc)
         (x._1 :+ topRule, x._2 :+ bc)
-      }*/
+      }
 
       val _currentTheory = currentTheory.map(x => (x, 0))
-      val (inducedRules, refinedRules, unchangedRules, removedRules) = TheoryRevision.revise(_currentTheory, bcs, exmpl, inps)
+      val (inducedRules, refinedRules, unchangedRules, removedRules) = TheoryRevision.revise(_currentTheory, bcs, exmpl, inps).head
       inducedRules.foreach(_.setTypeAtoms(mh ++ mb))
       refinedRules.foreach(_.setTypeAtoms(mh ++ mb))
       val keep = state.getTopTheory().filter(x => unchangedRules.exists(_.## == x.##))
@@ -752,7 +756,7 @@ class WoledASPLearner[T <: InputSource](
         theory = theory ++ List(c1, c2)
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-          //theory = reIterateForWeightsOnly(theory)
+          theory = reIterateForWeightsOnly(theory)
           val testData = testingDataFunction(testingDataOptions)
           evalOnTestSet(testData, theory, inps)
         }
@@ -782,11 +786,11 @@ class WoledASPLearner[T <: InputSource](
       sortByFunction = sortByFunction
     )*/
 
-    trainingDataOptions.asInstanceOf[InputHandling.FileDataOptions].chunkSize = 1000
+    trainingDataOptions.asInstanceOf[InputHandling.FileDataOptions].chunkSize = 100 //50000
 
     val trainData = trainingDataFunction(trainingDataOptions) //trainingDataOptions
     theory.foreach(_.clearStatistics)
-    //theory.foreach(_.weight = 0.0)
+    theory.foreach(_.weight = 0.0)
     //theory.foreach(_.subGradient = 0.0) //  No! you're clearing the memory this way
 
     trainData foreach { exmpl =>

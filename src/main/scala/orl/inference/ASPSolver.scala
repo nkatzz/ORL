@@ -35,15 +35,15 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
   /**
     * Calls Clingo and returns the results.
     */
-  def solve(program: String, options: String = ""): List[String] = {
+  def solve(program: String, options: String = ""): Vector[String] = {
 
-      def aspResult: Parser[List[String]] = repsep(literal, "") ^^ { x => x.map(_.tostring).toList } //.toVector }
+      def aspResult: Parser[Vector[String]] = repsep(literal, "") ^^ { x => x.map(_.tostring).toVector }
 
       def processLine(x: String) = {
         val stripped = x.replaceAll("\\s", "")
         parseAll(aspResult, stripped) match {
           case Success(result, _) => result
-          case f => List.empty[String]
+          case _ => Vector.empty[String]
         }
       }
 
@@ -73,7 +73,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
 
     if (status == "UNSATISFIABLE") {
       if (options.contains("--opt-mode=enum,")) {
-        return List("UNSATISFIABLE")
+        return Vector("UNSATISFIABLE")
       } else {
         logger.error(s"\n\nUNSATISFIABLE PROGRAM:\n\n$program")
         System.exit(-1)
@@ -83,14 +83,23 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     val answerSet = results.map(x => processLine(x)).filter(_.nonEmpty) //.reverse
 
     if (answerSet.isEmpty) {
-      List.empty[String]
+      Vector.empty[String]
     } else if (answerSet.size > 1) {
-      // This happens when optimization is performed, the optimal model is the last one
-      answerSet.reverse.head
+      // This happens when the --opt-mode=optN option is used, in which case all optimal
+      // solutions are returned. We then transform the separate solutions into one string
+      // to be returned and "decoded" to the solutions by the TheoryRevision.revise method,
+      // which is the only point in the code where --opt-mode=optN may be used.
+      if (!options.contains("--opt-mode=optN")) {
+        answerSet.reverse.head
+      } else {
+        answerSet.map(solution => solution.mkString("<@>"))
+      }
     } else {
       answerSet.head
     }
   }
+
+  //return all optimal and pick one downstream.
 
   def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {
     val modes = globals.MODEHS ++ globals.MODEBS

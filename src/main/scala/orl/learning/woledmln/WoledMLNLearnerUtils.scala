@@ -49,7 +49,7 @@ object WoledMLNLearnerUtils {
       // This transforms the actual data into an MLN-compatible form.
       val answer = ASPSolver.solve(program.mkString("\n"))
 
-      val e = Example(batch.queryAtoms, answer, batch.time)
+      val e = Example(batch.queryAtoms, answer.toList, batch.time)
 
       //val rulesCompressed = LogicUtils.compressTheory(rules)
       val rulesCompressed = rules
@@ -110,7 +110,7 @@ object WoledMLNLearnerUtils {
       Vector(nar, BK, show)
     }
     val answer = ASPSolver.solve(program.mkString("\n"))
-    val e = Example(batch.queryAtoms, answer, batch.time)
+    val e = Example(batch.queryAtoms, answer.toList, batch.time)
     e
   }
 

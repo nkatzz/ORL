@@ -89,6 +89,7 @@ object CMDArgs extends LazyLogging {
     val inputTheory = getMatchingArgumentValue("--input-theory")
     val removeRules = getMatchingArgumentValue("--remove-rules")
     val debug = getMatchingArgumentValue("--debug")
+    val findAllOpt = getMatchingArgumentValue("--optall")
     var clingo = getMatchingArgumentValue("--clingo").toString
 
     // Check if Clingo is OK
@@ -98,7 +99,7 @@ object CMDArgs extends LazyLogging {
       s"${clingo.toString} --version".lineStream_!
       Globals.clingo = clingo.toString
     } catch {
-      case _ : java.io.IOException =>
+      case _: java.io.IOException =>
         try {
           // If the above doesn't work try to see if clingo is in the path
           val t = s"clingo --version".lineStream_!
@@ -110,7 +111,7 @@ object CMDArgs extends LazyLogging {
           clingo = s"which clingo".lineStream_!.head
           Globals.clingo = clingo
         } catch {
-          case _ : java.io.IOException =>
+          case _: java.io.IOException =>
             logger.error(s"No clingo not found in PATH")
             System.exit(-1)
         }
@@ -149,7 +150,7 @@ object CMDArgs extends LazyLogging {
       adagradDelta.toString.toDouble, adaLearnRate.toString.toDouble, adaRegularization.toString.toDouble,
       adaLossFunction.toString, withEventCalculus.toString.toBoolean, saveTheoryTo.toString, test.toString,
       ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble, inputTheory.toString,
-      removeRules.toString.toBoolean, debug.toString.toBoolean, clingo.toString)
+      removeRules.toString.toBoolean, debug.toString.toBoolean, clingo.toString, findAllOpt.toString.toBoolean)
 
     if (inps.train == "None") {
       if (inps.evalth == "None") {
@@ -229,7 +230,8 @@ object CMDArgs extends LazyLogging {
     Arg(name      = "--input-theory", valueType = "String", text = "Path to as file containing an input theory in ASP syntax", default = ""),
     Arg(name      = "--remove-rules", valueType = "Boolean", text = "If true unnecessary or low-quality rules are removed during theory revision.", default = "false"),
     Arg(name      = "--debug", valueType = "Boolean", text = "If true more print-out statements are more detailed on some occasions", default = "false"),
-    Arg(name      = "--clingo", valueType = "String", text = "The path to the Clingo solver. If Clingo is set in the PATH just run with --clingo=system", default = s"${System.getProperty("user.dir")}/dependencies/clingo/build/bin/clingo")
+    Arg(name      = "--clingo", valueType = "String", text = "The path to the Clingo solver.", default = s"${System.getProperty("user.dir")}/dependencies/clingo/build/bin/clingo"),
+    Arg(name      = "--optall", valueType = "Boolean", text = "If true theory revision returns all optimal solutions (instead of just one)", default = s"false"),
   )
 
   def checkData(dataInput: String, collection: String, trainOrTest: String) = {
@@ -344,5 +346,6 @@ class RunningOptions(
     val inputTheory: String,
     val removeRules: Boolean,
     val debug: Boolean,
-    val clingo: String)
+    val clingo: String,
+    val findAllOpt: Boolean)
 

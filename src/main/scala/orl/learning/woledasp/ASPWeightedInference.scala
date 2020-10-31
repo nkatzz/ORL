@@ -439,7 +439,7 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
 
     val file = orl.utils.Utils.dumpToFile(inps.globals.BK)
 
-    val (_, varKernel) = OldStructureLearningFunctions.generateKernel(abduced, examples = toMapASP(exmpl), aspInputFile = aspFile, bkFile = file.getCanonicalPath, globals = inps.globals)
+    val (_, varKernel) = OldStructureLearningFunctions.generateKernel(abduced.toList, examples = toMapASP(exmpl), aspInputFile = aspFile, bkFile = file.getCanonicalPath, globals = inps.globals)
 
     val bottomTheory = rules flatMap (x => x.supportSet)
 
