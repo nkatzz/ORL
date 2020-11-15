@@ -32,8 +32,6 @@ import scala.util.Random
 
 object InputHandling extends LazyLogging {
 
-  // TODO
-  // Currently used by the maritime runner
   trait InputSource
 
   trait MongoSource extends InputSource {
@@ -63,11 +61,23 @@ object InputHandling extends LazyLogging {
   case class FileDataOptions(
       filepath: String,
       var chunkSize: Int = 100,
-      targetConcept: String = "None",
+      targetConcepts: Array[String] = Array(),
       sortOrder: String = "ascending",
       setting: String = "training",
       suffix: String = "db",
-      sortByFunction: String => Int) extends InputSource
+      sortByFunction: String => Int,
+      sliding: Boolean = false) extends InputSource
+
+  /**
+    * Splits the data into query atoms & observation atoms.
+    * TODO: Do this properly by parsing atoms and matching to modes.
+    */
+  def splitData(it: Iterable[String], targetConcepts: Array[String]) = {
+    val containsAnyOf = (str: String, keywords: Array[String]) => {
+      keywords.foldLeft(false) ((bool, keyword) => bool || str.contains(keyword))
+    }
+    it.partition(x => containsAnyOf(x, targetConcepts))
+  }
 
   def getFileData(opts: FileDataOptions): Iterator[Example] = {
     val file = new File(opts.filepath)
@@ -96,10 +106,15 @@ object InputHandling extends LazyLogging {
     }
 
     if (opts.setting == "training") {
-      val t = sorted.map(_._2).grouped(opts.chunkSize).map { list =>
+
+      val dataChunked =
+        if (opts.sliding) sorted.map(_._2).sliding(opts.chunkSize)
+        else sorted.map(_._2).grouped(opts.chunkSize)
+
+      val t = dataChunked.map { list =>
         val time = opts.sortByFunction(list.head.head)
-        val (queryAtoms, evidenceAtoms) = list.flatten.partition(x => x.contains(opts.targetConcept))
-        Example(queryAtoms, evidenceAtoms, time.toString)
+        val (queryAtoms, evidenceAtoms) = splitData(list.flatten, opts.targetConcepts)
+        Example(queryAtoms.toList, evidenceAtoms.toList, time.toString)
       }
       //util.Random.setSeed(10)
       //Random.shuffle(t)
@@ -107,8 +122,8 @@ object InputHandling extends LazyLogging {
     } else if (opts.setting == "testing") {
       val data = sorted.flatMap(_._2)
       val time = opts.sortByFunction(data.head)
-      val (queryAtoms, evidenceAtoms) = data.partition(x => x.contains(opts.targetConcept))
-      Iterator(Example(queryAtoms, evidenceAtoms, time.toString))
+      val (queryAtoms, evidenceAtoms) = splitData(data, opts.targetConcepts)
+      Iterator(Example(queryAtoms.toList, evidenceAtoms.toList, time.toString))
     } else {
       logger.error(s"Unknown setting '${opts.setting}'")
       sys.exit(1)
@@ -127,7 +142,7 @@ object InputHandling extends LazyLogging {
 
   class MongoDataOptions(val dbNames: Vector[String], val chunkSize: Int = 1,
       val limit: Double = Double.PositiveInfinity.toInt,
-      val targetConcept: String = "None", val sortDbByField: String = "time",
+      val targetConcept: Array[String] = Array(), val sortDbByField: String = "time",
       val sort: String = "ascending", val what: String = "training") extends MongoSource
 
   /* "what" is either training or testing */
@@ -142,7 +157,7 @@ object InputHandling extends LazyLogging {
         val e = Example(x)
 
         opts.targetConcept match {
-          case "None" => Example(e.queryAtoms, e.observations, e.time)
+          case Array() => Example(e.queryAtoms, e.observations, e.time)
           case _ => Example(e.queryAtoms filter (_.contains(opts.targetConcept)), e.observations, e.time)
         }
       }

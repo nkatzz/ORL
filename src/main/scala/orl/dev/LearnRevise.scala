@@ -19,9 +19,11 @@ package orl.dev
 
 import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.{CMDArgs, RunningOptions}
-import orl.datahandling.Example
+import orl.datahandling.{Example, InputHandling}
 import orl.inference.ASPSolver
-import orl.learning.{LearnUtils, TheoryRevision}
+import orl.learning.LearnUtils
+import orl.learning.tr.TheoryRevision
+import orl.learning.tr.TheoryRevision.generateBCs
 import orl.logic.{Clause, Literal, ModeAtom}
 
 import scala.io.Source
@@ -64,7 +66,11 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
   private val headModes = inps.globals.MODEHS
   private val bodyModes = inps.globals.MODEBS
 
-  var bottomClauses: List[Clause] = generateBCs(headModes, bodyModes)
+  var _bottomClauses: List[Clause] = generateBCs(headModes, bodyModes, bk)
+
+  var bottomClauses = _bottomClauses ++ _bottomClauses ++ _bottomClauses
+  //var bottomClauses = _bottomClauses
+
   var mistakes = 0
   var iterativeDeepeningStop = false
   val existingTheory: List[Clause] = LearnUtils.parseTheoryFromFile(inps, inps.inputTheory)
@@ -82,7 +88,6 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
     var iteration = 1
 
     while (!iterativeDeepeningStop) {
-
       val solutions = TheoryRevision.revise(existingTheory.map(x => (x, 0)), bottomClauses, exmpl, inps)
 
       val (inducedRules, refinedRules, retainedRules, removedRules) = solutions.head
@@ -120,13 +125,16 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
           val x = (ts zip (1 to ts.length)).map(t => s"Theory ${t._2}:\n${t._1.map(_.tostring).mkString("\n")}").mkString("\n")
           val m = s"${underline("All optimal solutions:")}\n$x"
           /*val m = s"${underline("All optimal solutions:")}\n${ts zip (1 to ts.length).map
-            (t => s"Theory ${t._2}:\n${t._1.map(_.tostring).mkString("\n")}")}*/
+              (t => s"Theory ${t._2}:\n${t._1.map(_.tostring).mkString("\n")}")}*/
           List(inducedRulesMsg, refinedRulesMsg, retainedRulesMsg, removedRulesMsg, m).filter(_ != "").mkString("\n")
         }
 
       }
 
-      logger.info(s"\n${underline(s"Try $iteration (bottom theory size = ${bottomClauses.size})")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
+      logger.info(s"\n${
+        underline(s"Try $iteration (bottom theory size = " +
+          s"${bottomClauses.size})")
+      }\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
 
       ind = inducedRules.toList
       ref = refinedRules
@@ -176,36 +184,9 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
       def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
     val source = Source.fromFile(dataPath)
     val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%")).toList
-    val (annotation, narrative) = list.partition(x => x.contains(inps.targetHLE))
+    val (annotation, narrative) = InputHandling.splitData(list, inps.targetConcepts)
     source.close
-    Example(annotation, narrative, "0")
-  }
-
-  def generateBCs(modehs: List[ModeAtom], modebs: List[ModeAtom]) = {
-
-    modehs map { modeh =>
-      val headAtom = modeh.varbed
-      val headVars = headAtom.getVars.map(x => s"""${x._type}("${x.name}").""")
-
-      val bodyAtoms = modebs.map{ x =>
-        if (!x.isNAF) x.varbed
-        else {
-          val y = ModeAtom(s"not_${x.predSymbol}", x.args)
-          y.varbed
-        }
-      }
-      val shows = List("#show.") ++ bodyAtoms.map(
-        bodyAtom => s"#show ${bodyAtom.tostring}: ${bodyAtom.typePreds.mkString(",")}.")
-      val out = s"$bk\n\n${(headVars ++ shows).mkString("\n")}" // we need the BK here to gete the constants.
-      val t = ASPSolver.solve(out).map{ x =>
-        val deQuote = x.replaceAll(""""""", "")
-        if (!deQuote.startsWith("not_")) deQuote else s"not ${deQuote.split("not_")(1)}"
-      }
-      val bcStr = s"${headAtom.tostring} :- ${t.mkString(",")}."
-      val clause = Clause.parseWPB2(bcStr)
-      clause.setTypeAtoms(modehs ++ modebs)
-      clause
-    }
+    Example(annotation.toList, narrative.toList, "0")
   }
 
   def setBCs(clause: Clause, BCs: List[Clause]) = {

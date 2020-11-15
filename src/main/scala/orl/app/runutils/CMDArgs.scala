@@ -136,11 +136,18 @@ object CMDArgs extends LazyLogging {
     // show the params:
     logger.info(s"\nRunning with options:\n${map.map { case (k, v) => s"$k=$v" }.mkString(" ")}\n")
 
+      def getTargets(input: String) = {
+        if (input.contains("|"))
+          input.split("\\|")
+        else
+          Array(input)
+      }
+
     val inps = new RunningOptions(
       entryPath.toString, delta.toString.toDouble, pruningThreshold.toString.toDouble,
       minSeenExmpls.toString.toInt, specializationDepth.toString.toInt, breakTiesThreshold.toString.toDouble,
       repeatFor.toString.toInt, chunkSize.toString.toInt, onlinePruning.toString.toBoolean,
-      withPostPruning.toString.toBoolean, targetConcept.toString, mintps.toString.toInt,
+      withPostPruning.toString.toBoolean, getTargets(targetConcept.toString), mintps.toString.toInt,
       tryMoreRules.toString.toBoolean, trainSetNum.toString.toInt, randomOrder.toString.toBoolean,
       scoringFun.toString, with_jep.toString.toBoolean, evaluate_existing.toString,
       train.toString, globals, minEvaluatedOn.toString.toInt, shuffleData.toString.toBoolean,
@@ -313,7 +320,7 @@ class RunningOptions(
     val chunkSize: Int,
     val onlinePruning: Boolean,
     val withPostPruning: Boolean,
-    val targetHLE: String,
+    val targetConcepts: Array[String],
     val minTpsRequired: Int,
     val tryMoreRules: Boolean,
     val trainSetNum: Int,

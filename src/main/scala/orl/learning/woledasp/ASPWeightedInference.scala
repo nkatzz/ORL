@@ -25,8 +25,8 @@ import com.typesafe.scalalogging.LazyLogging
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.inference.ASPSolver
-import orl.learning.TheoryRevision
 import orl.learning.structure.OldStructureLearningFunctions
+import orl.learning.tr.TheoryRevision
 import orl.learning.weights.UpdateWeights
 import orl.logic.{Clause, Literal}
 

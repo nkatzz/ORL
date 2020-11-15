@@ -62,7 +62,7 @@ object CrossValTest extends LazyLogging {
       val testingDataOptions1 = new MongoDataOptions(
         dbNames       = MeetingTrainTestSets.meeting4._2,
         chunkSize     = runningOptions.chunkSize,
-        targetConcept = runningOptions.targetHLE,
+        targetConcept = runningOptions.targetConcepts,
         sortDbByField = "time", what = "testing"
       )
       val testingDataFunction1: MongoDataOptions => Iterator[Example] = getMongoData
@@ -70,7 +70,7 @@ object CrossValTest extends LazyLogging {
       val testingDataOptions = FileDataOptions(
         filepath       = runningOptions.test,
         chunkSize      = runningOptions.chunkSize,
-        targetConcept  = runningOptions.targetHLE,
+        targetConcepts = runningOptions.targetConcepts,
         setting        = "testing",
         sortByFunction = (x: String) => x.split(',').last.replaceAll("\\)", "").trim.toInt
       )

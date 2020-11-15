@@ -1,0 +1,78 @@
+\begin{thebibliography}{10}
+
+\bibitem{DBLP:journals/corr/AlevizosSAP17}
+Elias Alevizos, Anastasios Skarlatidis, Alexander Artikis, and Georgios
+  Paliouras.
+\newblock Probabilistic complex event recognition: {A} survey.
+\newblock {\em {ACM} Comput. Surv.}, 50(5):71:1--71:31, 2017.
+
+\bibitem{artikis2015event}
+Alexander Artikis, Marek Sergot, and Georgios Paliouras.
+\newblock An event calculus for event recognition.
+\newblock {\em Knowledge and Data Engineering, IEEE Transactions on},
+  27(4):895--908, 2015.
+
+\bibitem{artikis2012logic}
+Alexander Artikis, Anastasios Skarlatidis, Fran{\c{c}}ois Portet, and Georgios
+  Paliouras.
+\newblock Logic-based event recognition.
+\newblock {\em The Knowledge Engineering Review}, 27(04):469--506, 2012.
+
+\bibitem{cugola2012processing}
+Gianpaolo Cugola and Alessandro Margara.
+\newblock Processing flows of information: From data stream to complex event
+  processing.
+\newblock {\em ACM Computing Surveys (CSUR)}, 44(3):15, 2012.
+
+\bibitem{raedt2016statistical}
+L.~De~Raedt, K.~Kersting, S.~Natarajan, and D.~Poole.
+\newblock Statistical relational artificial intelligence: Logic, probability,
+  and computation.
+\newblock {\em Synthesis Lectures on Artificial Intelligence and Machine
+  Learning}, 10(2):1--189, 2016.
+
+\bibitem{de2008logical}
+Luc De~Raedt.
+\newblock {\em Logical and relational learning}.
+\newblock Springer Science \& Business Media, 2008.
+
+\bibitem{gebser2015potassco}
+Martin Gebser, Roland Kaminski, Benjamin Kaufmann, Marius Lindauer, Max
+  Ostrowski, Javier Romero, Torsten Schaub, and Sven Thiele.
+\newblock Potassco user guide, version 2.0.
+\newblock {\em URL: https://sourceforge.
+  net/projects/potassco/files/guide/2.0/guide-2.0. pdf/download}, 2015.
+
+\bibitem{kr2020}
+Nikos Katzouris and Alexander Artikis.
+\newblock {WOLED}: A tool for online learning weighted answer set rules for
+  temporal reasoning under uncertainty.
+\newblock In {\em {KR} 2020}, 2020.
+
+\bibitem{katzouris2015incremental}
+Nikos Katzouris, Alexander Artikis, and Georgios Paliouras.
+\newblock Incremental learning of event definitions with inductive logic
+  programming.
+\newblock {\em Machine Learning}, 100(2-3):555--585, 2015.
+
+\bibitem{DBLP:journals/tplp/KatzourisAP16}
+Nikos Katzouris, Alexander Artikis, and Georgios Paliouras.
+\newblock Online learning of event definitions.
+\newblock {\em {TPLP}}, 16(5-6):817--833, 2016.
+
+\bibitem{lifschitz2019answer}
+Vladimir Lifschitz.
+\newblock {\em Answer set programming}.
+\newblock Springer, 2019.
+
+\bibitem{mueller2014commonsense}
+Erik~T Mueller.
+\newblock {\em Commonsense reasoning: an event calculus based approach}.
+\newblock Morgan Kaufmann, 2014.
+
+\bibitem{ray2009nonmonotonic}
+Oliver Ray.
+\newblock Nonmonotonic abductive inductive learning.
+\newblock {\em Journal of Applied Logic}, 7(3):329--340, 2009.
+
+\end{thebibliography}

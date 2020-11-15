@@ -58,7 +58,7 @@ object Runner extends LazyLogging {
         val trainingDataOptions = new MongoDataOptions(
           dbNames       = train1,
           chunkSize     = runningOptions.chunkSize,
-          targetConcept = runningOptions.targetHLE,
+          targetConcept = runningOptions.targetConcepts,
           sortDbByField = "time", what = "training"
         )
 
@@ -107,14 +107,14 @@ object Runner extends LazyLogging {
         val trainingDataOptions = new MongoDataOptions(
           dbNames       = trainingData,
           chunkSize     = runningOptions.chunkSize,
-          targetConcept = runningOptions.targetHLE,
+          targetConcept = runningOptions.targetConcepts,
           sortDbByField = "time", what = "training"
         )
 
         val testingDataOptions = new MongoDataOptions(
           dbNames       = testingData,
           chunkSize     = runningOptions.chunkSize,
-          targetConcept = runningOptions.targetHLE,
+          targetConcept = runningOptions.targetConcepts,
           sortDbByField = "time", what = "testing"
         )
 

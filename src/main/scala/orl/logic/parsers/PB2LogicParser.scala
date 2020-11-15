@@ -62,7 +62,8 @@ final class PB2LogicParser(val input: ParserInput) extends Parser {
 
   def Clause = rule {
     Atom ~ iff ~ BodyLiterals ~ optional(".") ~ EOI ~> ((x, y) =>
-      orl.logic.Clause(head = x, body = y.elems.map(_.asInstanceOf[Literal])))
+      orl.logic.Clause(head = x, body = y.elems.map(_.asInstanceOf[Literal]))) |
+      Atom ~ optional(".") ~ EOI ~> (x => orl.logic.Clause(head = x, body = Nil)) // allow for empty-bodied clauses.
   }
 
   def WeightedClause = rule {

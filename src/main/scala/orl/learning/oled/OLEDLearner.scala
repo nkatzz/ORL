@@ -211,13 +211,13 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
     if (repeatFor > 0) {
       self ! new StartOver
     } else if (repeatFor == 0) {
-      val theory = state.getAllRules("top")
+      val theory = state.getTopTheory() //state.getAllRules("top")
 
       showStats(theory)
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-        val finalRules = rescore()
-        //val finalRules = theory
+        //val finalRules = rescore()
+        val finalRules = theory
         logger.info(s"\nTheory after pruning:\n${LogicUtils.showTheoryWithStats(finalRules, inps.scoringFun, inps.weightLean)}")
         val testData = testingDataFunction(testingDataOptions)
         evalOnTestSet(testData, finalRules, inps)

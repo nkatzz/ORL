@@ -15,12 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package orl.learning
+package orl.learning.tr
 
 import orl.app.runutils.RunningOptions
 import orl.datahandling.Example
 import orl.inference.ASPSolver
-import orl.logic.{Clause, Constant, Literal}
+import orl.logic.{Clause, Constant, Literal, ModeAtom}
 
 /**
   * Created by nkatz at 5/4/20
@@ -36,6 +36,38 @@ object TheoryRevision {
 
   def getTypePredicates(lit: Literal) = {
     lit.variables.map(x => Literal.parse(s"${x._type}(${x.name})"))
+  }
+
+  /**
+    * Generates bottom clauses from the mode declarations without looking at any data.
+    * TODO: need to fix stuff like close(X0,X0,40). In general, I need to allow options
+    * in mode declarations, e.g. modeb(close(person(X),person(Y),dist(D),time(T)), X != Y)
+    */
+  def generateBCs(modehs: List[ModeAtom], modebs: List[ModeAtom], BK: String) = {
+
+    modehs map { modeh =>
+      val headAtom = modeh.varbed
+      val headVars = headAtom.getVars.map(x => s"""${x._type}("${x.name}").""")
+
+      val bodyAtoms = modebs.map{ x =>
+        if (!x.isNAF) x.varbed
+        else {
+          val y = ModeAtom(s"not_${x.predSymbol}", x.args)
+          y.varbed
+        }
+      }
+      val shows = List("#show.") ++ bodyAtoms.map(
+        bodyAtom => s"#show ${bodyAtom.tostring}: ${bodyAtom.typePreds.mkString(",")}.")
+      val out = s"$BK\n\n${(headVars ++ shows).mkString("\n")}" // we need the BK here to gete the constants.
+      val t = ASPSolver.solve(out).map{ x =>
+        val deQuote = x.replaceAll(""""""", "")
+        if (!deQuote.startsWith("not_")) deQuote else s"not ${deQuote.split("not_")(1)}"
+      }
+      val bcStr = s"${headAtom.tostring} :- ${t.mkString(",")}."
+      val clause = Clause.parseWPB2(bcStr)
+      clause.setTypeAtoms(modehs ++ modebs)
+      clause
+    }
   }
 
   def revise(existingTheory: List[(Clause, Int)], bottomClauses: List[Clause],
@@ -55,6 +87,10 @@ object TheoryRevision {
     val inductionProgram = if (bottomClauses.nonEmpty) ruleInductionMetaProgram(bottomClauses) else ""
     val refinementProgram = if (existingTheory.nonEmpty) refinementMetaProgram(existingTheory, inps) else ""
     val include = s"${inps.globals.BK}"
+
+    if (refinementProgram.nonEmpty) {
+      val stop = "stop"
+    }
 
     /*val fnsFpsMinimizeStatement = {
       s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T)." +
@@ -104,6 +140,7 @@ object TheoryRevision {
 
   /**
     * Generates a meta-program to generalize a set of bottom clauses, in order to induce a new set of rules.
+    *
     * @param bottomClauses the set of bottom clauses to generate new rules from.
     *
     */
@@ -116,7 +153,7 @@ object TheoryRevision {
         * tryAtom is "try(vars(X),j,i)" and useAtom is "use(j,i)" (X represents the variables that appear in the literal).
         *
         */
-      val useTryAtoms = (bc.body zip (1 to bc.body.length)).map{ case (literal, literalId) =>
+      val useTryAtoms = (bc.body zip (1 to bc.body.length)).map { case (literal, literalId) =>
         val variablesTerm = s"vars(${literal.getVars.map(x => x.name).mkString(",")})"
         val tryAtom = s"try($variablesTerm, $literalId, ${bc.##})"
         val useAtom = s"use($literalId,${bc.##})"
@@ -172,9 +209,10 @@ object TheoryRevision {
 
   /**
     * Synthesize a set of rules from abduced use/2 atoms.
+    *
     * @param bottomClauses the set of bottom clauses we generalized from.
-    * @param useAtoms A set of atoms representing prescription to use in order to assemble the
-    *                 induced rules from the rules and literals in bottomClauses.
+    * @param useAtoms      A set of atoms representing prescription to use in order to assemble the
+    *                      induced rules from the rules and literals in bottomClauses.
     *
     */
   def formInducedRules(bottomClauses: Seq[Clause], useAtoms: Set[String]) = {
@@ -243,12 +281,12 @@ object TheoryRevision {
         * Generates one definition for the exception atom, a rule of the form
         * exception(vars(head), i) :- excpt(i,j,k), not q_ijk.
         *
-        * @param rule the specialization candidate clause.
-        * @param ruleId the index of the specialization candidate in the current theory.
-        * @param supportRuleId the index of the support rule in the support set.
-        * @param supportLiteral a support literal that may be used for specialization.
+        * @param rule             the specialization candidate clause.
+        * @param ruleId           the index of the specialization candidate in the current theory.
+        * @param supportRuleId    the index of the support rule in the support set.
+        * @param supportLiteral   a support literal that may be used for specialization.
         * @param supportLiteralId the index of the supportLiteral in the body of the corresponding support rule.
-        * @param exceptionAtom the exception atom that will be used at the head of the generated exception definition.
+        * @param exceptionAtom    the exception atom that will be used at the head of the generated exception definition.
         */
       def generateExceptionDefs(rule: Clause, ruleId: Int, supportRuleId: Int,
           supportLiteral: Literal, supportLiteralId: Int, exceptionAtom: String) = {
@@ -334,8 +372,9 @@ object TheoryRevision {
 
   /**
     * Synthesize specializations from the abduced exception atoms.
+    *
     * @param existingTheory the set of existing rules, candidates for specialization.
-    * @param abducedAtoms a set of atoms of the form excpt(i,j,k) representing the
+    * @param abducedAtoms   a set of atoms of the form excpt(i,j,k) representing the
     *                       k-th body literal of the j-th support rule of the i-th rule in existingTheory.
     *
     */

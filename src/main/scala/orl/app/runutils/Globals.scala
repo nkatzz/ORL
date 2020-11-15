@@ -307,9 +307,6 @@ class Globals(val entryPath: String) extends LazyLogging {
     val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
     val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
 
-    //val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), next(Ts, Te)."
-    //val EC_AXIOM_2 = "not holdsAt(F,Te) :- terminatedAt(F,Ts), fluent(F), next(Ts, Te)."
-
     val NEXT_PY =
       """
         |#script (python)
@@ -320,21 +317,12 @@ class Globals(val entryPath: String) extends LazyLogging {
         |def sorted():
         |    times.sort()
         |    return zip(range(len(times)), times)
-        |#def end_time():
-        |#    times.sort()
-        |#    return times[-1]
-        |#def start_time():
-        |#    times.sort()
-        |#    return times[0]
         |#end.
         |collect_all.
         |collect_all :- time(X), @collect_all(X) == 0.
         |sorted_pair(X,N) :- collect_all, (X,N) = @sorted().
         |next(X, Y) :- sorted_pair(A,X), sorted_pair(A+1,Y).
-        |%start_end :- collect_all.
-        |%start_end(X,Y) :- start_end, X = @start_time(), Y = @end_time().
-        |%endTime(X) :- X = @end_time().
-        |%startTime(X) :- X = @start_time().
+        |%next(X, Y) :- time(X), Y = X + 1.
         |""".stripMargin
 
     //val INIT_TIME_DEF = "initialTime(X) :- time(X), #false : X > Y, time(Y)."

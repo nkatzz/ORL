@@ -23,6 +23,7 @@ import java.util.UUID
 import scala.annotation.tailrec
 import scala.math.BigInt
 import scala.util.Random
+import java.nio.file
 
 /**
   * Created by nkatz at 4/12/19
@@ -45,9 +46,17 @@ object Utils {
         try { op(p) } finally { p.close() }
       }
 
-    val writeTo =
+    val writeTo = {
       if (file == "") File.createTempFile(s"temp-${System.currentTimeMillis()}-${UUID.randomUUID.toString}", "asp")
-      else new File(file)
+      else {
+        val f = new File(file)
+        if (f.exists()) f
+        else {
+          val path = java.nio.file.Paths.get(file)
+          java.nio.file.Files.createFile(path).toFile
+        }
+      }
+    }
 
     val deleteOnExit = if (file == "") true else false
 

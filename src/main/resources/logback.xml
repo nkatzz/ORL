@@ -30,7 +30,7 @@
     </logger>
 
     <!-- <root level="debug"> "info" -->
-    <root level="off">
+    <root level="info">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>

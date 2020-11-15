@@ -26,7 +26,8 @@ import orl.learning.LearnUtils.setTypePredicates
 import orl.learning.Types.StartOver
 import orl.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
 import orl.learning.woledmln.WoledMLNLearnerUtils
-import orl.learning.{Learner, TheoryRevision}
+import orl.learning.Learner
+import orl.learning.tr.TheoryRevision
 import orl.logic.{Clause, Literal}
 import orl.utils.Utils.{f11Score, f1Score, time, underline, underlineStars}
 
@@ -90,12 +91,12 @@ class WoledASPLearner[T <: InputSource](
 
     var postRevPerformance = (0, 0, 0)
 
-    if (inps.withInertia) {
-      exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
+    if (batchCount == 14) {
+      val stop = "stop"
     }
 
-    if (batchCount == 8) {
-      val stop = "stop"
+    if (inps.withInertia) {
+      exmpl = Example(exmpl.queryAtoms, exmpl.observations ++ this.inertiaAtoms.map(_.tostring), exmpl.time)
     }
 
     val initialTheory = getRulesForPrediction()
@@ -744,7 +745,7 @@ class WoledASPLearner[T <: InputSource](
 
         println(theory.map(x => s"w: ${x.weight} pr: ${x.precision} seen: ${x.seenExmplsNum} ${x.tostring}").mkString("\n"))
 
-        val c1 = Clause.parseWPB2("terminatedAt(move(X0,X1),X2) :- happensAt(exit(X0),X2)")
+        /*val c1 = Clause.parseWPB2("terminatedAt(move(X0,X1),X2) :- happensAt(exit(X0),X2)")
         val c2 = Clause.parseWPB2("terminatedAt(move(X0,X1),X2) :- happensAt(exit(X1),X2)")
 
         c1.setTypeAtoms(inps.globals.MODEHS ++ inps.globals.MODEBS)
@@ -753,10 +754,10 @@ class WoledASPLearner[T <: InputSource](
         c1.weight = 1.0
         c2.weight = 1.0
 
-        theory = theory ++ List(c1, c2)
+        theory = theory ++ List(c1, c2)*/
 
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-          theory = reIterateForWeightsOnly(theory)
+          //theory = reIterateForWeightsOnly(theory)
           val testData = testingDataFunction(testingDataOptions)
           evalOnTestSet(testData, theory, inps)
         }
@@ -776,13 +777,13 @@ class WoledASPLearner[T <: InputSource](
   def reIterateForWeightsOnly(theory: List[Clause]) = {
 
     /*val filepath = trainingDataOptions.asInstanceOf[InputHandling.FileDataOptions].filepath
-    val targetConcept = trainingDataOptions.asInstanceOf[InputHandling.FileDataOptions].targetConcept
+    val targetConcepts = trainingDataOptions.asInstanceOf[InputHandling.FileDataOptions].targetConcepts
     val sortByFunction = trainingDataOptions.asInstanceOf[InputHandling.FileDataOptions].sortByFunction
 
     val trOptions = FileDataOptions(
       filepath       = filepath,
       chunkSize      = 1000,
-      targetConcept  = targetConcept,
+      targetConcepts  = targetConcepts,
       sortByFunction = sortByFunction
     )*/
 
