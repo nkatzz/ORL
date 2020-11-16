@@ -2,7 +2,7 @@ addCommandAlias("build", ";headerCreate;compile")
 addCommandAlias("rebuild", ";clean;build")
 
 lazy val root = project.in(file("."))
-  .enablePlugins(AssemblyPlugin, AutomateHeaderPlugin)
+  .enablePlugins(AssemblyPlugin, AutomateHeaderPlugin, JavaAppPackaging)
   .settings(logLevel in Test := Level.Info)
   .settings(logLevel in Compile := Level.Error)
   .settings(libraryDependencies ++= Dependency.Akka)

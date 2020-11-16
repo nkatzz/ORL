@@ -24,7 +24,7 @@ object Dependency {
     final val ScalaLogging = "3.9.2"
     final val Logback = "1.2.3"
     final val MongoDB = "3.1.1"
-    final val ScalaTest = "3.0.5"
+    final val ScalaTest = "3.2.2"
     final val ScalaZ = "7.2.29"
     final val SizeOf = "0.1"
     final val Parboiled = "2.1.8"
