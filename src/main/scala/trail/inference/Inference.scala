@@ -46,7 +46,7 @@ class Inference(
         defaultNumFormat.format(x)
       }
 
-    //logger.info("\nEvaluating on the test set...")
+    logger.info("\nEvaluating on the test set...")
 
     var totalTPs = 0
     var totalFPs = 0
@@ -83,7 +83,7 @@ class Inference(
         ASPSolver.solve(program)
       }
 
-    //logger.info("\nEvaluating on the test set...")
+    logger.info("\nEvaluating on the test set...")
 
     var totalTPs = 0
     var totalFPs = 0

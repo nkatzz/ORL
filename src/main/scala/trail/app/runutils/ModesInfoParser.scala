@@ -118,7 +118,7 @@ class ModesInfoParser(modesFile: String) extends LazyLogging {
     /**
       * Using input predicates seems redundant. Just extract the type definitions from the body declarations.
       * If it turns out the input predicates are necessary just revert this, nothing has been modified.
-      * */
+      */
     val m = bodyModes.filter(x => !x.isNAF).map(x => x.varbed)
     val x = m.flatMap(getTypeAxioms).toSet
     x

@@ -17,7 +17,8 @@
 
 package trail.learning.utils
 
-import trail.app.runutils.{Example, RunningOptions}
+import com.typesafe.scalalogging.Logger
+import trail.app.runutils.{Example, InputDataParser, RunningOptions}
 import trail.inference.ASPSolver
 import trail.logic.{Clause, Constant, Literal}
 
@@ -48,6 +49,22 @@ object LearnUtils {
       source.close
       rulesList
     }
+  }
+
+  def readDataToExmpl(dataPath: String, inps: RunningOptions, logger: Logger) = {
+    def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+    val source = Source.fromFile(dataPath)
+    val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%")).toList
+    val tostr = list.mkString(" ")
+
+    val (queryAtoms, observationAtoms) = InputDataParser.parseData(tostr, inps)
+    source.close
+    if (queryAtoms.isEmpty) logger.warn("No query atoms found!")
+    Example(queryAtoms.map(_.tostring), observationAtoms.map(_.tostring), "0")
+
+    /*val (annotation, narrative) = InputHandling.splitData(list, inps.targetConcepts)
+    source.close
+    Example(annotation.toList, narrative.toList, "0")*/
   }
 
   def setTypePredicates(newRules: List[Clause], inps: RunningOptions) = {

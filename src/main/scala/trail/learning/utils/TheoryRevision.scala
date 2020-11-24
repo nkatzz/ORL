@@ -88,7 +88,7 @@ object TheoryRevision {
       // We solve the problem with priorities, minimizing FPs & FNs then, and then minimizing theory size. Some of the
       // theories returned may not be of optimal size. So, from the result get the all theories of minimum size.
       val actualResult = {
-        val temp = result.map { x => x.split("<@>")}
+        val temp = result.map { x => x.split("<@>") }
         val smallest = temp.minBy(x => x.length).length
         temp.filter(_.length == smallest).map(x => x.mkString("<@>"))
       }

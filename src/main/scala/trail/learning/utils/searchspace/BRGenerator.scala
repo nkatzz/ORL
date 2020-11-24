@@ -72,8 +72,6 @@ object BRGenerator {
       counter += 1
     }
 
-
-
     val _bottomRules = headAtoms.map(x => s"$x :- ${batoms.mkString(",")}")
     val bottomRules = _bottomRules.map(x => Clause.parseWPB2(x))
     bottomRules.foreach(x => x.setTypeAtoms(List(modeh) ++ modebs))

@@ -29,8 +29,6 @@ import scala.io.Source
 import scala.util.control.Breaks
 import scala.util.matching.Regex
 
-
-
 class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
   type Theory = Vector[Clause]
@@ -83,8 +81,8 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
       val (inducedRules, refinedRules, retainedRules, removedRules) = solutions.head
 
-      if (inps.saveTheoryTo != "")
-        trail.app.utils.Utils.dumpToFile((inducedRules ++ refinedRules ++ retainedRules).map(_.tostring).mkString("\n"), inps.saveTheoryTo)
+      if (savePath != "")
+        trail.app.utils.Utils.dumpToFile((inducedRules ++ refinedRules ++ retainedRules).map(_.tostring).mkString("\n"), savePath)
 
       val inducedRulesMsg =
         if (inducedRules.nonEmpty) s"Induced rules:\n${inducedRules.map(_.tostring).mkString("\n")}" else ""
@@ -124,7 +122,6 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
       //logger.info(s"\n${underline(s"Try $iteration (bottom theory size = ${bottomClauses.size})")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
       logger.info(s"\n${underline(s"Try $iteration:")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
-
 
       ind = inducedRules.toList
       ref = refinedRules
@@ -171,7 +168,10 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
   }
 
   def readDataToExmpl(dataPath: String) = {
-    def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+
+    LearnUtils.readDataToExmpl(dataPath, inps, logger)
+
+    /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
     val source = Source.fromFile(dataPath)
     val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%")).toList
     val tostr = list.mkString(" ")
@@ -179,14 +179,12 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
     val (queryAtoms, observationAtoms) = InputDataParser.parseData(tostr, inps)
     source.close
     if (queryAtoms.isEmpty) logger.warn("No query atoms found!")
-    Example(queryAtoms.map(_.tostring), observationAtoms.map(_.tostring) + "holdsAt(alive,0)", "0")
+    Example(queryAtoms.map(_.tostring), observationAtoms.map(_.tostring) + "holdsAt(alive,0)", "0")*/
 
-    /*val (annotation, narrative) = InputHandling.splitData(list, inps.targetConcepts)
-    source.close
-    Example(annotation.toList, narrative.toList, "0")*/
+    //val (annotation, narrative) = InputHandling.splitData(list, inps.targetConcepts)
+    //source.close
+    //Example(annotation.toList, narrative.toList, "0")
   }
-
-
 
   def setBCs(clause: Clause, BCs: List[Clause]) = {
     val loop = new Breaks

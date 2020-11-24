@@ -19,7 +19,9 @@ package trail.app.cliapp
 
 import com.typesafe.scalalogging.LazyLogging
 import trail.app.LearnRevise
-import trail.app.runutils.{Argument, CMDArgs, Task}
+import trail.app.runutils.{Argument, CMDArgs, RunningOptions, Task}
+import trail.learning.utils.LearnUtils
+import trail.logic.Clause
 
 object Trail extends LazyLogging {
 
@@ -29,22 +31,28 @@ object Trail extends LazyLogging {
     val task = inps.task
     if (task == CMDArgs.learnrev) {
       LearnRevise.main(args)
-    } /*else if (task == CMDArgs.infer) {
-      val mode = inps.mode
-      if (mode == "eval") {
-        ???
-      } else if (mode == "show") {
-        val
-      } else { // then mode == 'explain'
+    } else if (task == CMDArgs.infer) {
 
-      }
     } else {
       ???
-    }*/
+    }
     /*if (inps.task.isEmpty) {
       showGeneralInfo()
       System.exit(0)
     }*/
+  }
+
+  def getInputForInference(inps: RunningOptions) = {
+    if (inps.entryPath == "") {
+      logger.error("No BK & mode declarations (re-run with --inpath=<path to directory with 'bk' & 'modes' files>)")
+      System.exit(-1)
+    }
+    if (inps.test == "") {
+      logger.error("No testing data (re-run with --inpath=<path to test set file>)")
+      System.exit(-1)
+    }
+    val rules = LearnUtils.parseTheoryFromFile(inps, inps.inputTheory)
+    val probInference = rules.exists(r => r.weight != Clause.leastWeight)
   }
 
   def showOptions(args: Vector[Argument], task: String = "") = {
