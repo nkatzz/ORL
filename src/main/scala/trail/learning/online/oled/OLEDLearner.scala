@@ -17,10 +17,9 @@
 
 package trail.learning.online.oled
 
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
-import trail.datahandling.InputHandling.InputSource
-import trail.inference.ASPSolver
+import trail.app.runutils.{Example, RunningOptions}
+import trail.app.runutils.InputHandling.InputSource
+import trail.inference.{ASPSolver, Inference}
 import trail.learning.online.Types.StartOver
 import trail.learning.online.OnlineLearner
 import trail.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
@@ -218,8 +217,8 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
       showStats(theory)
 
       if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
-        //val finalRules = rescore()
-        val finalRules = theory
+        val finalRules = rescore()
+        //val finalRules = theory
         logger.info(s"\nTheory after pruning:\n${LogicUtils.showTheoryWithStats(finalRules, inps.scoringFun, inps.weightLean)}")
         val testData = testingDataFunction(testingDataOptions)
         evalOnTestSet(testData, finalRules, inps)
@@ -233,69 +232,8 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
   }
 
   def evalOnTestSet(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {
-
-      def evaluateTheory(theory: List[Clause], e: Example, handCraftedTheoryFile: String = "") = {
-        val globals = inps.globals
-        val modes = globals.MODEHS ++ globals.MODEBS
-
-          def typePreds(lit: Literal) = {
-            lit.getVars.map(x => Literal.parse(s"${x._type}(${x.name})")).map(x => x.tostring).mkString(",")
-          }
-
-        val tnsRules = {
-          globals.EXAMPLE_PATTERNS.map { x =>
-            val types = typePreds(x)
-            s"\ntns(${x.tostring}):- not ${x.tostring}, not example(${x.tostring}), $types.\n"
-          }
-        }.mkString("\n")
-
-        val coverageConstr = s"${globals.TPS_RULES}\n${globals.FPS_RULES}\n${globals.FNS_RULES}\n$tnsRules"
-        val t =
-          if (theory.nonEmpty) {
-            theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
-          } else {
-            globals.INCLUDE_BK(handCraftedTheoryFile)
-          }
-        val show = globals.SHOW_TPS_ARITY_1 + globals.SHOW_FPS_ARITY_1 + globals.SHOW_FNS_ARITY_1 + s"\n#show tns/1.\n"
-        val ex = e.toASP().mkString(" ")
-        val program = ex + "\n" + globals.BK + t + coverageConstr + show
-        ASPSolver.solve(program)
-      }
-
-    logger.info("\nEvaluating on the test set...")
-
-    var totalTPs = 0
-    var totalFPs = 0
-    var totalFNs = 0
-    var totalTNs = 0
-
-    val testTime = trail.app.utils.Utils.time{
-      testData foreach { testBatch =>
-        val result = evaluateTheory(rules, testBatch)
-        if (result.nonEmpty) {
-
-          result.foreach { a =>
-            val lit = Literal.parse(a)
-            val inner = lit.terms.head
-            lit.predSymbol match {
-              case "tps" => totalTPs += 1
-              case "fps" => totalFPs += 1
-              case "fns" => totalFNs += 1
-              case "tns" => totalTNs += 1
-            }
-          }
-        }
-      }
-    }
-
-    val precision = totalTPs.toDouble / (totalTPs + totalFPs)
-    val recall = totalTPs.toDouble / (totalTPs + totalFNs)
-    val f1 = 2 * (precision * recall) / (precision + recall)
-    val theory = rules.map(x => s"precision: ${x.precision} ${x.tostring}").mkString("\n")
-    val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
-    logger.info(msg)
-    println(s"TPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs, TNs: $totalTNs, training: $trainingTime sec, testing: ${testTime._2} sec")
-    trail.app.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
+    val tester = new Inference(testData, rules, inps, false)
+    tester.testTheory
   }
 
   /**
@@ -313,22 +251,6 @@ class OLEDLearner[T <: InputSource](inps: RunningOptions, trainingDataOptions: T
       WoledMLNLearnerUtils.scoreAndUpdateWeights(batch, inferredState, rules.toVector, inps, logger)
     }
     rules.filter(x => x.precision >= inps.pruneThreshold)
-  }
-
-  /**
-    * Rule scoring in the old OLED way.
-    */
-  def rescoreOld() = {
-    logger.info("Eval on test set (old)")
-    var data = trainingDataFunction(trainingDataOptions)
-    val rules = trail.logic.LogicUtils.compressTheory(state.getTopTheory().filter(_.body.nonEmpty))
-    //val rules = trail.logic.LogicUtils.compressTheory(state.getAllRules(inps, "all"))
-    rules foreach (_.clearStatistics)
-    val (init, term) = rules.partition(x => x.head.predSymbol == "initiatedAt")
-    val _init = LearnUtils.reScoreAndPrune(init, inps, data)
-    data = trainingDataFunction(trainingDataOptions)
-    val _term = utils.LearnUtils.reScoreAndPrune(term, inps, data)
-    _init ++ _term
   }
 
 }

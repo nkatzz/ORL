@@ -19,9 +19,8 @@ package trail.learning.online.woledmln
 
 import java.text.DecimalFormat
 
-import trail.datahandling.InputHandling.InputSource
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
+import trail.app.runutils.InputHandling.InputSource
+import trail.app.runutils.{Example, RunningOptions}
 import trail.learning.online.OnlineLearner
 import trail.learning.online.Types.StartOver
 import trail.learning.structure.{OldStructureLearningFunctions, RuleExpansion}

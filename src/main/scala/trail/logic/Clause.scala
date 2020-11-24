@@ -26,6 +26,7 @@ import trail.logic.Clause.leastWeight
 import trail.logic.parsers.PB2LogicParser
 
 import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks
 
 /**
   * Created by nkatz at 4/12/19
@@ -216,16 +217,32 @@ case class Clause(
   def thetaSubsumes(that: Clause): Boolean = {
 
       def isSubset(x: Set[Any], y: Set[Any]): Boolean = x subsetOf y
+      def isGround(x: Clause) = x.getVars.isEmpty
 
     val isVar = (x: String) => try { Variable(x); true } catch { case _: IllegalArgumentException => false }
 
     if (this.head.predSymbol == that.head.predSymbol) {
       val (skolemised, skmap) = that.skolemise
-      var skolems = (for (y <- skmap.keySet.filter(x => isVar(x))) yield skmap(y)).toList
+
+      var skolems = {
+        // this is used when 'that' is ground (e.g. testing subsumption between
+        // input atoms & target atom signatures when splitting the input data into observation & query atoms)
+        // see InputDataParser.
+        // TODO: this needs fixing, it goes into an infinite loop due to the
+        //   'skolems = skolems ::: skolems' expression below (which is a dirty hack anyway...)
+        if (isGround(that)) skmap.values.toList
+
+        // This is used for regular theta-subsumption between lifted clause
+        else (for (y <- skmap.keySet.filter(x => isVar(x))) yield skmap(y)).toList
+      }
+
+      //var skolems = (for (y <- skmap.keySet.filter(x => isVar(x))) yield skmap(y)).toList
+
       val thisVars = this.getVars
       while (thisVars.length > skolems.length) {
         skolems = skolems ::: skolems
       }
+
       for (x <- skolems.permutations) {
         val trySubstitution = (thisVars zip x).map { x => (x._1, Constant(x._2)) }.toMap
         val repl = this.toLiteralList.map { x => x.replaceAll(trySubstitution) }.map { x => x.tostring }
@@ -279,15 +296,11 @@ case class Clause(
     * Replaces all variables with a new constant symbol 'skolem0', 'skolem1' etc. Same variables correspond to the
     * same constant symbol. Constants remain intact, i.e. they are used as skolem constants themselves. Example:
     *
-    * a(X,Y,Z) :-
-    * p(x,q(Y,const1,2),Z),
-    * not r(A,B,C).
+    * a(X,Y,Z) :- p(X,q(Y,const1,2),Z), not r(A,B,C).
     *
     * is turned into:
     *
-    * a(skolem0,skolem1,skolem2) :-
-    * p(skolem0,q(skolem1,const1,2),skolem2),
-    * not r(skolem3,skolem4,skolem5).
+    * a(skolem0,skolem1,skolem2) :- p(skolem0,q(skolem1,const1,2),skolem2), not r(skolem3,skolem4,skolem5).
     *
     * Returns the skolemised clause and the 'vars -> skolems' map
     *
@@ -295,12 +308,20 @@ case class Clause(
   def skolemise: (Clause, Map[String, String]) = {
     val l = this.toLiteralList
     val skmap = this.getSkolemConsts
+
     var temp = new ListBuffer[Literal]
     for (x <- l) {
       val m = x.skolemize(skmap).toList
       val toLit = Literal(predSymbol = x.predSymbol, terms = m, isNAF = x.isNAF)
       temp += toLit
     }
+
+    /*val temp = l.foldLeft(List.empty[Literal]) { (z, x) =>
+      val m = x.skolemize(skmap).toList
+      val toLit = Literal(predSymbol = x.predSymbol, terms = m, isNAF = x.isNAF)
+      z :+ toLit
+    }*/
+
     val fl = temp.toList
     val sk = Clause(
       head = fl.head,
@@ -315,7 +336,6 @@ case class Clause(
 
   private def getSkolemConsts: Map[String, String] = {
     val l = this.toLiteralList
-    //print(l)
     var skolems = new ListBuffer[(String, String)]
     var counter = 0
     for (x <- l) {

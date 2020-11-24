@@ -18,8 +18,7 @@
 package trail.inference
 
 import com.typesafe.scalalogging.LazyLogging
-import trail.app.runutils.Globals
-import trail.datahandling.Example
+import trail.app.runutils.{Example, Globals}
 import trail.logic.Clause
 import trail.logic.parsers.ClausalLogicParser
 import trail.app.utils.Utils.dumpToFile
@@ -53,7 +52,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
 
     val clingo = Globals.clingo
     val command = {
-      if (options == "") Seq(clingo, filePath, "0", "-Wno-atom-undefined", aspCores, "--time-limit=20")
+      if (options == "") Seq(clingo, filePath, "0", "-Wno-atom-undefined", aspCores) //, "--time-limit=20"
       else Seq(clingo, filePath, options, "-Wno-atom-undefined", aspCores) //, "--time-limit=10"
     }
 
@@ -102,7 +101,7 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
   //return all optimal and pick one downstream.
 
   def crispLogicInference(theory: List[Clause], e: Example, globals: Globals) = {
-    val modes = globals.MODEHS ++ globals.MODEBS
+    val modes = globals.modeHs ++ globals.modeBs
     val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
     //val program = e.toASP().mkString("\n") + t + "\n" + s"""#include "${globals.BK_WHOLE_EC}".""" + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"
     val program = e.toASP().mkString("\n") + t + "\n" + globals.BK + "\n" + "\n#show.\n#show holdsAt/2.\n" + "#show initiatedAt/2.\n" ++ "#show terminatedAt/2.\n"

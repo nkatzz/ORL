@@ -18,9 +18,8 @@
 package trail.learning.online
 
 import akka.actor.{Actor, Props}
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
-import trail.datahandling.InputHandling.InputSource
+import trail.app.runutils.{Example, RunningOptions}
+import trail.app.runutils.InputHandling.InputSource
 import trail.learning.online.Types.{LocalLearnerFinished, Run, RunSingleCore}
 import trail.learning.online.oled.OLEDLearner
 import trail.learning.online.woledasp.WoledASPLearner

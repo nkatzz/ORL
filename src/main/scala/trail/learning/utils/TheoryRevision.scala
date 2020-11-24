@@ -17,8 +17,7 @@
 
 package trail.learning.utils
 
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
+import trail.app.runutils.{Example, RunningOptions}
 import trail.inference.ASPSolver
 import trail.logic.{Clause, Constant, Literal, ModeAtom}
 
@@ -30,48 +29,11 @@ import trail.logic.{Clause, Constant, Literal, ModeAtom}
 
 object TheoryRevision {
 
-  def getTypePredicates(rule: Clause): List[Literal] = {
-    rule.getVariables.map(x => Literal.parse(s"${x._type}(${x.name})"))
-  }
-
-  def getTypePredicates(lit: Literal) = {
-    lit.variables.map(x => Literal.parse(s"${x._type}(${x.name})"))
-  }
-
-  /**
-    * Generates bottom clauses from the mode declarations without looking at any data.
-    * TODO: need to fix stuff like close(X0,X0,40). In general, I need to allow options
-    * in mode declarations, e.g. modeb(close(person(X),person(Y),dist(D),time(T)), X != Y)
-    */
-  def generateBCs(modehs: List[ModeAtom], modebs: List[ModeAtom], BK: String) = {
-
-    modehs map { modeh =>
-      val headAtom = modeh.varbed
-      val headVars = headAtom.getVars.map(x => s"""${x._type}("${x.name}").""")
-
-      val bodyAtoms = modebs.map { x =>
-        if (!x.isNAF) x.varbed
-        else {
-          val y = ModeAtom(s"not_${x.predSymbol}", x.args)
-          y.varbed
-        }
-      }
-      val shows = List("#show.") ++ bodyAtoms.map(
-        bodyAtom => s"#show ${bodyAtom.tostring}: ${bodyAtom.typePreds.mkString(",")}.")
-      val out = s"$BK\n\n${(headVars ++ shows).mkString("\n")}" // we need the BK here to gete the constants.
-      val t = ASPSolver.solve(out).map { x =>
-        val deQuote = x.replaceAll(""""""", "")
-        if (!deQuote.startsWith("not_")) deQuote else s"not ${deQuote.split("not_")(1)}"
-      }
-      val bcStr = s"${headAtom.tostring} :- ${t.mkString(",")}."
-      val clause = Clause.parseWPB2(bcStr)
-      clause.setTypeAtoms(modehs ++ modebs)
-      clause
-    }
-  }
-
-  def revise(existingTheory: List[(Clause, Int)], bottomClauses: List[Clause],
-      data: Example, inps: RunningOptions) = {
+  def revise(
+      existingTheory: List[(Clause, Int)],
+      bottomClauses: List[Clause],
+      data: Example,
+      inps: RunningOptions) = {
 
     val formSolution = (solution: Array[String]) => {
       val (useAtoms, exceptionAtoms) = solution.partition(_.startsWith("use"))
@@ -88,26 +50,17 @@ object TheoryRevision {
     val refinementProgram = if (existingTheory.nonEmpty) refinementMetaProgram(existingTheory, inps) else ""
     val include = s"${inps.globals.BK}"
 
-    if (refinementProgram.nonEmpty) {
-      val stop = "stop"
-    }
-
-    /*val fnsFpsMinimizeStatement = {
-      s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T)." +
-        s"\nfps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T)." +
-        s"\ntps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T)." +
-        s"\n#minimize{1,F,T : fns(holdsAt(F,T))}." +
-        s"\n#minimize{1,F,T : fps(holdsAt(F,T))}." +
-        s"\n#maximize{1,F,T : tps(holdsAt(F,T))}."
-    }*/
-
     val fnsFpsMinimizeStatement = {
-      s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T), target(holdsAt(F,T))." +
+      val cldirs = inps.globals.clingoRules
+      if (inps.perfectFit) {
+        (cldirs.tps_fps_fns_tns_defs ++ cldirs.hardCoverageConstrs).mkString("\n")
+      } else {
+        (cldirs.tps_fps_fns_tns_defs ++ cldirs.minimizeStatements).mkString("\n")
+      }
+      /*s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T), target(holdsAt(F,T))." +
         s"\nfps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T))." +
         s"\ntps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T))." +
-        s"\n#minimize{1,F,T : fns(holdsAt(F,T)) ; 1,F,T : fps(holdsAt(F,T))}." //+
-      //s"\n#minimize{1,F,T : fps(holdsAt(F,T))}." //+
-      //s"\n#maximize{1,F,T : tps(holdsAt(F,T))}."
+        s"\n#minimize{1,F,T : fns(holdsAt(F,T)) ; 1,F,T : fps(holdsAt(F,T))}."*/
     }
 
     val show = {
@@ -131,7 +84,15 @@ object TheoryRevision {
     if (inps.findAllOpt) {
       // Then the result from clingo will be a Vector[String] whose each element is an optimal solution (answer set).
       // The atoms in each solution are separated by "<@>".
-      result.map { x =>
+      // Update: Due to the way Clingo returns results it may happen that some of the theories in here are not optimal.
+      // We solve the problem with priorities, minimizing FPs & FNs then, and then minimizing theory size. Some of the
+      // theories returned may not be of optimal size. So, from the result get the all theories of minimum size.
+      val actualResult = {
+        val temp = result.map { x => x.split("<@>")}
+        val smallest = temp.minBy(x => x.length).length
+        temp.filter(_.length == smallest).map(x => x.mkString("<@>"))
+      }
+      actualResult.map { x =>
         val solution = x.split("<@>")
         formSolution(solution)
       }
@@ -191,7 +152,11 @@ object TheoryRevision {
       // This doesn't allow empty-bodied rules to be generated by the rule induction process:
       //val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J).\n:- use(I,J), I!=0, not use(0,J).\n:- use(0,I), {use(J,I): J!=0} == 0."
       val choiceRule = "{use(J,I)} :- bottomClauseId(I), literalId(J).\n:- use(I,J), I!=0, not use(0,J)."
-      val minimizeStatement = "#minimize{1,I,J:use(J,I)}."
+
+      // This is level 0, while FPs, FNs minimization is level 1 (see the minimize definition in the
+      // ClingoDirectives class). Correctly accounting for the examples is first priority and minimizing
+      // model complexity follows. Play around with these if some strange behaviour is observed.
+      val minimizeStatement = "#minimize{1@0,I,J:use(J,I)}."
 
       val idPredicates = {
         val bcPreds = bottomClauses.map(x => s"bottomClauseId(${x.##}).").mkString(" ")
@@ -413,6 +378,14 @@ object TheoryRevision {
 
     }*/
     (specialized, retained, removed)
+  }
+
+  def getTypePredicates(rule: Clause): List[Literal] = {
+    rule.getVariables.map(x => Literal.parse(s"${x._type}(${x.name})"))
+  }
+
+  def getTypePredicates(lit: Literal) = {
+    lit.variables.map(x => Literal.parse(s"${x._type}(${x.name})"))
   }
 
 }

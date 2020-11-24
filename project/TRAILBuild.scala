@@ -46,7 +46,7 @@ object TRAILBuild extends AutoPlugin {
   private val commonSettings: Seq[Setting[_]] = Seq(
     name := "TRAIL",
     organization := "com.github.nkatzz",
-    version := "1.1-SNAPSHOT",
+    version := "0.1-SNAPSHOT",
     description := "Temporal Relational Theory Learning",
     headerLicense := Some(GPLv3("2016", "Nikos Katzouris")),
     scalaVersion := "2.12.9",

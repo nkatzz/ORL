@@ -19,17 +19,17 @@ package trail.learning.online.woledasp
 
 import java.text.DecimalFormat
 
-import trail.app.runutils.RunningOptions
-import trail.datahandling.InputHandling.InputSource
-import trail.datahandling.{Example, InputHandling}
+import trail.app.runutils.{Example, RunningOptions}
+import trail.app.runutils.InputHandling.InputSource
+import trail.app.runutils.InputHandling
 import trail.learning.utils.LearnUtils.setTypePredicates
 import trail.learning.online.OnlineLearner
 import trail.learning.online.Types.StartOver
 import trail.learning.structure.{OldStructureLearningFunctions, RuleExpansion}
-import trail.learning.online.woledmln.WoledMLNLearnerUtils
 import trail.learning.utils.TheoryRevision
 import trail.logic.{Clause, Literal}
-import trail.app.utils.Utils.{f11Score, f1Score, time, underline, underlineStars}
+import trail.app.utils.Utils.{f11Score, time, underline, underlineStars}
+import trail.inference.Inference
 
 /**
   * Created by nkatz at 12/2/20
@@ -91,7 +91,7 @@ class WoledASPLearner[T <: InputSource](
 
     var postRevPerformance = (0, 0, 0)
 
-    if (batchCount == 14) {
+    if (batchCount == 2) {
       val stop = "stop"
     }
 
@@ -143,7 +143,7 @@ class WoledASPLearner[T <: InputSource](
     // Generate new rules from mistakes...
     if (!withHandCrafted) {
       if (induceNewRules) {
-        val induced = time { newRuleInduction(getRulesForPrediction(), exmpl, (tps, fps, fns), inps) }
+        val induced = time { newRuleInduction(getRulesForPrediction(), exmpl, inps) }
         val newRules = induced._1
         newRulesTime = induced._2
 
@@ -279,13 +279,13 @@ class WoledASPLearner[T <: InputSource](
       val (topRules, bottomClauseTime) = (_topRules._1, _topRules._2)
 
       val bcs = topRules.flatMap(_.supportSet)
-      val mh = inps.globals.MODEHS
-      val mb = inps.globals.MODEBS
+      val mh = inps.globals.modeHs
+      val mb = inps.globals.modeBs
       bcs.foreach(_.setTypeAtoms(mh ++ mb))*/
 
       /* Use hand-crafted BCs instead of those generated from mistakes. */
-      val mh = inps.globals.MODEHS
-      val mb = inps.globals.MODEBS
+      val mh = inps.globals.modeHs
+      val mb = inps.globals.modeBs
       val handCraftedBCs = inps.globals.bottomClauses
       val (topRules, bcs) = handCraftedBCs.foldLeft(List.empty[Clause], List.empty[Clause]) { (x, bc) =>
         val topRule = Clause(head = bc.head)
@@ -384,12 +384,7 @@ class WoledASPLearner[T <: InputSource](
     * This class needs to implement the abstract method.
     */
   def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
-    generateNewRules(existingTheory, ex, inps, Set())
-  }
-
-  def generateNewRules(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
-    //generateNewRulesConservative(existingTheory, ex, inps, mistakes)
-    generateNewRulesEager(existingTheory, ex, inps)
+    newRuleInduction(existingTheory, ex, inps)
   }
 
   def generateNewRules_1(existingTheory: List[Clause], ex: Example, in: RunningOptions, mistakes: Set[String] = Set()) = {
@@ -456,15 +451,14 @@ class WoledASPLearner[T <: InputSource](
     inference.newClausesFromBCs
   }
 
-  def newRuleInduction(existingTheory: List[Clause], ex: Example,
-      pastPerformance: (Int, Int, Int), inps: RunningOptions) = {
+  def newRuleInduction(existingTheory: List[Clause], ex: Example, inps: RunningOptions) = {
 
     val bottomClauses = {
       if (inps.globals.bottomClauses.nonEmpty) inps.globals.bottomClauses // user-provided BCs.
       else {
         val abduce = new ASPWeightedInference(existingTheory, ex, inps)
         val bcs = abduce.abduction().map(x => x.supportSet.head)
-        bcs.foreach(x => x.setTypeAtoms(inps.globals.MODEHS ++ inps.globals.MODEBS))
+        bcs.foreach(x => x.setTypeAtoms(inps.globals.modeHs ++ inps.globals.modeBs))
         bcs
       }
     }
@@ -521,25 +515,6 @@ class WoledASPLearner[T <: InputSource](
       } else accum
     }
     expandedRules
-  }
-
-  /**
-    * Generates new rules directly from the committed mistakes.
-    * This method does not actually use the existing theory.
-    *
-    * Mistakes are head atoms generated from actual prediction mistakes. If non-empty
-    * * there is no abduction and these atoms are used instead.
-    */
-  def generateNewRulesEager(existingTheory: List[Clause], ex: Example, in: RunningOptions) = {
-    val topInit = state.initiationRules.filter(_.body.nonEmpty)
-    val topTerm = state.terminationRules.filter(_.body.nonEmpty)
-    val growNewInit = OldStructureLearningFunctions.growNewRuleTest(topInit, ex, inps.globals, "initiatedAt")
-    val growNewTerm = OldStructureLearningFunctions.growNewRuleTest(topTerm, ex, inps.globals, "terminatedAt")
-    val newInit = if (growNewInit) OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) else Nil
-    val newTerm = if (growNewTerm) OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) else Nil
-    //val newInit = OldStructureLearningFunctions.generateNewRulesOLED(topInit, ex, "initiatedAt", inps.globals) //if (growNewInit) generateNewRules(topInit, e, "initiatedAt", inps.globals) else Nil
-    //val newTerm = OldStructureLearningFunctions.generateNewRulesOLED(topTerm, ex, "terminatedAt", inps.globals) //if (growNewTerm) generateNewRules(topTerm, e, "terminatedAt", inps.globals) else Nil
-    newInit ++ newTerm
   }
 
   /**
@@ -748,8 +723,8 @@ class WoledASPLearner[T <: InputSource](
         /*val c1 = Clause.parseWPB2("terminatedAt(move(X0,X1),X2) :- happensAt(exit(X0),X2)")
         val c2 = Clause.parseWPB2("terminatedAt(move(X0,X1),X2) :- happensAt(exit(X1),X2)")
 
-        c1.setTypeAtoms(inps.globals.MODEHS ++ inps.globals.MODEBS)
-        c2.setTypeAtoms(inps.globals.MODEHS ++ inps.globals.MODEBS)
+        c1.setTypeAtoms(inps.globals.modeHs ++ inps.globals.modeBs)
+        c2.setTypeAtoms(inps.globals.modeHs ++ inps.globals.modeBs)
 
         c1.weight = 1.0
         c2.weight = 1.0
@@ -759,7 +734,8 @@ class WoledASPLearner[T <: InputSource](
         if (trainingDataOptions != testingDataOptions) { // test set given, eval on that
           //theory = reIterateForWeightsOnly(theory)
           val testData = testingDataFunction(testingDataOptions)
-          evalOnTestSet(testData, theory, inps)
+          val tester = new Inference(testData, theory, inps, true)
+          tester.testTheory
         }
       }
     logger.info(s"\nFinished the data")
@@ -804,44 +780,6 @@ class WoledASPLearner[T <: InputSource](
     //println(theory.map(x => s"weight: ${x.weight} precision: ${x.precision} ${x.tostring}").mkString("\n"))
 
     theory //.filter(x => x.precision >= inps.pruneThreshold)
-  }
-
-  def evalOnTestSet(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {
-
-    logger.info("\nEvaluating on the test set...")
-
-    var totalTPs = 0
-    var totalFPs = 0
-    var totalFNs = 0
-
-    testData foreach { _batch =>
-
-      /**
-        * TODO
-        *
-        * I'm doing this here (though we're not using LoMRF) to avoid the
-        * holdsAt(visible) predicate in the input, that messes everything up.
-        * I need to fix this whole thing with counting and problems with holdsAt/2, target predicates etc.
-        * This is related to the meta-rules used for scoring the actual rules.
-        */
-      val batch = WoledMLNLearnerUtils.dataToMLNFormat(_batch, inps)
-
-      val inference = new ASPWeightedInference(rules, batch, inps)
-      inference.performInference()
-      totalTPs += inference.TPs.size
-      totalFPs += inference.FPs.size
-      totalFNs += inference.FNs.size
-    }
-
-    val precision = totalTPs.toDouble / (totalTPs + totalFPs)
-    val recall = totalTPs.toDouble / (totalTPs + totalFNs)
-    val f1 = 2 * (precision * recall) / (precision + recall)
-    val theory = rules.map(x => s"${format(x.weight)} ${x.tostring}").mkString("\n")
-    val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
-    logger.info(msg)
-    println(s"TPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs, training: $trainingTime sec")
-    //println(s"TPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs, TNs: $totalTNs, training: $trainingTime sec, testing: ${testTime._2} sec")
-    trail.app.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
   }
 
 }

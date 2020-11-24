@@ -19,9 +19,8 @@ package trail.learning.incremental
 
 import akka.actor.{Actor, ActorSystem, Props}
 import com.typesafe.scalalogging.LazyLogging
-import trail.app.runutils.{CMDArgs, RunningOptions}
-import trail.datahandling.InputHandling.{FileDataOptions, InputSource}
-import trail.datahandling.{Example, InputHandling}
+import trail.app.runutils.{Example, RunningOptions}
+import trail.app.runutils.InputHandling.InputSource
 import trail.inference.ASPSolver
 import trail.learning.online.Types.Run
 import trail.learning.utils.TheoryRevision
@@ -47,14 +46,14 @@ class HillClimbingTheoryLearner[T <: InputSource](
       this.FNs = 0
     }
     def show = this.clauses.map(_.tostring).mkString("\n")
-    def setTypeAtoms = this.clauses.foreach(_.setTypeAtoms(inps.globals.MODEHS ++ inps.globals.MODEBS))
+    def setTypeAtoms = this.clauses.foreach(_.setTypeAtoms(inps.globals.modeHs ++ inps.globals.modeBs))
   }
 
   type Solutions = Vector[(List[Clause], List[Clause], List[Clause], List[Clause])]
   private def getTrainingData: Iterator[Example] = trainingDataFunction(trainingDataOptions)
   private val BK: String = inps.globals.BK
-  private val headModes = inps.globals.MODEHS
-  private val bodyModes = inps.globals.MODEBS
+  private val headModes = inps.globals.modeHs
+  private val bodyModes = inps.globals.modeBs
   private var currentBestHypothesis = new Theory(Vector.empty[Clause])
 
   private val _bottomClauses: List[Clause] = inps.globals.bottomClauses //generateBCs(headModes, bodyModes, BK) // TODO: in generateBCs need to fix stuff like close(X0,X0,40)
@@ -158,22 +157,23 @@ class HillClimbingTheoryLearner[T <: InputSource](
 
   def evaluateTheory(theory: Theory, e: Example) = {
     val globals = inps.globals
-    val modes = globals.MODEHS ++ globals.MODEBS
+    val modes = globals.modeHs ++ globals.modeBs
 
       def typePreds(lit: Literal) = {
         lit.getVars.map(x => Literal.parse(s"${x._type}(${x.name})")).map(x => x.tostring).mkString(",")
       }
 
     val tnsRules = {
-      globals.EXAMPLE_PATTERNS.map { x =>
+      globals.exmplPatternsVarbed.map { x =>
         val types = typePreds(x)
         s"\ntns(${x.tostring}):- not ${x.tostring}, not example(${x.tostring}), $types.\n"
       }
     }.mkString("\n")
 
-    val coverageConstr = s"${globals.TPS_RULES}\n${globals.FPS_RULES}\n${globals.FNS_RULES}\n$tnsRules"
+    val clingoRules = globals.clingoRules
+    val coverageConstr = clingoRules.tps_fps_fns_tns_defs.mkString("\n")
     val t = theory.clauses.map(x => x.withTypePreds(modes).tostring).mkString("\n")
-    val show = globals.SHOW_TPS_ARITY_1 + globals.SHOW_FPS_ARITY_1 + globals.SHOW_FNS_ARITY_1 + s"\n#show tns/1.\n"
+    val show = s"\n#show.\n#show tps/1.\n#show fps/1.\n#show fns/1.\n#show tns/1."
     val ex = e.toASP().mkString(" ")
     val program = ex + "\n" + globals.BK + t + coverageConstr + show
     val result = ASPSolver.solve(program)
@@ -217,7 +217,7 @@ class HillClimbingTheoryLearner[T <: InputSource](
 
     //val compressedKernel = Theory(accumKernel)
     //compressedKernel
-    accumKernel.foreach(x => x.setTypeAtoms(inps.globals.MODEHS++inps.globals.MODEBS))
+    accumKernel.foreach(x => x.setTypeAtoms(inps.globals.modeHs++inps.globals.modeBs))
     accumKernel
   }*/
 

@@ -21,9 +21,8 @@ import java.text.DecimalFormat
 
 import akka.actor.{Actor, PoisonPill}
 import org.slf4j.{Logger, LoggerFactory}
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
-import trail.datahandling.InputHandling.InputSource
+import trail.app.runutils.{Example, RunningOptions}
+import trail.app.runutils.InputHandling.InputSource
 import trail.learning.online.Types.{FinishedBatch, LocalLearnerFinished, Run, StartOver}
 import trail.learning.utils.LearnUtils
 import trail.logic.{Clause, Literal}

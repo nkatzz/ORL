@@ -273,6 +273,19 @@ case class Literal(
       ) yield x.tostring).mkString(",") + ")"
   }
 
+  def thetaSubsumes(that: Literal) = {
+    val tthis = Clause(head = this, body = Nil)
+    val tthat = Clause(head = that, body = Nil)
+    tthis.thetaSubsumes(tthat)
+  }
+
+  def mathes(that: Literal) = {
+    if (this.predSymbol != that.predSymbol || this.arity != that.arity) false
+    else {
+      val zipped = this.terms zip that.terms
+    }
+  }
+
   /**
     * @return a mode declaration atom that matches this literal.
     *         If none is found, returns the empty mode atom ( ModeAtom("",List() ).
@@ -294,7 +307,7 @@ case class Literal(
         }
       }
 
-    //val (modeHs, modeBs) = modes.partition(x => x.predSymbol == Globals.modeHeadSymbol)
+    //val (modes, modeBs) = modes.partition(x => x.predSymbol == Globals.modeHeadSymbol)
     var out: ModeAtom = ModeAtom("", List())
     this.modeAtom match {
       case ModeAtom("", Nil, false) =>
@@ -312,8 +325,8 @@ case class Literal(
       case _ => this.modeAtom
     }
     if (out == ModeAtom("", List())) {
-      logger.error(s"Cannot find mode declaration for atom: ${this.tostring}. Cannot retrieve variable types.")
-      System.exit(-1)
+      //logger.error(s"Cannot find mode declaration for atom: ${this.tostring}. Cannot retrieve variable types.")
+      //System.exit(-1)
     }
     out
   }

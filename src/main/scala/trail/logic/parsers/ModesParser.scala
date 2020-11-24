@@ -30,8 +30,8 @@ final class ModesParser extends JavaTokenParsers with LazyLogging {
   def number: Parser[String] = floatingPointNumber
   def innerPositionTerms: Parser[List[String]] = "(" ~> repsep(num, ",") <~ ")"
   def naf: Parser[String] = "not " ~ rep("\\s+") ^^ { _ => "not" }
-  def mh: Parser[String] = "modeh" ^^ { x => x }
-  def mb: Parser[String] = "modeb" ^^ { x => x }
+  def mh: Parser[String] = ("head" | "modeh") ^^ { x => x }
+  def mb: Parser[String] = ("body" | "modeb") ^^ { x => x }
   def ep: Parser[String] = "examplePattern" ^^ { x => x }
   def ip: Parser[String] = "inputPredicate" ^^ { x => x }
   def cp: Parser[String] = "comparisonPredicate" ^^ { x => x }

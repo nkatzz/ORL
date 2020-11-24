@@ -27,8 +27,7 @@ import lomrf.mln.inference.ILP
 import lomrf.mln.model.AtomIdentityFunctionOps._
 import lomrf.mln.model.builders.{ConstantsDomainBuilder, EvidenceBuilder}
 import lomrf.mln.model.{KB, MLN}
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
+import trail.app.runutils.{Example, RunningOptions}
 import trail.inference.ASPSolver
 import trail.logic.{Clause, Literal}
 

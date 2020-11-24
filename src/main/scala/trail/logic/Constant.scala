@@ -34,6 +34,8 @@ case class Constant(
 
   //require(!name.toCharArray()(0).isUpper) // Messes with ASP to MLN syntax conversions
 
+  val arity = 0
+
   override def tostring = name
 
   override def tostringQuote = if (plmrk == "-" || plmrk == "#") "\"" + name + "\"" else name

@@ -86,6 +86,11 @@ case class ModeAtom(predSymbol: String, args: List[LogicalExpression], isNAF: Bo
     case _ => if (isNAF) s"not $predSymbol" else predSymbol + "(" + (for (a <- args) yield a.tostring).mkString(",") + ")"
   }
 
+  def totext = {
+    val pred = if (isNAF) s"not $predSymbol" else predSymbol
+    s"$pred(${(for (a <- args) yield a.tostring).mkString(",")})"
+  }
+
   /**
     * Variabilizes a mode declaration atom, i.e. it replaces all in-out-ground placemarkers with fresh variables.
     * The variabilized mode declarations are used in the construction of bottom clauses, in order to generate ground

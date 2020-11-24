@@ -22,8 +22,7 @@ import java.text.DecimalFormat
 import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
-import trail.app.runutils.RunningOptions
-import trail.datahandling.Example
+import trail.app.runutils.{Example, RunningOptions}
 import trail.inference.ASPSolver
 import trail.learning.structure.OldStructureLearningFunctions
 import trail.learning.utils.TheoryRevision
@@ -476,18 +475,17 @@ class ASPWeightedInference(val rules: Seq[Clause], val exmpl: Example,
       val bcsMetaProgram = if (newBCs.nonEmpty) TheoryRevision.ruleInductionMetaProgram(newBCs) else ""
 
       val fnsFpsMinimizeStatement = {
+        val cldirs = inps.globals.clingoRules
         if (newBCs.nonEmpty) {
-          s"fns(holdsAt(F,T)) :- example(holdsAt(F,T)), not holdsAt(F,T), target(holdsAt(F,T))." +
-            s"\nfps(holdsAt(F,T)) :- not example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T))." +
-            s"\ntps(holdsAt(F,T)) :- example(holdsAt(F,T)), holdsAt(F,T), target(holdsAt(F,T))." +
-            s"\n#minimize{1,F,T : fns(holdsAt(F,T)) ; 1,F,T : fps(holdsAt(F,T))}."
+          if (inps.perfectFit) {
+            (cldirs.tps_fps_fns_tns_defs ++ cldirs.hardCoverageConstrs).mkString("\n")
+          } else {
+            (cldirs.tps_fps_fns_tns_defs ++ cldirs.minimizeStatements).mkString("\n")
+          }
         } else ""
       }
 
       val shows = {
-        /*if (newBCs.isEmpty) s"#show holdsAt/2.\n#show satisfied/2."
-        else s"#show holdsAt/2.\n#show satisfied/2.\n#show use/2."*/
-
         if (newBCs.isEmpty) s"\n\ntarget(F,T) :- holdsAt(F,T), fluent(F).\n\n#show holdsAt(F,T):target(F,T).\n#show satisfied/2."
         else s"\n\ntarget(F,T) :- holdsAt(F,T), fluent(F).\n\n#show holdsAt(F,T):target(F,T).\n#show satisfied/2.\n#show use/2."
       }

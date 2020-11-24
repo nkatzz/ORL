@@ -18,10 +18,10 @@
 package trail.learning.online.woledasp
 
 import com.typesafe.scalalogging.LazyLogging
-import trail.app.runutils.CMDArgs
-import trail.datahandling.InputHandling.{FileDataOptions, MongoDataOptions, getMongoData}
-import trail.datahandling.{Example, InputHandling}
-import trail.learning.utils.TheoryTester
+import trail.app.runutils.{CMDArgs, Example, InputHandling}
+import trail.app.runutils.InputHandling.{FileDataOptions, MongoDataOptions, getMongoData}
+import trail.app.runutils.InputHandling
+import trail.inference.Inference
 import trail.logic.Clause
 
 import scala.io.Source
@@ -41,7 +41,7 @@ object CrossValTest extends LazyLogging {
     val argsok = CMDArgs.argsOk(args)
     if (argsok._1) {
 
-      val runningOptions = CMDArgs.getOLEDInputArgs(args)
+      val runningOptions = CMDArgs.parseInputOptions(args)
 
       val source = Source.fromFile("/home/nkatz/tmp/test.lp")
       val rules = source.getLines.
@@ -81,7 +81,7 @@ object CrossValTest extends LazyLogging {
       // ASP
       //ASPWeightedInference.evalOnTestSet(data, rules, runningOptions)
 
-      val tester = new TheoryTester(data, rules, runningOptions, true)
+      val tester = new Inference(data, rules, runningOptions, true)
       tester.testTheory
 
       // MLN

@@ -17,8 +17,7 @@
 
 package trail.learning.online.woledmln
 
-import trail.app.runutils.{Globals, RunningOptions}
-import trail.datahandling.Example
+import trail.app.runutils.{Example, Globals, RunningOptions}
 import trail.inference.ASPSolver
 import trail.learning.online.Types.InferredState
 import trail.learning.structure.OldStructureLearningFunctions
@@ -43,7 +42,7 @@ object WoledMLNLearnerUtils {
       val program = {
         val nar = batch.observations.map(_ + ".").mkString("\n")
         val BK = s"\n${inps.globals.BK}\n"
-        val show = inps.globals.bodyAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
+        val show = inps.globals.modeBAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
         Vector(nar, BK, show)
       }
       // This transforms the actual data into an MLN-compatible form.
@@ -106,7 +105,7 @@ object WoledMLNLearnerUtils {
     val program = {
       val nar = batch.observations.map(_ + ".").mkString("\n")
       val BK = s"\n${inps.globals.BK}\n"
-      val show = inps.globals.bodyAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
+      val show = inps.globals.modeBAtomSignatures.map(x => s"#show ${x.tostring}.").mkString("\n")
       Vector(nar, BK, show)
     }
     val answer = ASPSolver.solve(program.mkString("\n"))
@@ -313,7 +312,7 @@ object WoledMLNLearnerUtils {
 
     val bk = BK
 
-    val modeDecls = inps.globals.MODEHS ++ inps.globals.MODEBS
+    val modeDecls = inps.globals.modeHs ++ inps.globals.modeBs
 
     val zipped = rules zip (1 to rules.length)
     val ruleIdsMap = zipped.map(x => x._2 -> x._1).toMap
@@ -332,7 +331,7 @@ object WoledMLNLearnerUtils {
     }
 
     val totalExmplsCount = {
-      val targetPred = inps.globals.EXAMPLE_PATTERNS.head
+      val targetPred = inps.globals.exmplPatternsVarbed.head
       val tpstr = targetPred.tostring
       val vars = targetPred.getVars.map(x => x.name).mkString(",")
       val typePreds = targetPred.getTypePredicates(modeDecls).mkString(",")
@@ -439,7 +438,7 @@ object WoledMLNLearnerUtils {
   def abduce(examples: Example, inps: RunningOptions, existingRules: List[Clause]) = {
 
     val globals = inps.globals
-    val modes = globals.MODEHS ++ globals.MODEBS
+    val modes = globals.modeHs ++ globals.modeBs
 
     val rules = existingRules.map(x => x.withTypePreds(modes)).map(x => x.tostring).mkString("\n")
 

@@ -25,8 +25,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
 import com.mongodb.{BasicDBList, BasicDBObject}
 import com.typesafe.scalalogging.LazyLogging
-import trail.app.runutils.{Globals, RunningOptions}
-import trail.datahandling.Example
+import trail.app.runutils.{Example, Globals, RunningOptions}
 import trail.learning.online.Types.Theory
 import trail.learning.online.woledmln.WoledMLNLearnerUtils
 import trail.logic.parsers.ClausalLogicParser
@@ -206,7 +205,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
           */
             if (learningTerminatedAtOnly) abdModels.head.atoms.filter(_.contains("terminatedAt")) else abdModels.head.atoms
           //if(learningTerminatedAtOnly) abdModels.head.atoms.filter(_.contains("terminatedAt")) else abdModels.head.atoms.filter(_.contains("initiatedAt"))
-          generateKernel(abduced, examples = examples.map{case (x,y) => (x, y.toSet)}, aspInputFile = aspFile, bkFile = bkFile, globals = globals)
+          generateKernel(abduced, examples = examples.map{ case (x, y) => (x, y.toSet) }, aspInputFile = aspFile, bkFile = bkFile, globals = globals)
         } else {
           return (List.empty[Clause], List.empty[Clause])
           //return iterativeSearch(abdModels, examples, kernelSetOnly, bkFile, globals) // this is used from ILED to find a kernel with iterative search
@@ -280,14 +279,14 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     val aspFile: File = getTempFile("aspinput", ".lp", "", deleteOnExit = true)
 
-    val modeDeclarations = globals.MODEHS ++ globals.MODEBS
-    val varbedExmplPatterns = globals.EXAMPLE_PATTERNS
+    val modeDeclarations = globals.modeHs ++ globals.modeBs
+    val varbedExmplPatterns = globals.exmplPatternsVarbed
 
       def getASPinput() = {
-        globals.MODEHS match {
+        globals.modeHs match {
           case Nil => throw new RuntimeException("No Mode Declarations found.")
           case _ =>
-            val varbedMHAtoms = globals.MODEHS map (x => x.varbed)
+            val varbedMHAtoms = globals.modeHs map (x => x.varbed)
             val generate: List[String] = varbedMHAtoms.map(
               x => s"{${x.tostring}} :- " + x.typePreds.mkString(",") + ".")
             // Generate minimize statement
@@ -325,7 +324,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
             val modeMatchingProgram =
               if (useMatchModesProgram)
-                matchModesProgram(globals.MODEHS.map(x => x.varbed))
+                matchModesProgram(globals.modeHs.map(x => x.varbed))
               else List()
 
             toASPprogram(
@@ -364,7 +363,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     //val bkFile = globals.BK_WHOLE_EC
 
-    val modes = globals.MODEHS ++ globals.MODEBS
+    val modes = globals.modeHs ++ globals.modeBs
 
       def replaceQuotedVars(x: String) = {
         val varPattern = "\"([A-Z][A-Za-z0-9_])*\"".r
@@ -389,20 +388,20 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
             arg = x.asInstanceOf[Constant].name
           ) yield s"$pred($arg)."
 
-        val mapping = (globals.MODEBS map (x => (globals.MODEBS.indexOf(x), x))).toMap
+        val mapping = (globals.modeBs map (x => (globals.modeBs.indexOf(x), x))).toMap
         val groundModes =
           for (
-            x <- globals.MODEBS;
+            x <- globals.modeBs;
             varb = x.varbed;
             quoted = x.varbed.tostringQuote;
             quoatedNoNeg = x.varbed.nonNegated.tostringQuote;
             filtered = filterout(quoted, "\"([A-Za-z0-9_])*\"".r, varb.typePreds)
           ) yield // surround with triple quotes to allow double quotes in the string
-          //s"""ground(${globals.MODEBS.indexOf(x)},$quoatedNoNeg) :- ${filterout(quoted, "\"([A-Za-z0-9_])*\"".r, varb.typePreds).mkString(",")}."""
+          //s"""ground(${globals.modeBs.indexOf(x)},$quoatedNoNeg) :- ${filterout(quoted, "\"([A-Za-z0-9_])*\"".r, varb.typePreds).mkString(",")}."""
           if (filtered.nonEmpty) {
-            s"""ground(${globals.MODEBS.indexOf(x)},$quoatedNoNeg) :- ${filtered.mkString(",")}."""
+            s"""ground(${globals.modeBs.indexOf(x)},$quoatedNoNeg) :- ${filtered.mkString(",")}."""
           } else {
-            s"""ground(${globals.MODEBS.indexOf(x)},$quoatedNoNeg) :- #true."""
+            s"""ground(${globals.modeBs.indexOf(x)},$quoatedNoNeg) :- #true."""
           }
 
         toASPprogram(
@@ -434,14 +433,14 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
 
     //println(abdModel)
 
-    val modeDecl = globals.MODEHS ++ globals.MODEBS
+    val modeDecl = globals.modeHs ++ globals.modeBs
 
     // Map[Modes.ModeAtom, List[(Modes.ModeAtom, Expression)]]
     val abducedAtoms: List[Literal] = for (
       x <- abdModel;
       tolit = Literal.parse(x);
       (atom, modeAtom) = try {
-        (tolit.terms(1), globals.MODEHS(tolit.terms.head.asInstanceOf[Constant].name.toInt - 1))
+        (tolit.terms(1), globals.modeHs(tolit.terms.head.asInstanceOf[Constant].name.toInt - 1))
       } catch {
         case e: java.lang.ClassCastException => (tolit, tolit.matchingMode(modeDecl))
       }
@@ -463,7 +462,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
             (queryList, mAtom) <- queries;
             show = queryList map (x => replaceQuotedVars(x)) map (x =>
               //"\n#show " + "ifTrue("+Core.modebs.indexOf(mAtom)+","+x+")" + ":" + (if (!mAtom.isNAF) x else "not "+x) + ".\n")
-              s"\n#show ifTrue(${globals.MODEBS.indexOf(mAtom)},$x) : ${if (!mAtom.isNAF) x else "not " + x}, ${Literal.types(x, mAtom, modes)}.")
+              s"\n#show ifTrue(${globals.modeBs.indexOf(mAtom)},$x) : ${if (!mAtom.isNAF) x else "not " + x}, ${Literal.types(x, mAtom, modes)}.")
           ) yield show).flatten
 
         val program = abdModel.map(x => x + ".")
@@ -478,7 +477,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
         solution = solveASP("deduction", aspInputFile.getCanonicalPath)
         if (solution.nonEmpty) {
           val f = (x: (LogicalExpression, LogicalExpression)) => {
-            val mode = globals.MODEBS(x._1.asInstanceOf[Constant].name.toInt)
+            val mode = globals.modeBs(x._1.asInstanceOf[Constant].name.toInt)
             val lit =
               if (mode.isNAF) {
                 Literal.toLiteral2(x._2.asInstanceOf[Literal]).negated
@@ -721,7 +720,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       withCWA: String = Globals.glvalues("cwa"),
       checkConsistencyOnly: Boolean = false, globals: Globals): List[String] = {
 
-    val varbedExmplPatterns = globals.EXAMPLE_PATTERNS_AS_STRINGS
+    val varbedExmplPatterns = globals.exmplPatternsVarbed map (_.tostring)
     varbedExmplPatterns.flatMap(x =>
       Globals.glvalues("cwa") match {
         // CWA on the examples:
@@ -898,81 +897,6 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
     val debug = scala.io.Source.fromFile(writeTo).mkString
   }
 
-  def growNewRuleTest(clauses: Theory, e: Example, globals: Globals, what: String): Boolean = {
-
-    val targetClass = what
-
-      def solve(program: String): List[AnswerSet] = {
-        val f = getTempFile(s"growNewRuleTest-for-$targetClass", ".lp")
-        writeToFile(f, "append")(p => List(program) foreach p.println)
-        val path = f.getCanonicalPath
-
-        solveASP(Globals.GROW_NEW_RULE_TEST, path)
-      }
-
-    val (includeBKfile, failedTestDirective, show) = {
-      targetClass match {
-        // If we are learning the initiatedAt part of the the theory, then we must start growing
-        // a new rule if we have FNs, i.e. no initiatedAt rule in the current hypothesis fires,
-        // and fluents are not initiated when they should.
-        case "initiatedAt" =>
-          if (Globals.glvalues("with-inertia").toBoolean) {
-            (globals.INCLUDE_BK(globals.INITIATED_ONLY_INERTIA), globals.FNS_RULES, globals.SHOW_FNS_ARITY_1)
-          } else {
-            (globals.INCLUDE_BK(globals.BK_INITIATED_ONLY), globals.FNS_RULES, globals.SHOW_FNS_ARITY_1)
-          }
-
-        // If we are learning the terminatedAt part of the the theory, then we must start growing
-        // a new rule if we have FPs, i.e. no terminatedAt rule in the current hypothesis fires,
-        // and fluents are not terminated when they should.
-        case "terminatedAt" =>
-          (globals.INCLUDE_BK(globals.BK_TERMINATED_ONLY), globals.FPS_RULES, globals.SHOW_FPS_ARITY_1)
-        // In this case no theory has been generated yet. We therefore check if the current example
-        // satisfies the empty theory with the plain isSAT method. To do that, we use the whole set
-        // of EC axioms in the BK. Also, coverage directives (normally fps, tns etc) are coverage
-        // constraints here, forcing the SOLVER to try to satisfy them and getting back an UNSAT program in case of failure.
-        // Note that we use no #show here.
-        case "empty" =>
-          // the target is taken from the method's input here.
-          (if (targetClass == "initiatedAt") globals.INCLUDE_BK(globals.BK_INITIATED_ONLY)
-          else globals.INCLUDE_BK(globals.BK_TERMINATED_ONLY),
-            if (targetClass == "initiatedAt") globals.CONSTRAINT_COVER_ALL_POSITIVES
-            else globals.CONSTRAINT_EXCLUDE_ALL_NEGATIVES, "") // no #show
-      }
-    }
-
-    val modes = globals.MODEHS ++ globals.MODEBS
-    val existingTheory = clauses.map(x => x.withTypePreds(modes).tostring).mkString("\n")
-
-    val ex = e.toASP().mkString("\n")
-
-    val program = ex + includeBKfile + existingTheory + failedTestDirective + show
-    // Fail if either one of the existing rules
-    val failure = (atoms: List[String]) =>
-      if (targetClass != "empty")
-        targetClass match {
-          case "initiatedAt" => atoms.exists(p => p.startsWith("fns"))
-          case "terminatedAt" => atoms.exists(p => p.startsWith("fps"))
-        }
-      else atoms.head == globals.UNSAT // then the example does not satisfy the empty theory. No rules are needed.
-
-    //val timeStart = System.nanoTime()
-
-    val answerSet = solve(program)
-
-    //val timeEnd = System.nanoTime()
-
-    //println(s"growNewRuleTest solving time: ${(timeEnd-timeStart)/1000000000.0}")
-
-    answerSet.nonEmpty match {
-      case true =>
-        val atoms = answerSet.head.atoms
-        if (failure(atoms)) true
-        else false
-      case _ => false
-    }
-  }
-
   /*def growNewRuleTest(clauses: List[Clause], e: Example, globals: Globals): Boolean = {
     // we already have the target with the input (the target parameter).
     // But the one from the input is used only in case of an empty theory. In
@@ -1031,7 +955,7 @@ object OldStructureLearningFunctions extends ASPResultsParser with LazyLogging {
       }
     }
 
-    val modes = globals.MODEHS++globals.MODEBS
+    val modes = globals.modeHs++globals.modeBs
     val t = clauses.map(x => x.withTypePreds(modes).tostring).mkString("\n")
 
     // Getting exmplWithInertia here does not cause problems (in the initiated case). See comments at CaviarUtils.getDataAsChunks
