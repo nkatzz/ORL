@@ -59,6 +59,8 @@ object ASPSolver extends ClausalLogicParser with LazyLogging {
     val res = command.mkString(" ").lineStream_!
     val results = res.toVector
 
+    val stop = "stop"
+
     val status = {
       val statusLine = results.filter(x =>
         x.contains("SATISFIABLE") || x.contains("UNSATISFIABLE") || x.contains("OPTIMUM FOUND"))

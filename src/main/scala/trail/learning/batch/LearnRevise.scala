@@ -49,17 +49,24 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
   //var _bottomClauses: List[Clause] = generateBCs(headModes, bodyModes, bk)
 
   var _bottomClauses: List[Clause] = {
-    //BRGenerator.generateBRs(modehs, modebs, domainConstants)
     val modehs = inps.globals.modeHs
     val modebs = inps.globals.modeBs
     val domainConstants = inps.globals.constsExtractor.domainConstants
     BRGenerator.generateBRs(modehs, modebs, domainConstants)
+
+    /*val BCLines = inps.globals.modes.filter(x => x.startsWith("<bottom>"))
+    BCLines map { line =>
+      val rule = line.split("<bottom>")(1)
+      val parsed = Clause.parseWPB2(rule)
+      parsed.setTypeAtoms(headModes ++ bodyModes)
+      parsed
+    }*/
   }
 
-  //var bottomClauses = _bottomClauses ++ _bottomClauses ++ _bottomClauses
-  var bottomClauses = _bottomClauses
+  var bottomClauses = _bottomClauses //++ _bottomClauses
 
   var mistakes = 0
+  var totalInductionTime = 0.0
   var iterativeDeepeningStop = false
   val existingTheory: List[Clause] = LearnUtils.parseTheoryFromFile(inps, inps.inputTheory)
   existingTheory.foreach(x => setBCs(x, bottomClauses))
@@ -68,7 +75,6 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
   def learnRevise() = {
 
-    var allTheories = Vector.empty[Theory]
     var ind = List.empty[Clause]
     var ref = List.empty[Clause]
     var ret = List.empty[Clause]
@@ -77,9 +83,11 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
     while (!iterativeDeepeningStop) {
 
-      val solutions = TheoryRevision.revise(existingTheory.map(x => (x, 0)), bottomClauses, exmpl, inps)
+      val solutions = trail.app.utils.Utils.time{ TheoryRevision.revise(existingTheory.map(x => (x, 0)), bottomClauses, exmpl, inps) }
 
-      val (inducedRules, refinedRules, retainedRules, removedRules) = solutions.head
+      val (inducedRules, refinedRules, retainedRules, removedRules) = solutions._1.head
+      val inductionTime = solutions._2
+      totalInductionTime += inductionTime
 
       if (savePath != "")
         trail.app.utils.Utils.dumpToFile((inducedRules ++ refinedRules ++ retainedRules).map(_.tostring).mkString("\n"), savePath)
@@ -95,22 +103,29 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
       val wholeTheory = inducedRules ++ refinedRules ++ retainedRules
       val wholeTheoryMsg = wholeTheory.map(_.tostring).mkString("\n")
-      val r = evaluateTheory(wholeTheory.toList, exmpl)
+      val r = evaluateTheory(wholeTheory, exmpl)
+
+      val timeMsg =
+        if (inps.clingoTimeLimmit == 100000) s"Induction time: $inductionTime sec"
+        else s"Induction time: $inductionTime sec (time limit ${inps.clingoTimeLimmit} sec)"
+
       val performanceMsg = s"\nPerformance on training set: TPs: ${r._1.size}, FPs: ${r._2.size}, " +
         s"FNs: ${r._3.size}"
 
-      val actualFPsMsg = if (r._2.nonEmpty) s"FPs: ${r._2.mkString(" ")}" else ""
-      val actualFNsMsg = if (r._3.nonEmpty) s"FNs: ${r._3.mkString(" ")}" else ""
+      //val actualFPsMsg = if (r._2.nonEmpty) s"FPs: ${r._2.mkString(" ")}" else ""
+      //val actualFNsMsg = if (r._3.nonEmpty) s"FNs: ${r._3.mkString(" ")}" else ""
 
       val currentMistakes = r._2.size + r._3.size
+
       if (currentMistakes == mistakes) iterativeDeepeningStop = true
+
       mistakes = currentMistakes
 
       val msg = {
         if (!inps.findAllOpt) {
           List(inducedRulesMsg, refinedRulesMsg, retainedRulesMsg, removedRulesMsg).filter(_ != "").mkString("\n")
         } else {
-          val ts = getAllSolutionTheories(solutions)
+          val ts = getAllSolutionTheories(solutions._1)
           val x = (ts zip (1 to ts.length)).map(t => s"Theory ${t._2}:\n${t._1.map(_.tostring).mkString("\n")}").mkString("\n")
           val m = s"${underline("All optimal solutions:")}\n$x"
           /*val m = s"${underline("All optimal solutions:")}\n${ts zip (1 to ts.length).map
@@ -120,17 +135,20 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
       }
 
-      //logger.info(s"\n${underline(s"Try $iteration (bottom theory size = ${bottomClauses.size})")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
-      logger.info(s"\n${underline(s"Try $iteration:")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
+      logger.info(s"\n${underline(s"Try $iteration (bottom theory size = ${bottomClauses.size})")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$timeMsg") //\n$actualFPsMsg\n$actualFNsMsg")
+      //logger.info(s"\n${underline(s"Try $iteration:")}\n$msg\n${underline("Final theory:")}\n$wholeTheoryMsg\n$performanceMsg\n$actualFPsMsg\n$actualFNsMsg")
 
       ind = inducedRules.toList
       ref = refinedRules
       ret = retainedRules
       rem = removedRules
-      bottomClauses = bottomClauses ++ bottomClauses
+
+      increaseBottomTheory
+
       iteration += 1
     }
 
+    logger.info(s"Total time: $totalInductionTime sec")
     (ind, ref, ret, rem)
   }
 
@@ -167,24 +185,7 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
     (tps, fps, fns)
   }
 
-  def readDataToExmpl(dataPath: String) = {
-
-    LearnUtils.readDataToExmpl(dataPath, inps, logger)
-
-    /*def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
-    val source = Source.fromFile(dataPath)
-    val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%")).toList
-    val tostr = list.mkString(" ")
-
-    val (queryAtoms, observationAtoms) = InputDataParser.parseData(tostr, inps)
-    source.close
-    if (queryAtoms.isEmpty) logger.warn("No query atoms found!")
-    Example(queryAtoms.map(_.tostring), observationAtoms.map(_.tostring) + "holdsAt(alive,0)", "0")*/
-
-    //val (annotation, narrative) = InputHandling.splitData(list, inps.targetConcepts)
-    //source.close
-    //Example(annotation.toList, narrative.toList, "0")
-  }
+  def readDataToExmpl(dataPath: String) = LearnUtils.readDataToExmpl(dataPath, inps, logger)
 
   def setBCs(clause: Clause, BCs: List[Clause]) = {
     val loop = new Breaks
@@ -196,6 +197,22 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
         }
       }
     }
+  }
+
+  def increaseBottomTheory = {
+
+    // This is used to increase (double) the size of the bottom theory, in order
+    // to find better solutions. It is necessary to copy th BCs (create an new object from each).
+    // Otherwise (if I do e.g. bottomClauses = bottomClauses ++ bottomClauses) then the ids are the same
+    // adn essentially during induction we just have the same clause twice into the program, which makes no
+    // difference, we'll end-up with same solutions as if we hadn't increase the bottom theory size.
+    val bcCopies = bottomClauses.map{ x =>
+      val copy = Clause(head = x.head, body = x.body)
+      copy.setTypeAtoms(headModes ++ bodyModes)
+      copy
+    }
+
+    bottomClauses = bottomClauses ++ bcCopies
   }
 
 }

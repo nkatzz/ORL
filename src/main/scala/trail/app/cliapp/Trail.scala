@@ -20,6 +20,7 @@ package trail.app.cliapp
 import com.typesafe.scalalogging.LazyLogging
 import trail.app.LearnRevise
 import trail.app.runutils.{Argument, CMDArgs, RunningOptions, Task}
+import trail.inference.Inference
 import trail.learning.utils.LearnUtils
 import trail.logic.Clause
 
@@ -32,9 +33,9 @@ object Trail extends LazyLogging {
     if (task == CMDArgs.learnrev) {
       LearnRevise.main(args)
     } else if (task == CMDArgs.infer) {
-
+      runInference(inps)
     } else {
-      ???
+      println("Other options is work in progess")
     }
     /*if (inps.task.isEmpty) {
       showGeneralInfo()
@@ -42,7 +43,7 @@ object Trail extends LazyLogging {
     }*/
   }
 
-  def getInputForInference(inps: RunningOptions) = {
+  def runInference(inps: RunningOptions) = {
     if (inps.entryPath == "") {
       logger.error("No BK & mode declarations (re-run with --inpath=<path to directory with 'bk' & 'modes' files>)")
       System.exit(-1)
@@ -53,6 +54,9 @@ object Trail extends LazyLogging {
     }
     val rules = LearnUtils.parseTheoryFromFile(inps, inps.inputTheory)
     val probInference = rules.exists(r => r.weight != Clause.leastWeight)
+    val testData = LearnUtils.readDataToExmpl(inps.test, inps, logger)
+    val inference = new Inference(Iterator(testData), rules, inps, probInference)
+    inference.testTheory
   }
 
   def showOptions(args: Vector[Argument], task: String = "") = {

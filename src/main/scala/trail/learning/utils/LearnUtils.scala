@@ -52,7 +52,7 @@ object LearnUtils {
   }
 
   def readDataToExmpl(dataPath: String, inps: RunningOptions, logger: Logger) = {
-    def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
+      def matches(p: Regex, str: String) = p.pattern.matcher(str).matches
     val source = Source.fromFile(dataPath)
     val list = source.getLines.filter(line => !matches("""""".r, line) && !line.startsWith("%")).toList
     val tostr = list.mkString(" ")

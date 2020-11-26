@@ -65,8 +65,8 @@ class Inference(
     val f1 = 2 * (precision * recall) / (precision + recall)
     val theory = rules.map(x => s"${format(x.weight)} ${x.tostring}").mkString("\n")
     val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
-    logger.info(msg)
     trail.app.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
+    logger.info(msg)
   }
 
   def crispInference(testData: Iterator[Example], rules: List[Clause], inps: RunningOptions) = {
@@ -109,8 +109,8 @@ class Inference(
     val f1 = 2 * (precision * recall) / (precision + recall)
     val theory = rules.map(x => s"${x.tostring}").mkString("\n")
     val msg = s"\nTheory:\n$theory\nF1-score on test set: $f1\nTPs: $totalTPs, FPs: $totalFPs, FNs: $totalFNs"
-    logger.info(msg)
     trail.app.utils.Utils.dumpToFile(msg, s"${inps.entryPath}/crossval-results", "append")
+    logger.info(msg)
   }
 
 }

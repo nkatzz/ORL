@@ -101,6 +101,7 @@ object CMDArgs extends LazyLogging {
     val perfectFit = getMatchingArgumentValue("--perfect-fit") //.toString
     val data = getMatchingArgumentValue("--data")
     val inferenceMode = getMatchingArgumentValue("--mode")
+    val clingoTimeLimit = getMatchingArgumentValue("--clingo-time-limit")
 
     // Check if Clingo is OK
     import scala.sys.process._
@@ -188,7 +189,7 @@ object CMDArgs extends LazyLogging {
       adaLossFunction.toString, withEventCalculus.toString.toBoolean, saveTheoryTo.toString, test.toString,
       ruleLearningStrategy.toString, infoGainAtLeast.toString.toDouble, inputTheory.toString,
       removeRules.toString.toBoolean, debug.toString.toBoolean, clingo, findAllOpt.toString.toBoolean,
-      perfectFit.toString.toBoolean, data.toString, task, inferenceMode.toString)
+      perfectFit.toString.toBoolean, data.toString, task, inferenceMode.toString, clingoTimeLimit.toString.toInt)
 
     inps
   }
@@ -258,7 +259,7 @@ object CMDArgs extends LazyLogging {
     Argument(
       name      = "--train",
       valueType = "String",
-      text      = "Training set location. Refer to the manual on more information on how to pass data into TRAIL.",
+      text      = "Training set location.",
       default   = "None",
       List(learnrev, inclearn, oled, woled, wlearn)
     ),
@@ -266,7 +267,7 @@ object CMDArgs extends LazyLogging {
     Argument(
       name      = "--data",
       valueType = "String",
-      text      = "Data source location (used for inference). Refer to the manual on more information on how to pass data into TRAIL.",
+      text      = "Data source location (used for inference).",
       default   = "None",
       List(infer)
     ),
@@ -274,7 +275,7 @@ object CMDArgs extends LazyLogging {
     Argument(
       name      = "--test",
       valueType = "String",
-      text      = "Testing set location. Refer to the manual on more information on how to test models with TRAIL.",
+      text      = "Testing set location.",
       default   = "None",
       List(learnrev, inclearn, oled, woled, wlearn)
     ),
@@ -306,6 +307,14 @@ object CMDArgs extends LazyLogging {
         " it is rarely useful with these strategies."*/
       default = "false",
       List(learnrev, inclearn, oled, woled)
+    ),
+
+    Argument(
+      name      = "--clingo-time-limit",
+      valueType = "Int",
+      text      = "Max allowed time for Clingo (sec).",
+      default   = "100000",
+      List(infer, learnrev, inclearn, oled, woled, wlearn)
     ),
 
     Argument(
@@ -729,5 +738,6 @@ class RunningOptions(
     val perfectFit: Boolean,
     val data: String,
     val task: String,
-    val mode: String)
+    val mode: String,
+    val clingoTimeLimmit: Int)
 

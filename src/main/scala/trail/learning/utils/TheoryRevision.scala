@@ -72,7 +72,8 @@ object TheoryRevision {
     }
 
     val trMetaProgram = s"${data.toASP().mkString(" ")}\n\n$inductionProgram\n\n$refinementProgram\n\n$include\n\n$fnsFpsMinimizeStatement\n\n$show"
-    val options = if (inps.findAllOpt) "--opt-mode=optN --opt-strategy=usc" else "--opt-mode=opt --opt-strategy=usc"
+    val timeLim = if (inps.clingoTimeLimmit == 100000) "" else s"--time-limit=${inps.clingoTimeLimmit}"
+    val options = if (inps.findAllOpt) s"--opt-mode=optN --opt-strategy=usc $timeLim" else s"--opt-mode=opt --opt-strategy=usc $timeLim"
 
     if (inps.debug) {
       val msg = s"% Run as:\n% clingo $options ${inps.entryPath}/debug"

@@ -1,0 +1,10 @@
+examplePattern(holdsAt(#fluent,+time))
+
+modeh(initiatedAt(#fluent,+time))
+modeh(terminatedAt(#fluent,+time))
+
+modeb(holdsAt(#fluent,+time))
+modeb(happensAt(#event,+time))
+
+inputPredicate(happensAt(#event,+time))
+inputPredicate(initially(#fluent))

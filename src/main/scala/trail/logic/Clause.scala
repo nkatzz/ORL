@@ -58,7 +58,7 @@ object Clause {
   def parse(cl: String, modeDeclarations: List[ModeAtom] = Nil) = {
     val clause = {
       if (Character.isDigit(cl.charAt(0))) {
-        val weight = cl.split(" ")(0)
+        val weight = cl.split("\\s")(0)
         val rule = cl.split(weight)(1).trim
         val parsed = parseWPB2(rule)
         parsed.weight = weight.toDouble

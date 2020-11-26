@@ -18,8 +18,8 @@
 package trail.app.runutils
 
 import java.io.PrintWriter
-
 import com.typesafe.scalalogging.LazyLogging
+import trail.learning.utils.searchspace.BRGenerator
 import trail.logic.lookaheads.LookAheadUtils
 import trail.logic.parsers.ModesParser
 import trail.logic._
@@ -136,6 +136,11 @@ class Globals(val entryPath: String) extends LazyLogging {
     * <bottom>p(X,Y) :- q(X,Z),r(Z,Y),...<bottom>
     */
   lazy val bottomClauses: List[Clause] = {
+    /*TODO: Need to find a way to construct the modes-driven BCs here.
+    *  The problem for now is that we need the domain constants and to get those we
+    *  need to to call GlobalConstantsExtractor, which is called after the BK is generated
+    *  (because it needs it as input. It's a kind of a vicious circle.
+    *  FIX THAT!!!)*/
     val BCLines = modes.filter(x => x.startsWith("<bottom>"))
     BCLines map { line =>
       val rule = line.split("<bottom>")(1)
@@ -154,8 +159,8 @@ class Globals(val entryPath: String) extends LazyLogging {
   var BK = ""
 
   def generateBK() = {
-    val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
-    val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
+    //val EC_AXIOM_1 = "holdsAt(F,Te) :- initiatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
+    //val EC_AXIOM_2 = "holdsAt(F,Te) :- holdsAt(F,Ts), not terminatedAt(F,Ts), fluent(F), not sdFluent(F), next(Ts, Te)."
 
     val NEXT_PY =
       """
@@ -183,7 +188,7 @@ class Globals(val entryPath: String) extends LazyLogging {
       s"target(${pattern.tostring}) :- ${pattern.typePreds.mkString(",")}."
     }.mkString("\n")
 
-    val CORE_EVENT_CALCULUS_BK = List(EC_AXIOM_1, EC_AXIOM_2, NEXT_PY, target).mkString("\n")
+    //val CORE_EVENT_CALCULUS_BK = List(EC_AXIOM_1, EC_AXIOM_2, NEXT_PY, target).mkString("\n")
     val userBK = Source.fromFile(USER_BK).getLines.toList.mkString("\n")
     // Type axioms:
     val tas = modesInfoParser.typeAxioms.mkString("\n")

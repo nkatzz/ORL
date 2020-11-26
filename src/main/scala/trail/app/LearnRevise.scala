@@ -31,25 +31,12 @@ object LearnRevise extends App with LazyLogging {
     logger.info(s"\nPerformance on test set: TPs: ${tps.size}, FPs: ${fps.size}, FNs: ${fns.size}")
 
   } else {
-    // Learning/revising.
+    // Learning.
     val learner = new LearnRevise(inps)
-    val (inducedRules, refinedRules, retainedRules, removedRules) = learner.learnRevise()
+    val t = trail.app.utils.Utils.time{ learner.learnRevise() }
+    //logger.info(s"Total time: ${t._2}")
+    //logger.info(s"Total time(from the LearnRevise class): ${learner.totalInductionTime}")
+    //val (inducedRules, refinedRules, retainedRules, removedRules) = learner.learnRevise()
   }
-
-  /*def main(args: Array[String]) = {
-    val inps = CMDArgs.parseInputOptions(args)
-    if (inps.test != "None") {
-      // Testing an existing theory
-      val learner = new LearnRevise(inps)
-      val (tps, fps, fns) = learner.evaluateTheory(learner.existingTheory, learner.exmpl)
-      logger.info(s"\nPerformance on test set: TPs: ${tps.size}, FPs: ${fps.size}, FNs: ${fns.size}")
-
-    } else {
-      // Learning/revising.
-      val learner = new LearnRevise(inps)
-      val (inducedRules, refinedRules, retainedRules, removedRules) = learner.learnRevise()
-    }
-    println("Done.")
-  }*/
 
 }
