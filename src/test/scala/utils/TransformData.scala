@@ -1,6 +1,5 @@
 package utils
 
-import trail.app.runutils.InputDataParser
 import trail.logic.{Clause, Literal}
 
 import scala.io.Source

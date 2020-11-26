@@ -18,10 +18,10 @@
 package trail.app.runutils
 
 import java.io.File
-
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.{MongoClient, MongoCollection}
 import com.typesafe.scalalogging.LazyLogging
+import trail.logic.parsers.PB2LogicParser
 
 import scala.io.Source
 
@@ -30,6 +30,19 @@ import scala.io.Source
   */
 
 object InputHandling extends LazyLogging {
+
+  /**
+    * Parses data in a training set (for the one-shot learning case), or in a mini-batch
+    * (for the incremental/online case) and discriminates between evidence and query atoms.
+    * It also generates and Example object from the input (mini-) batch.
+    */
+
+  def parseInputData(input: String, inps: RunningOptions) = {
+    val inputAtoms = PB2LogicParser.parseInputData(input)
+    val targetAtoms = inps.globals.exmplPatternsVarbed
+    val (queryAtoms, observationAtoms) = inputAtoms.partition(x => targetAtoms.exists(y => y.thetaSubsumes(x)))
+    (queryAtoms, observationAtoms)
+  }
 
   trait InputSource
 

@@ -18,16 +18,13 @@
 package trail.learning.batch
 
 import com.typesafe.scalalogging.LazyLogging
-import trail.app.runutils.{Example, InputDataParser, RunningOptions}
+import trail.app.runutils.{Example, RunningOptions}
 import trail.inference.ASPSolver
 import trail.learning.utils.{LearnUtils, TheoryRevision}
 import trail.logic.{Clause, Literal}
 import trail.app.utils.Utils.underline
 import trail.learning.utils.searchspace.BRGenerator
-
-import scala.io.Source
 import scala.util.control.Breaks
-import scala.util.matching.Regex
 
 class LearnRevise(inps: RunningOptions) extends LazyLogging {
 
@@ -166,10 +163,8 @@ class LearnRevise(inps: RunningOptions) extends LazyLogging {
     val modes = inps.globals.modeHs ++ inps.globals.modeBs
     val t = theory.map(x => x.withTypePreds(modes).tostring).mkString("\n")
     val e = exmpl.toASP().mkString("\n")
-    val counts = s"tp(holdsAt(F,T)) :- holdsAt(F,T), example(holdsAt(F,T)), target(holdsAt(F,T))." +
-      s"\nfp(holdsAt(F,T)) :- holdsAt(F,T), not example(holdsAt(F,T)), target(holdsAt(F,T))." +
-      s"\nfn(holdsAt(F,T)) :- not holdsAt(F,T), example(holdsAt(F,T)), target(holdsAt(F,T))."
-    val shows = s"#show.\n#show tp/1.\n#show fp/1.\n#show fn/1.\n"
+    val counts = inps.globals.clingoRules.tps_fps_fns_tns_defs.mkString("\n")
+    val shows = s"#show.\n#show tps/1.\n#show fps/1.\n#show fns/1.\n"
     val program = s"$bk\n$t\n$e\n$counts\n$shows"
     val result = ASPSolver.solve(program)
     val atom = (x: String) => Literal.parseWPB2(x).terms.head.tostring

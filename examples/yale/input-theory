@@ -1,5 +1,0 @@
-initiatedAt(dead,X1) :- holdsAt(loaded,X1).
-terminatedAt(loaded,X1) :- happensAt(shoot,X1).
-initiatedAt(loaded,X1) :- happensAt(load,X1).
-%terminatedAt(dead,X1) :- happensAt(load,X1).
-%initiatedAt(loaded,X1) :- happensAt(load,X1),happensAt(shoot,X1).
